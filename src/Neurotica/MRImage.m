@@ -1,4 +1,4 @@
-(* Image.m
+(* MRImage.m
  *
  * Utility functions for dealing with (mostly FreeSurfer) cortical volume image data in Mathematica.
  *
@@ -18,9 +18,9 @@
  *)
 
 (**************************************************************************************************)
-BeginPackage["Neurotica`Image`", {"Neurotica`Global`", "Neurotica`Util`"}];
-Unprotect["Neurotica`Image`*", "Neurotica`Image`Private`*"];
-ClearAll["Neurotica`Image`*", "Neurotica`Image`Private`*"];
+BeginPackage["Neurotica`MRImage`", {"Neurotica`Global`", "Neurotica`Util`"}];
+Unprotect["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
+ClearAll["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
 
 MeshVertexToVoxelIndex::usage = "MeshVertexToVoxelIndex[p, voldims] gives a translation of the surface point p ({x, y, z}) to an index ({i, j, k}) such that rounding the index values will give an approximate position of the surface point in the volume with dims given in voldims. If not provided, then voldims is taken to ba {256, 256, 256}. The first argument may also be a list of points, in which case the equivalent list of indices is returned.
 Note that this method is intended to work with typically processed FreeSurfer volumes and surfaces and is not designed for other programs or for volumes that are used as input to FreeSurfer.";

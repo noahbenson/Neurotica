@@ -26,7 +26,7 @@ BeginPackage[
    "Neurotica`Coordinates`",
    "Neurotica`Mesh`",
    "Neurotica`Registration`",
-   "Neurotica`Image`",
+   "Neurotica`MRImage`",
    "Neurotica`FreeSurfer`"}];
    (*"Neurotica`VisualCortex`",*)
    (*"Neurotica`MEG`",*)
