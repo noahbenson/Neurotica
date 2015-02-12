@@ -51,11 +51,7 @@ A cortical mesh resembles both a graph object and a boundary mesh region object.
   * Graph[mesh] yields a pure graph object for the mesh.
   * Most graph functions work natively with cortical meshes; e.g., FindShortestPath, BetweennessCentrality, and GraphRadius all work with cortical meshes in the first argument slot.
   * BoundaryMeshRegion[mesh] yields a pure boundary mesh object version of the mesh.
-  * 3D Graphics: CorticalMesh[] accepts any option that can be passed to Graphics3D; these options will be used as default values when plotting the cortical mesh. The options may be accessed via Options[mesh] and may be changed (when using Clone) with Options -> {new-options}; Options -> Automatic will reset the options to the defaults accepted by Graphics3D with the following differences: Lighting -> \"Neutral\", ColorFunction -> None, ColorFunctionScaling -> False, Boxed -> False. The following additional options are also accepted:
-    * VertexRenderingFunction specifies the rendering of vertices, as in GraphPlot; None or ({}&) results in no vertices being explicitly rendered.
-    * EdgeRenderingFunction specifies the rendering of edges, as in GraphPlot; None or ({}&) results in no edges being explicitly rendered.
-    * FaceRenderingFunction specifies the rendering of faces, as with EdgeRenderingFunction and VertexRenderingFunction; the default value is Automatic, which checks for a property named \"Curvature\" and renders it, or failing that renders the faces as gray.
-    * If ColorFunction is passed, it is passed vertex ids and is plotted as a layer of faces over the VertexRenderingFunction, but only those faces whose vertices all return a value other than None or $Failed are plotted.";
+  * 3D Graphics: CorticalMesh[] accepts any option that can be passed to Graphics3D; these options will be used as default values when plotting the cortical mesh. The options may be accessed via Options[mesh] and may be changed (when using Clone) with Options -> {new-options}; Options -> Automatic will reset the options to the defaults accepted by Graphics3D with the following differences: Lighting -> \"Neutral\", ColorFunction -> None, ColorFunctionScaling -> False, Boxed -> False.";
 CorticalMesh::badarg = "Bad argument given to CorticalMesh constructor: `1`";
 CorticalMesh3D::usage = "CorticalMesh3D is a form used to store data for 3D surface mesh objects (see CorticalMesh).";
 CorticalMeshQ::usage = "CorticalMeshQ[mesh] yields True if and only if mesh is a CorticalMesh object and False otherwise.";
@@ -117,6 +113,7 @@ FaceRenderingFunction::usage = "FaceRenderingFunction is an option that can be g
 CortexPlot3D::usage = "CortexPlot3D[mesh] yields a 3D Graphics form for the given CorticalMesh3D mesh. All options available to Graphics3D may be passed to CortexPlot3D. Note that some of the default options for Graphics3D have been altered in CortexPlot3D, and 3D graphics options that have been attached to the mesh will be used as well. See ?CorticalMesh for more details.";
 
 CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature in a CortexPlot or CortexPlot3D.";
+CorticalCurvatureVertexColors::usage = "CorticalCurvatureVertexColors[m] yields the colors for each vertex in the given mesh m according to CorticalCurvatureColor[c] for the curvature c of each vertex; if there is no curvature proeprty defined, then Gray is used for each vertex.";
 
 CalculateVertexNormals::usage = "CalculateVertexNormals[X, F] yields the normal vector to each vertex given in the 3 by n matrix of coordinates in X where the triangle faces are given by integer triples in F. These normal vectors are not normalized.";
 
@@ -203,7 +200,8 @@ FaceNormalsCompiled = Compile[
           {norms = Sqrt@Total[crosses^2]},
           MapThread[
             If[#2 == 0.0, 0.0, #1/#2]&,
-            {crosses, {norms, norms, norms}}]]]]],
+            {crosses, {norms, norms, norms}},
+            2]]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}];
 Protect[FaceNormalsCompiled];
 
@@ -223,16 +221,17 @@ FaceNormalsUnnormalizedCompiled = Compile[
 Protect[FaceNormalsUnnormalizedCompiled];
 
 (* #CalculateVertexNormals ************************************************************************)
-CalculateVertexNormals[X_List, cells_List] := Check[
+CalculateVertexNormals[v_List, cells_List] := Check[
   With[
-    {cellsTr = Transpose[cells]},
+    {cellsTr = Transpose[cells],
+     nx3 = 3 * Length[cells]},
     With[
       {u1 = Transpose[v[[cellsTr[[2]]]] - v[[cellsTr[[1]]]]],
        u2 = Transpose[v[[cellsTr[[3]]]] - v[[cellsTr[[1]]]]],
        P = SparseArray[
          Rule[
-           Transpose@{Join @@ cellsTr, Range[3*Length@cells]}, 
-           ConstantArray[1, 3*Length@cells]]]},
+           Transpose@{Join @@ cellsTr, Range[nx3]}, 
+           ConstantArray[1, nx3]]]},
       With[
         {q = Transpose[
            {u1[[2]]*u2[[3]] - u1[[3]]*u2[[2]],
@@ -786,7 +785,7 @@ DefineImmutable[
 
 
    (* #VertexNormals *)
-   VertexNormals[mesh] :> CalculateVertexNormals[VertexList[mesh], FaceList[mesh]],
+   VertexNormals[mesh] :> CalculateVertexNormals[VertexCoordinates[mesh], FaceList[mesh]],
    VertexNormals[mesh, X_] := CalculateVertexNormals[X, FaceList[mesh]],
      
    (* #MeshRegion *)
@@ -1645,6 +1644,16 @@ Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList];
 CorticalCurvatureColor[c_] := If[c > 0, GrayLevel[0.2], Gray];
 Protect[CorticalCurvatureColor];
 
+(* #CorticalCurvatureVertexColors *****************************************************************)
+CorticalCurvatureVertexColors[mesh_?CorticalObjectQ] := With[
+  {curv = Replace[
+     PropertyValue[{mesh, VertexList}, Curvature],
+     $Failed :> PropertyValue[{mesh, VertexList}, "Curvature"]]},
+  If[curv === $Failed,
+    ConstantArray[Gray, VertexCount[mesh]],
+    CorticalCurvatureColor /@ curv]];
+Protect[CorticalCurvatureVertexColors];
+
 
 (* #CortexSphericalQ ******************************************************************************)
 CortexSphericalQ[c_?CorticalMeshQ] := With[
@@ -1693,99 +1702,87 @@ CortexToSphere[c_?CorticalMeshQ /; Not[CortexSphericalQ[c]]] := With[
 
 (* We have a few default options for color schema; they get picked in this order *)
 $CortexPlot3DDefaultColorSchemas = {
-  "Data" -> Function[{data},
+  Curvature -> CorticalCurvatureVertexColors,
+  "Curvature" -> CorticalCurvatureVertexColors,
+  "Data" -> Function[{mesh},
     With[
-      {range = (#[[2]] + 3 * {-(#[[2]] - #[[1]]), (#[[2]] - #[[1]])})& @ Quartiles[data]},
+      {data = PropertyValue[{mesh, VertexList}, "Data"]},
       With[
-        {outliers = Position[data, x_ /; !(range[[1]] < x < range[[2]]) {1}]},
-        With[
-          {plotData = Delete[data, outliers]},
-          With[
-            {min = Min[plotData], max = Max[plotData]},
-            Thread[
-              {Opacity[0.8],
-               Blend[{Blue,Cyan,Green,Yellow,Red}, (plotData - min) / (max - min)]}]]]]]]};
+        {range = (#[[2]] + 3 * {-(#[[2]] - #[[1]]), (#[[2]] - #[[1]])})& @ Quartiles[data]},
+        Map[
+          Blend[{Blue, Darker[Cyan, 1/6], Darker[Green, 1/3], Darker[Yellow, 1/6], Red}, #]&,
+          (data - range[[1]]) / (range[[2]] - range[[1]])]]]]};
 Protect[$CortexPlot3DDefaultColorSchemas];
 
 Options[CortexPlot3D] = Map[(#[[1]] -> Automatic)&, $CortexPlot3DOptions];
-CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := Graphics3D[
+CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
+  {Opt = Function[{name},
+     Fold[
+       Replace,
+       OptionValue[name],
+       {Automatic :> Replace[name, Options[mesh]],
+        (name|Automatic) :> Replace[name, $CortexPlot3DOptions]}]],
+   GetProperties = Function[{type},
+     Replace[
+       Thread[Rule[#, PropertyValue[{mesh, type}, #]]]& /@ PropertyList[{mesh, type}],
+       {{} :> Table[{}, {Length[type[mesh]]}],
+        l_ :> Transpose[l]}]],
+   U = VertexList[mesh],
+   X = VertexCoordinates[mesh],
+   F = FaceList[mesh],
+   vnorms = Replace[
+     PropertyValue[{mesh, VertexList}, VertexNormals],
+     $Failed :> Replace[
+       PropertyValue[{mesh, VertexList}, "VertexNormals"],
+       $Failed :> VertexNormals[mesh]]]},
   With[
-    {Opt = Function[{name},
-       Fold[
-         Replace,
-         OptionValue[name],
-         {Automatic :> Replace[name, Options[mesh]],
-          (name|Automatic) :> Replace[name, $CortexPlot3DOptions]}]],
-     U = VertexList[mesh],
-     X = VertexCoordinates[mesh],
-     F = FaceList[mesh],
-     FX = FaceCoordinates[mesh],
-     E = EdgeList[mesh],
-     Ep = EdgePairs[mesh],
-     EX = EdgeCoordinates[mesh],
-     vnorms = Replace[
-       PropertyValue[{mesh, VertexList}, VertexNormals],
-       $Failed :> Replace[
-         PropertyValue[{mesh, VertexList}, "VertexNormals"],
-         $Failed :> VertexNormals[mesh]]]},
+    {vcolors = Replace[
+       Opt[ColorFunction],
+       {Automatic :> With[
+          {sel = SelectFirst[
+             $CortexPlot3DDefaultColorSchemas,
+             ArrayQ[PropertyValue[{mesh, VertexList}, #[[1]]], 1, NumericQ]&,
+             None]},
+          If[Head[sel] === None, 
+            ConstantArray[Gray, VertexCount[mesh]],
+            (sel[[2]])[mesh]]],
+        None -> None,
+        f_ :> With[
+          {known = Replace[f, $CortexPlot3DDefaultColorSchemas]},
+          If[f === known,
+            MapThread[f, {X, U, GetProperties[VertexList]}],
+            known[mesh]]]}]},
     With[
-      {cfn = Replace[
-         Opt[ColorFunction],
-         {Automatic :> With[
-            {sel = SelectFirst[
-               $CortexPlot3DDefaultColorSchemas, 
-               ListQ[PropertyValue[{mesh, VertexList}, #[[1]]]]&]},
-            If[Head[sel] === Missing, None, #[[2]]]],
-          f_ :> Function[{data}, f /@ Range[Length@data]]}],
-       vfn = Opt[VertexRenderingFunction],
+      {vfn = Opt[VertexRenderingFunction],
        efn = Opt[EdgeRenderingFunction],
-       ffn = Replace[
-         Opt[FaceRenderingFunction],
-         Automatic :> Function[{fx, f, lab, vlab},
-           With[
-             {curvClr = Map[
-                Function[
-                  FirstCase[
-                    #,
-                    RuleDelayed[
-                      ((Rule|RuleDelayed)["Curvature"|Curvature, c_?NumericQ]),
-                      CorticalCurvatureColor[c]],
-                    Gray]],
-                vlab]},
-             Polygon[
-               fx,
-               VertexColors -> curvClr,
-               VertexNormals -> vnorm[[f]]]]]],
-       GetProperties = Function[{type},
-         Replace[
-           Thread[Rule[#, PropertyValue[{mesh, type}, #]]]& /@ PropertyList[{mesh, type}],
-           {{} :> Table[{}, {Length[type[mesh]]}],
-            l_ :> Transpose[l]}]]},
-      With[
-        {vprop = GetProperties[VertexList],
-         eprop = GetProperties[EdgeList],
-         fprop = GetProperties[FaceList]},
+       ffn = Opt[FaceRenderingFunction],
+       vprop = If[Or[(vfn =!= Automatic && vfn =!= None),
+                     (efn =!= Automatic && efn =!= None),
+                     (ffn =!= Automatic && ffn =!= None)],
+         GetProperties[VertexList],
+         None]},
+      Graphics3D[
         GraphicsComplex[
           VertexCoordinates[mesh],
-          {EdgeForm[],
-           If[ffn === None, 
+          {If[ffn =!= Automatic,
+             {EdgeForm[], Gray, 
+              MapThread[
+                ffn,
+                {FaceCoordinates[mesh], F, GetProperties[FaceList], vprop[[#]]& /@ F}]},
+             {EdgeForm[], Gray, Polygon[F]}],
+           If[efn === None || efn === Automatic, 
              {},
-             MapThread[ffn, {FX, F, fprop, vprop[[#]]& /@ F}]],
-           If[efn === None, {}, MapThread[efn, {EX, E, eprop, vprop[[#]]& /@ Ep}]],
-           If[vfn === None, {}, MapThread[vfn, {X, U, vprop}]],
-           If[cfn === None || cfn === $Failed,
+             MapThread[efn, {EX, E, eprop, vprop[[#]]& /@ Ep}]],
+           If[vfn === None || vfn === Automatic,
              {},
-             With[
-               {clrs = cfn /@ U},
-               Flatten@Map[
-                 Function[
-                   If[Length[Complement[clrs[[#]], {None, $Failed}]] < Length[#],
-                     {},
-                     Polygon[X[[#]], VertexColors -> clrs[[#]]]]],
-                 F]]]}]]]],
-  Sequence@@FilterRules[
-    Join[{opts}, Options[mesh], $CortexPlot3DOptions],
-    Options[Graphics3D][[All,1]]]];
+             MapThread[vfn, {X, U, vprop}]]},
+          VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
+            vcolors,
+            None],
+          VertexNormals -> vnorms],
+        Sequence@@FilterRules[
+          Join[{opts}, Options[mesh], $CortexPlot3DOptions],
+          Options[Graphics3D][[All,1]]]]]]];
 
 
 End[];
