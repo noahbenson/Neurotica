@@ -91,6 +91,7 @@ FaceRelativeCoordinates::usage = "FaceRelativeCoordinates[s] yeilds a list of co
 
 EdgePairs::usage = "EdgePairs[s] yields a list of the undirected edges between vertices in the surface mesh s; unlike the EdgeList function, this function yields the edges as lists instead of undirected edges.";
 EdgeLengths::usage = "EdgeLengths[s] yields a list of the lengths (Euclidean norm) of each edge in the EdgeList[s] where s may be a surface mesh object or projection.";
+EdgeCoordinates::usage = "EdgeCoordinates[s] yields a list identical to EdgePairs[s] except that the vertex ids in the list have been replaced with the coordinates of each vertex.";
 
 NeighborhoodList::usage = "NeighborhoodList[s] yields a list of length N (where N is the number of vertices in s) of the neighboring vertices of each vertex; each entry k of the list is a list of the integer id's of the neighbors of the kth vertex. The neighbor id's are sorted such that they are listed in a counter-clockwise order around vertex k starting from the x-axis. The argument s may be either a map or a surface.";
 NeighborhoodAngles::usage = "NeighborhoodAngles[mesh] yields a list of the angles between the nodes in the NeighborhoodList; these angles are in the same order as the nodes in NeighborhoodList such that the first angle in a neighborhood is between the first vertex in the neighborhood, the central vertex, and second vertex in the neighborhood and the last angle in the neighborhood angles list is the angle between the first vertex in the neighborhood list, the center vertex, and the last vertex in the neighborhood list.
@@ -363,9 +364,7 @@ CorticalProjectionAutomaticExclusions[mesh_, method_, center_, excl_, parea_, pr
     If[StringQ[method], ToLowerCase[method], method],
     "mollenweide", Select[
       EdgePairs[mesh],
-      And[X0[[#[[1]],1]] < 0, X0[[#[[2]],1]] < 0,
-          Or[X0[[#[[1]],2]] > 0 && X0[[#[[2]],2]] < 0,
-             X0[[#[[1]],2]] < 0 && X0[[#[[2]],2]] > 0]] &],
+      And[X0[[#[[1]],1]] < 0, X0[[#[[2]],1]] < 0, X0[[#[[1]],2]] * X0[[#[[2]],2]] < 0] &],
     _, $Failed]];
 Protect[CorticalProjectionAutomaticExclusions];
 
@@ -410,8 +409,8 @@ CorticalProjectionTranslateExclusions[mesh_, method_, center_, excl_, parea_, pr
                Range[FaceCount[mesh]],
                Join[
                  tr[[3]],
-                 Flatten[FaceList[mesh][[VertexFaceList[mesh, #]]]& /@ tr[[1]]],
-                 Flatten[FaceList[mesh][[EdgeFaceList[mesh, #]]]& /@ tr[[2]]]]]},
+                 VertexFaceList[mesh, #]& /@ tr[[1]],
+                 Flatten[EdgeFaceList[mesh][[tr[[2]]]]]]]},
             {If[Length[Vs] == VertexCount[mesh], All, Vs],
              If[Length[Es] == EdgeCount[mesh], All, Es],
              If[Length[Fs] == FaceCount[mesh], All, Fs]}]]]]],
@@ -428,7 +427,8 @@ CorticalProjectionTranslateMethod[method_, center_, excl_, parea_, prad_] := Che
        method,
        (* Here we actually define the functions for transformation;
           these should accept a list of vertices (already centered such that the center lies at 
-          (1,0,0)) and should return the 2D coordinates (while ignoring the orient point). *)
+          (1,0,0) and the orient point lies in the <positive X, Y> half-plane) and should return
+          the 2D coordinates (while ignoring the orient point). *)
        {"Mollenweide" :> Function[{X},
           With[
             {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
@@ -589,7 +589,7 @@ DefineImmutable[
      {Ft = Transpose @ FaceList[mesh]},
      Last @ Reap[
        MapThread[
-         Sow[#1, {{#2,#3}, {#2,#4}, {#3,#4}}]&,
+         Sow[#1, Sort/@{{#2,#3}, {#2,#4}, {#3,#4}}]&,
          {Range[Length@First@Ft], Ft[[1]], Ft[[2]], Ft[[3]]}],
        EdgePairs[mesh],
        (Sequence @@ #2)&]],
@@ -736,6 +736,8 @@ DefineImmutable[
    EdgeWeight[mesh, es:{(List|UndirectedEdge)[_Integer,_Integer]..}] := Part[
      EdgeLengths[mesh],
      EdgeIndex[mesh, #]& /@ es],
+   (* #EdgeCoordinates *)
+   EdgeCoordinates[mesh] :> With[{X = VertexCoordinates[mesh]}, X[[#]]& /@ EdgePairs[mesh]],
    
    (* #NeighborhoodList *)
    NeighborhoodList[mesh] :> With[
@@ -980,7 +982,7 @@ DefineImmutable[
      {fn = TransformationFunction[map]},
      fn[VertexCoordinates[mesh][[TranslatedExclusions[map][[1]]]]]],
    FaceList[map] -> FaceList[mesh][[TranslatedExclusions[map][[3]]]],
-   EdgePairs[map] -> FaceList[mesh][[TranslatedExclusions[map][[2]]]],
+   EdgePairs[map] -> EdgePairs[mesh][[TranslatedExclusions[map][[2]]]],
    EdgePairs[map, patt_] := Cases[EdgePairs[map], patt, {1}],
    FaceList[map, patt_] := Cases[FaceList[map], patt, {1}],
 
@@ -1211,6 +1213,8 @@ DefineImmutable[
    EdgeWeight[map, es:{(List|UndirectedEdge)[_Integer,_Integer]..}] := Part[
      EdgeLengths[map],
      EdgeIndex[map, #]& /@ es],
+   (* #EdgeCoordinates *)
+   EdgeCoordinates[map] :> With[{X = VertexCoordinates[map]}, X[[#]]& /@ EdgePairs[map]],
    
    (* #NeighborhoodList *)
    NeighborhoodList[map] :> With[
@@ -1376,10 +1380,10 @@ MakeBoxes[mesh_CorticalMesh2D, form_] := RowBox[
 (* Protect these functions... *)
 Protect[CorticalMesh, CorticalMeshQ, InitialVertexCoordinates, InitialVertexList, InitialFaceList,
         InitialEdgePairs, VertexCoordinates, EdgePairs, FaceIndexArray, EdgeIndexArray, FaceIndex,
-        EdgeIndex, OptionalProperties, VertexProperties, EdgeProperties, FaceProperties, FaceAxes,
-        FaceAngles, FaceCoordinates, FaceNormals, FaceRelativeCoordinates, CornerList, EdgeLengths,
-        NeighborhoodList, NeighborhoodAngles, NeighborhoodBisectors, NeighborhoodEdgeLengths,
-        SourceImage, VertexEdgeList, VertexFaceList, EdgeFaceList];
+        EdgeIndex, EdgeCoordinates, OptionalProperties, VertexProperties, EdgeProperties,
+        FaceProperties, FaceAxes, FaceAngles, FaceCoordinates, FaceNormals, FaceRelativeCoordinates,
+        CornerList, EdgeLengths, NeighborhoodList, NeighborhoodAngles, NeighborhoodBisectors,
+        NeighborhoodEdgeLengths, SourceImage, VertexEdgeList, VertexFaceList, EdgeFaceList];
 
 
 (**************************************************************************************************)
@@ -1772,7 +1776,10 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
              {EdgeForm[], Gray, Polygon[F]}],
            If[efn === None || efn === Automatic, 
              {},
-             MapThread[efn, {EX, E, eprop, vprop[[#]]& /@ Ep}]],
+             MapThread[
+               efn,
+               {EdgeCoordinates[mesh], EdgePairs[mesh],
+                GetProperties[EdgeList], vprop[[#]]& /@ EdgePairs[mesh]}]],
            If[vfn === None || vfn === Automatic,
              {},
              MapThread[vfn, {X, U, vprop}]]},
