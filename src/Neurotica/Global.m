@@ -30,9 +30,6 @@ GraphicsOptions::usage = "GraphicsOptions is a keyword that is used by immutable
 RH::usage = "RH is a keyword that represents the right hemisphere.";
 LH::usage = "LH is a keyword that represents the left hemisphere.";
 
-ProjectionArea::usage = "ProjectionArea is an option to CorticalProjection and related functions that specifies that the area of the projection should be limited to the given value; if this is not Full or All, then the projection algorithm excludes those faces, edges, and vertices that are farthest from the center of the projection, trimming them until the area restriction is met.";
-ProjectionRadius::usage = "ProjectionRadius is an option to CorticalProjection and related fucntions that specifies that the radius of the projection should be limited to the given value; if this is not Full or All, then the projection algorithm excludes those faces, edges, and vertices that are farther (along the cortical surface) from the center of the projection than the given value.";
-
 Cortex::usage = "Cortex is a keyword that is used by various Neurotica functions to represent the cortical surface of a subject.";
 
 Begin["`Private`"];
