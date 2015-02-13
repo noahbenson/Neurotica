@@ -32,9 +32,13 @@ LH::usage = "LH is a keyword that represents the left hemisphere.";
 
 Cortex::usage = "Cortex is a keyword that is used by various Neurotica functions to represent the cortical surface of a subject.";
 
+If[!ValueQ[Radius],
+  (Radius::usage = "Radius is a keyword that is used to specify the distance from the center of a cortical map projection that should be included in the map projection.";
+   Protect[Radius])];
+
 Begin["`Private`"];
 
-Protect[Curvature, GraphicsOptions, RH, LH, ProjectionArea, ProjectionRadius, Cortex];
+Protect[Curvature, GraphicsOptions, RH, LH, Cortex];
 
 End[];
 EndPackage[];

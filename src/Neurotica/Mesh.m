@@ -57,7 +57,7 @@ CorticalMesh3D::usage = "CorticalMesh3D is a form used to store data for 3D surf
 CorticalMeshQ::usage = "CorticalMeshQ[mesh] yields True if and only if mesh is a CorticalMesh object and False otherwise.";
 
 CorticalMap::usage = "CorticalMap[mesh] yields a 2D flattened cortical projection of the given cortical mesh. The following options may be given:
-  * Method (default: \"Mollenweide\") specifies the projection method to be used in projecting the cortical surface to a flat map. Possible values for Method include:
+  * Method (default: \"Equirectangular\") specifies the projection method to be used in projecting the cortical surface to a flat map. Possible values for Method include:
     * \"Mollenweide\", a Mollenweide projection, parameters: Center
     * \"Equirectangular\", a rectangular projection, parameters: Center
     * \"Mercator\", the Mercator projection, parameters: Center
@@ -113,10 +113,12 @@ CortexPlot3D::usage = "CortexPlot3D[mesh] yields a 3D Graphics form for the give
 
 CortexPlot::usage = "CortexPlot[mesh] yields a Graphics form for the given CorticalMesh2D or CorticalMesh3D mesh. If the given mesh is a 3D mesh, then the options accepted by CorticalMap are used to create the projection (Method, Center, etc.). All options available to Graphics may be passed to CortexPlot. Note that some of the default options for Graphics have been altered in CortexPlot, and 2D graphics options that have been attached to the mesh will be used as well. See ?CorticalMap for more details.";
 
-CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature in a CortexPlot or CortexPlot3D.";
+CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature c in a CortexPlot or CortexPlot3D; c may be a list or a single value.";
 CorticalCurvatureVertexColors::usage = "CorticalCurvatureVertexColors[m] yields the colors for each vertex in the given mesh m according to CorticalCurvatureColor[c] for the curvature c of each vertex; if there is no curvature proeprty defined, then Gray is used for each vertex.";
 
 CalculateVertexNormals::usage = "CalculateVertexNormals[X, F] yields the normal vector to each vertex given in the 3 by n matrix of coordinates in X where the triangle faces are given by integer triples in F. These normal vectors are not normalized.";
+
+CorticalMeshNeighborhood::usage = "CorticalMeshNeighborhood[mesh, u0, d] yields the list of vertices in the given cortical mesh such that the edge-weighted distance from u0 to each vertex returned is less than d.";
 
 Begin["`Private`"];
 
@@ -322,6 +324,32 @@ ParseMeshProperties[X_, other_] := With[
       inner]]];
 Protect[ParseMeshProperties];  
 
+(* #CorticalMeshNeighborhood *)
+CorticalMeshNeighborhood[mesh_?CorticalObjectQ, u0_Integer, d_?NumericQ] := With[
+  {nl = NeighborhoodEdgeLengths[mesh],
+   nei = NeighborhoodList[mesh]},
+  Module[
+    {mark = Table[0, {VertexCount[mesh]}]},
+    Last@NestWhile[
+      Function[
+        mark[[#[[1]]]] = 1;
+        With[
+          {newDisc = Join @@ (nei[[#[[1]]]]),
+           newDist = Join @@ MapThread[(#2+nl[[#1]])&, #]},
+          With[
+            {new = Transpose@Map[
+               {#[[1,1]], Min[#[[2]]]}&,
+               Transpose/@Split[
+                 SortBy[Transpose[{newDisc,newDist}], First],
+                 (#1[[1]]==#2[[1]])&]]},
+            With[
+              {idcs = Pick[Range[Length@new[[1]]], mark[[new[[1]]]] + Sign[d - new[[2]]], 1]},
+            {new[[1, idcs]], new[[2, idcs]]}]]]],
+      {{u0}, {0.0}},
+      Length[#[[1]]] > 0 &];
+    Flatten@Position[mark, 1, {1}]]];
+Protect[CorticalMeshNeighborhood, CorticalMeshNeighborhoodCompiled];
+
 (* #CorticalMapTranslateCenter
  * Yields {center, orient-point}, both of which are 3D coordinates, when given a center argument;
  * The orient-point may be Automatic instead of a 3D coordinate, indicating that the first PC of the
@@ -387,10 +415,10 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
          If[prad =!= Full && prad =!= All,
            (* we have a radius requirement; find everything with a small shortest path distance *)
            With[
-             {u0 = Nearest[VertexCoordinates[mesh] -> VertexList[mesh], center[[1]]]},
-             With[
-               {d = GraphDistance[Graph[mesh], u0]},
-               Sow[#,1]& /@ Flatten@Position[d, x_ /; x > prad, {1}]]]];
+             {u0 = First@Nearest[VertexCoordinates[mesh] -> VertexList[mesh], center[[1]]]},
+             Map[
+               Sow[#,1]&,
+               Complement[Range[VertexCount[mesh]], CorticalMeshNeighborhood[mesh, u0, prad]]]]];
          Scan[
            Function@Which[
              IntegerQ[#],                Sow[VertexIndex[mesh, #], 1],
@@ -416,7 +444,7 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
              Range[EdgeCount[mesh]], 
              Join[
                tr[[2]],
-               VertexEdgeList[mesh, #]& /@ tr[[1]]]]},
+               Flatten[VertexEdgeList[mesh, #]& /@ tr[[1]]]]]},
           With[
             {Fs = Complement[
                Range[FaceCount[mesh]],
@@ -429,6 +457,24 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
              If[Length[Fs] == FaceCount[mesh], All, Fs]}]]]]],
   {$Failed, $Failed, $Failed}];
 Protect[CorticalMapTranslateExclusions];
+
+(* #CorticalMeshOrientForMap
+ * Yields the coordinates of the subset of vertices subject to the map (via exclusions) rotated such
+ * that the center is at {1,0,0} and the orient point (if there is one) is in the (+x, y)
+ * half-plane.
+ *)
+CorticalMeshOrientForMap[mesh_?CorticalMeshQ, center_, excl_] := With[
+  {RMain = If[center[[1]] === None || center[[1]] === Automatic, 
+    IdentityMatrix[3],
+    RotationMatrix[{center[[1]], {1,0,0}}]]},
+  Dot[
+    VertexCoordinates[mesh][[excl[[1]]]],
+    Transpose[RMain],
+    If[center[[2]] === None || center[[2]] === Automatic,
+      IdentityMatrix[3], 
+      With[
+        {orientPt = Dot[RMain, center[[2]]]},
+        Transpose[RotationMatrix[{1,0,0}, -ArcTan[orientPt[[1]], orientPt[[2]]]]]]]]];
 
 (* #CorticalMapTranslateMethod
  * Yields a translation function given the Method argument and the translated parameters: Center,
@@ -444,7 +490,7 @@ CorticalMapTranslateMethod[method_, center_, excl_, prad_] := Check[
           the 2D coordinates (while ignoring the orient point). *)
        {"mollenweide" :> Function[{mesh},
           With[
-            {X = VertexCoordinates[mesh]},
+            {X = CorticalMeshOrientForMap[mesh, center, excl]},
             With[
               {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
                meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
@@ -460,14 +506,14 @@ CorticalMapTranslateMethod[method_, center_, excl_, prad_] := Check[
                 Transpose[meshRadius * Sqrt[2.0] * {2.0 / Pi * S[[1]] * Cos[th], Sin[th]}]]]]],
         "equirectangular" :> Function[{mesh},
           With[
-            {X = VertexCoordinates[mesh]},
+            {X = CorticalMeshOrientForMap[mesh, center, excl]},
             With[
               {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
                meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
               Transpose[meshRadius * S]]]],
         "mercator" :> Function[{mesh},
           With[
-            {X = VertexCoordinates[mesh]},
+            {X = CorticalMeshOrientForMap[mesh, center, excl]},
             With[
               {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
                meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
@@ -476,7 +522,7 @@ CorticalMapTranslateMethod[method_, center_, excl_, prad_] := Check[
                 Transpose[meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]]]],
         "orthographic" :> Function[{mesh},
           With[
-            {X = VertexCoordinates[mesh]},
+            {X = CorticalMeshOrientForMap[mesh, center, excl]},
             With[
               {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
                meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
@@ -497,7 +543,7 @@ CorticalMapTranslateMethod[method_, center_, excl_, prad_] := Check[
          With[
            {orientRMtxTr = RotationMatrix[{projFn[{center[[2]]} . RMtxTr][[1]], {1,0}}]},
            Function[# . orientRMtxTr]]]},
-      Function[orientFn @ projFn @ Dot[#, RMtxTr]]]],
+      Function[orientFn @ projFn[#]]]],
   $Failed];
 Protect[CorticalMapTranslateMethod];
 
@@ -593,10 +639,8 @@ DefineImmutable[
    (* VertexIndexArray [private] *)
    VertexIndexArray[mesh] :> If[VertexList[mesh] == Range[Length@VertexList[mesh]],
      VertexList[mesh],
-     SparseArray[
-       MapIndexed[
-         Function[#1 -> #2[[1]]],
-         VertexList[mesh]],
+     Normal @ SparseArray[
+       VertexList[mesh] -> Range[VertexCount[mesh]],
        Max[VertexList[mesh]],
        0]],
 
@@ -988,7 +1032,7 @@ Options[CorticalMap] = Join[
 DefineImmutable[
   CorticalMap[mesh_?CorticalMeshQ, OptionsPattern[]] :> map,
   {(* First we declare the simple constants for the projection *)
-   SourceMesh[map] -> mesh,
+   SourceMesh[map] = mesh,
 
    (* Options is settable, but depends on nothing but the initial options
       (and should have nothing downstream but CorticalMapQ); 
@@ -1021,7 +1065,7 @@ DefineImmutable[
    (* Now we have the settable versions of the above *)
    VertexCoordinates[map] -> With[
      {fn = TransformationFunction[map]},
-     fn[VertexCoordinates[SourceMesh[map]][[TranslatedExclusions[map][[1]]]]]],
+     fn[SourceMesh[map]]],
    FaceList[map] -> FaceList[SourceMesh[map]][[TranslatedExclusions[map][[3]]]],
    EdgePairs[map] -> EdgePairs[SourceMesh[map]][[TranslatedExclusions[map][[2]]]],
    EdgePairs[map, patt_] := Cases[EdgePairs[map], patt, {1}],
@@ -1060,10 +1104,8 @@ DefineImmutable[
    (* VertexIndexArray [private] *)
    VertexIndexArray[map] :> If[VertexList[map] == Range[Length@VertexList[map]],
      VertexList[map],
-     SparseArray[
-       MapIndexed[
-         Function[#1 -> #2[[1]]],
-         VertexList[map]],
+     Normal @ SparseArray[
+       VertexList[map] -> Range[VertexCount[map]],
        Max[VertexList[map]],
        0]],
 
@@ -1122,34 +1164,19 @@ DefineImmutable[
    VertexProperties[map] = With[
      {idx = TranslatedExclusions[map][[1]]},
      Map[
-       If[Head[#] === RuleDelayed,
-         ReplacePart[
-           Hold @@ {#[[1]], Join[(Hold @@ #)[[{2}]], Hold[idx]]},
-           {{2,0} -> Part,
-            0 -> RuleDelayed}],
-         (#[[1]] -> #[[2, idx]])] &,
+       (#[[1]] -> #[[2]][[idx]]) &,
        VertexProperties[SourceMesh[map]]]],
    (* #EdgeProperties [private] *)
    EdgeProperties[map] = With[
      {idx = TranslatedExclusions[map][[2]]},
      Map[
-       If[Head[#] === RuleDelayed,
-         ReplacePart[
-           Hold @@ {#[[1]], Join[(Hold @@ #)[[{2}]], Hold[idx]]},
-           {{2,0} -> Part,
-            0 -> RuleDelayed}],
-         (#[[1]] -> #[[2, idx]])] &,
+       (#[[1]] -> #[[2]][[idx]]) &,
        EdgeProperties[SourceMesh[map]]]],
    (* #FaceProperties [private] *)
    FaceProperties[map] = With[
      {idx = TranslatedExclusions[map][[3]]},
      Map[
-       If[Head[#] === RuleDelayed,
-         ReplacePart[
-           Hold @@ {#[[1]], Join[(Hold @@ #)[[{2}]], Hold[idx]]},
-           {{2,0} -> Part,
-            0 -> RuleDelayed}],
-         (#[[1]] -> #[[2, idx]])] &,
+       (#[[1]] -> #[[2]][[idx]]) &,
        FaceProperties[SourceMesh[map]]]],
 
    (* Now that those private mutables have been setup without dependence on the current state of
@@ -1167,9 +1194,9 @@ DefineImmutable[
        Function[{name},
          name -> MapThread[
            If[#1 === $Failed, #2 -> #1, ReplacePart[#1, 1 -> #2]]&,
-           {{FirstCase[VertexProperties[SourceMesh[map]], (Rule|RuleDelayed)[name,val_], $Failed],
-             FirstCase[EdgeProperties[SourceMesh[map]], (Rule|RuleDelayed)[name,val_], $Failed],
-             FirstCase[FaceProperties[SourceMesh[map]], (Rule|RuleDelayed)[name,val_], $Failed]},
+           {{FirstCase[VertexProperties[map], (Rule|RuleDelayed)[name,val_], $Failed],
+             FirstCase[EdgeProperties[map], (Rule|RuleDelayed)[name,val_], $Failed],
+             FirstCase[FaceProperties[map], (Rule|RuleDelayed)[name,val_], $Failed]},
             {VertexList, EdgeList, FaceList}}]],
        allPropNames]],
    (* #PropertyList *)
@@ -1688,6 +1715,7 @@ Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList];
 
 (* #CorticalCurvatureColor ************************************************************************)
 CorticalCurvatureColor[c_] := If[c > 0, GrayLevel[0.2], Gray];
+SetAttributes[CorticalCurvatureColor, Listable];
 Protect[CorticalCurvatureColor];
 
 (* #CorticalCurvatureVertexColors *****************************************************************)
@@ -1836,7 +1864,7 @@ Protect[CortexPlot3D];
 
 
 (* #CortexPlot ************************************************************************************)
-Options[CortexPlot] = Map[(#[[1]] -> Automatic)&, Options[CortexPlot]];
+Options[CortexPlot] = Map[(#[[1]] -> Automatic)&, Options[CorticalMap]];
 CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
   {Opt = Function[{name},
      Fold[
@@ -1851,7 +1879,7 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
         l_ :> Transpose[l]}]],
    U = VertexList[mesh],
    X = VertexCoordinates[mesh],
-   F = FaceList[mesh]},
+   F = Partition[Normal[VertexIndexArray[mesh][[Flatten@FaceList[mesh]]]], 3]},
   With[
     {vcolors = Replace[
        Opt[ColorFunction],
@@ -1878,7 +1906,7 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
                      (ffn =!= Automatic && ffn =!= None)],
          GetProperties[VertexList],
          None]},
-      Graphics3D[
+      Graphics[
         GraphicsComplex[
           VertexCoordinates[mesh],
           {If[ffn =!= Automatic,
@@ -1898,11 +1926,10 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
              MapThread[vfn, {X, U, vprop}]]},
           VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
             vcolors,
-            None],
-          VertexNormals -> vnorms],
+            None]],
         Sequence@@FilterRules[
-          Join[{opts}, Options[mesh], $CortexPlot3DOptions],
-          Options[Graphics3D][[All,1]]]]]]];
+          Join[{opts}, Options[mesh], $CortexPlotOptions],
+          Options[Graphics][[All,1]]]]]]];
 Protect[CortexPlot];
 
 

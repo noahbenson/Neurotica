@@ -66,7 +66,7 @@ DefineImmutable[
   {(* Retreive (or edit) the raw image data *)
    ImageData[img] = data,
    (* Retreive (or edit) the raw image options *)
-   GraphicsOptions[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
+   Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
 
    (* Access the scale factors of min and max for the data *)
    MRImageMax[img] -> Max[ImageData[img]],
@@ -75,7 +75,7 @@ DefineImmutable[
    (* The image as it is represented internally *)
    Image3D[img] -> With[
      {dat = ImageData[img],
-      opts = GraphicsOptions[img]},
+      opts = Options[img]},
      If[!ArrayQ[dat, 3|4, NumericQ], 
        Message[MRImage3D::badarg, "ImageData must be a 3 or 4D numeric array"],
        Image3D[
