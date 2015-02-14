@@ -40,7 +40,7 @@ A cortical mesh resembles both a graph object and a boundary mesh region object.
   * FaceAxes[mesh] yields a list of orthogonal 2D axes that can be used to project each face into two dimensions, one pair for each face.
   * FaceCoordinates[mesh] yields a list of the faces but with the 3D mesh coordinates in the place of the vertex indices.
   * FaceRelativeCoordinates[mesh] yields a list of coordinates relative to the FaceAxes[mesh], such that each face has been flattened into the 2D plane it defines.
-  * NeighborhoodList[mesh] yields a list of the neighbors of each vertex in the same order as VertexList[mesh].
+  * NeighborhoodList[mesh] yields a list of the neighborhood of each vertex in the same order as VertexList[mesh]; the neighborhood of a vertex u is a list of the vertices that are adjacent to u in counterclockwise order around the vector normal to u.
   * NeighborhoodAngles[mesh] yields a list of the angles between the nodes in the NeighborhoodList; these angles are in the same order as the nodes in NeighborhoodList such that the first angle in a neighborhood is between the first vertex in the neighborhood, the central vertex, and second vertex in the neighborhood and the last angle in the neighborhood angles list is the angle between the first vertex in the neighborhood list, the center vertex, and the last vertex in the neighborhood list.
   * NeighborhoodBisectors[mesh] yeilds a list of the vectors that bisect each of the angles in NeighborhoodAngles[mesh].
   * NeighborhoodEdgeLengths[s] yields a list of the edge lengths for the neighborhood of each vertex in the surface or map s. The results are in the same order as NeighborhoodList[s] such that for the neighborhood list L, and the neighborhood edge length list G, G[[i,j]] is the length of the edge from vertex i to the vertex L[[i,j]].
@@ -131,50 +131,37 @@ NeighborhoodAnglesCompiled2D = Compile[{{x0, _Real, 1}, {xnei, _Real, 2}},
   If[Length[xnei] == 0,
     {},
     With[
-      {x = Transpose[xnei]},
+      {x = {#[[1]] - x0[[1]], #[[2]] - x0[[2]]}& @ Transpose[xnei]},
       With[
-        {dx = {x[[1]] - x0[[1]], x[[2]] - x0[[2]]}},
-        With[
-          {norms = Sqrt[Total[dx^2]]},
-          With[
-            {normed = dx/{norms, norms}},
-            With[
-              {rot = RotateLeft /@ normed},
-              ArcTan[rot[[1]], rot[[2]]] - ArcTan[normed[[1]], normed[[2]]]]]]]]],
+        {xu = (x / {#,#})& @ Sqrt @ Total[x^2]},
+        ArcCos @ Total[xu * (RotateLeft /@ xu)]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 NeighborhoodAnglesCompiled3D = Compile[{{x0, _Real, 1}, {xnei, _Real, 2}},
   If[Length[xnei] == 0,
     {},
     With[
-      {x = Transpose[xnei]},
+      {x = {#[[1]] - x0[[1]], #[[2]] - x0[[2]], #[[3]] - x0[[3]]}& @ Transpose[xnei]},
       With[
-        {zaxis = Normalize[x0],
-         xaxis = Normalize[First@xnei]},
-        With[
-          {yaxis = Cross[zaxis, xaxis],
-           dx = {x[[1]] - x0[[1]], x[[2]] - x0[[2]], x[[3]] - x0[[3]]}},
-          NeighborhoodAnglesCompiled2D[{0.0, 0.0}, Dot[{xaxis, yaxis}, xnei]]]]]],
-  {{NeighborhoodAnglesCompiled2D[__], _Real, 1}},
+        {xu = (x / {#,#,#})& @ Sqrt @ Total[x^2]},
+        ArcCos @ Total[xu * (RotateLeft /@ xu)]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 Protect[NeighborhoodAnglesCompiled2D, NeighborhoodAnglesCompiled3D];
 
 (* #NeighborhoodBisectorsCompiled *)
 NeighborhoodBisectorsCompiled = Compile[{{x0, _Real, 1}, {xnei, _Real, 2}},
-  With[
-    {x = Transpose[xnei]},
+  If[Length[xnei] == 0,
+    {},
     With[
-      {dx = Table[x[[i]]-x0[[i]], {i,1,Length[x0]}]},
+      {x = {#[[1]] - x0[[1]], #[[2]] - x0[[2]], #[[3]] - x0[[3]]}& @ Transpose[xnei]},
       With[
-        {norms = Sqrt[Total[dx^2]]},
+        {xu = (x / {#,#,#})& @ Sqrt @ Total[x^2]},
         With[
-          {normed = dx/Table[norms, {Length[x0]}]},
+          {means = 0.5*(xu + RotateLeft /@ xu)},
           With[
-            {means = 0.5*(normed + RotateLeft /@ normed)},
-            With[
-              {mnorms = Sqrt[Total[means^2]]},
-              Transpose[means/Table[mnorms, {Length[x0]}]]]]]]]],
+            {mnorms = Sqrt @ Total[means^2]},
+            Transpose[means / If[Length[mnorms] == 2, {#,#}, {#,#,#}]&[mnorms]]]]]]],
    RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
    Parallelization -> True];
 Protect[NeighborhoodBisectorsCompiled];
@@ -223,6 +210,26 @@ FaceNormalsUnnormalizedCompiled = Compile[
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}];
 Protect[FaceNormalsUnnormalizedCompiled];
 
+(* #NeighborhoodSort3DCompiled ********************************************************************)
+NeighborhoodSort3DCompiled = Compile[
+  {{x0, _Real, 1}, {neivec, _Complex, 1}, {nei, _Integer, 1}, {xnei, _Real, 2}},
+  Part[
+    nei,
+    Ordering[
+      Arg@Dot[
+        neivec,
+        MapThread[Subtract, {Transpose[xnei], x0}]]]],
+  RuntimeOptions -> "Speed"];
+
+(* #NeighborhoodSort3DCompiled ********************************************************************)
+NeighborhoodSort2DCompiled = Compile[
+  {{x0, _Real, 1}, {nei, _Integer, 1}, {xnei, _Real, 2}},
+  Part[
+    nei,
+    Ordering[
+      Arg@Dot[{1, I}, {#[[1]] - x0[[1]], #[[2]] - x0[[2]]}&@Transpose[xnei]]]],
+  RuntimeOptions -> "Speed"];
+
 (* #CalculateVertexNormals ************************************************************************)
 CalculateVertexNormals[v_List, cells_List] := Check[
   With[
@@ -240,7 +247,7 @@ CalculateVertexNormals[v_List, cells_List] := Check[
            {u1[[2]]*u2[[3]] - u1[[3]]*u2[[2]],
             u1[[3]]*u2[[1]] - u1[[1]]*u2[[3]],
             u1[[1]]*u2[[2]] - u1[[2]]*u2[[1]]}]},
-        Dot[P, Join[q, q, q]]]]],
+        NormalizeRows @ Dot[P, Join[q, q, q]]]]],
   $Failed];
 
 (* #FaceAxesCompiled *)
@@ -656,6 +663,9 @@ DefineImmutable[
    VertexIndex[mesh, i_Integer] := With[
      {id = If[i > Length[VertexIndexArray[mesh]], 0, VertexIndexArray[mesh][[i]]]},
      If[id == 0, $Failed, id]],
+   VertexIndex[mesh, is_List] := With[
+     {idx = VertexIndexArray[mesh]},
+     Map[Part[idx, #]&, is, {-2}]],
 
    (* These indices depend only on the face list and edge pairs and tell us to which faces a vertex
     * or an edge belongs.
@@ -666,12 +676,16 @@ DefineImmutable[
        EdgePairs[mesh]],
      VertexList[mesh],
      (Sequence@@#2)&],
-   VertexFaceList[mesh] :> Last@Reap[
-     MapIndexed[
-       Function[Sow[#2[[1]], #1]],
-       FaceList[mesh]],
-     VertexList[mesh],
-     (Sequence@@#2)&],
+   VertexFaceList[mesh] :> With[
+     {T = FaceList[mesh],
+      RT = Range[FaceCount[mesh]]},
+     Part[
+       SplitBy[
+         SortBy[
+           Transpose[{Join @@ T, Join @@ Transpose[{RT, RT, RT}]}],
+           First],
+         First],
+       All, All, 2]],
    VertexEdgeList[mesh, i_Integer] := Part[VertexEdgeList[mesh], VertexIndex[mesh, i]],
    VertexFaceList[mesh, i_Integer] := Part[VertexFaceList[mesh], VertexIndex[mesh, i]],
    EdgeFaceList[mesh] :> With[
@@ -758,25 +772,20 @@ DefineImmutable[
    VertexOutDegree[mesh, i_Integer] := VertexDegree[mesh][[VertexIndex[mesh, i]]],
 
    (* #FaceAngles *)
-   FaceAngles[mesh] :> With[
-     {FF = Transpose[FaceList[mesh]],
-      XX = VertexCoordinates[mesh]},
+   FaceAngles[mesh, XX_] := With[
+     {Ft = Transpose[FaceList[mesh]]},
      With[
-       {Xf = XX[[#]]& /@ FF},
+       {FX = Transpose[{XX[[Ft[[1]]]], XX[[Ft[[2]]]], XX[[Ft[[3]]]]}, {1,3,2}],
+        n = Length[Ft[[1]]]},
        With[
-         {dX = Transpose /@ {
-            (Xf[[2]] - Xf[[1]]),
-            (Xf[[3]] - Xf[[2]]),
-            (Xf[[1]] - Xf[[3]])}},
-         With[
-           {normed = Map[
-              With[{lens = Sqrt[Total[#^2]]}, (#/lens)& /@ #]&,
-              dX]},
-           Transpose[
-             ArcCos[
-               {Total[normed[[1]] * -normed[[3]]],
-                Total[normed[[2]] * -normed[[1]]],
-                Total[normed[[3]] * -normed[[2]]]}]]]]]],
+         {dFX = Transpose @ Partition[#, n]& /@ NormalizeColumns @ MapThread[
+            Join,
+            {FX[[2]] - FX[[1]], FX[[3]] - FX[[2]], FX[[1]] - FX[[3]]}]},
+         Transpose @ ArcCos[
+           {Total[dFX[[1]] * -dFX[[3]]],
+            Total[dFX[[2]] * -dFX[[1]]],
+            Total[dFX[[3]] * -dFX[[2]]]}]]]],
+   FaceAngles[mesh] :> FaceAngles[mesh, VertexCoordinates[mesh]],
    (* #FaceNormals *)
    FaceNormals[mesh] :> FaceNormalsCompiled[VertexList[mesh], FaceList[mesh]],
    FaceNormals[mesh, X_] := FaceNormalsCompiled[X, FaceList[mesh]],
@@ -831,24 +840,28 @@ DefineImmutable[
    (* #NeighborhoodList *)
    NeighborhoodList[mesh] :> With[
      {X = VertexCoordinates[mesh],
-      E = EdgePairs[mesh]},
-     Last[
-       Reap[
-         Scan[
-           Function[{pair},
-             Sow[pair[[1]], pair[[2]]];
-             Sow[pair[[2]], pair[[1]]]],
-           E],
-         Range[Length[X]],
-         Function[{id, neighbors},
-           Sequence @@ With[
-             {neis = Union[neighbors]},
-             With[
-               {U = Dot[
-                  X[[neis]], 
-                  Transpose[RotationMatrix[{X[[id]], {0,0,1}}]]
-                  ][[All, 1;;2]]},
-               SortBy[Thread[neis -> U], ArcTan[#[[2,1]], #[[2,2]]]&][[All,1]]]]]]]],
+      E = Transpose@EdgePairs[mesh],
+      normals = VertexNormals[mesh]},
+     With[
+       {neivecs = NeighborhoodVectors[mesh],
+        neis = Part[
+          SplitBy[
+            SortBy[
+              Transpose[{Join[E[[1]], E[[2]]], Join[E[[2]], E[[1]]]}],
+              First],
+            First],
+          All, All, 2]},
+       MapThread[NeighborhoodSort3DCompiled, {X, neivecs, neis, X[[#]] & /@ neis}]]],
+   (* #NeighborhoodVectors [private] *)
+   NeighborhoodVectors[mesh] := With[
+     {Xt = Transpose[VertexNormals[mesh]]},
+     With[
+       {x = Xt[[1]], y = Xt[[2]], z = Xt[[3]],
+        norms = Sqrt@Total[Xt^2]},
+       Transpose[
+         {(y + I*x*z/norms)/(I*x + y),
+          (I*x + y*z/norms)/(x - I*y),
+          -(x + I*y)/norms}]]],
    (* #NeighborhoodAngles *)
    NeighborhoodAngles[mesh] :> With[
      {X = VertexCoordinates[mesh],
@@ -1121,6 +1134,9 @@ DefineImmutable[
    VertexIndex[map, i_Integer] := With[
      {id = If[i > Length[VertexIndexArray[map]], 0, VertexIndexArray[map][[i]]]},
      If[id == 0, $Failed, id]],
+   VertexIndex[map, is_List] := With[
+     {idx = VertexIndexArray[map]},
+     Map[Part[idx, #]&, is, {-2}]],
 
    (* These indices depend only on the face list and edge pairs and tell us to which faces a vertex
     * or an edge belongs.
@@ -1288,20 +1304,15 @@ DefineImmutable[
    NeighborhoodList[map] :> With[
      {X = VertexCoordinates[map],
       E = EdgePairs[map]},
-     Last[
-       Reap[
-         Scan[
-           Function[{pair},
-             Sow[pair[[1]], pair[[2]]];
-             Sow[pair[[2]], pair[[1]]]],
-           E],
-         Range[Length[X]],
-         Function[{id, neighbors},
-           Sequence @@ With[
-             {neis = Union[neighbors]},
-             With[
-               {U = X[[neis]]},
-               SortBy[Thread[neis -> U], ArcTan[#[[2,1]], #[[2,2]]]&][[All,1]]]]]]]],
+     With[
+       {neis = Part[
+          SplitBy[
+            SortBy[
+              Transpose[{Join[E[[1]], E[[2]]], Join[E[[2]], E[[1]]]}],
+              First],
+            First],
+          All, All, 2]},
+       MapThread[NeighborhoodSort2DCompiled, {X, neis, X[[#]] & /@ neis}]]],
    (* #NeighborhoodAngles *)
    NeighborhoodAngles[map] :> With[
      {X = VertexCoordinates[map],
@@ -1327,11 +1338,12 @@ DefineImmutable[
      NeighborhoodEdgeLengthsCompiled, 
      {X, X[[#]]& /@ NeighborhoodList[map]}],
 
-   (* #MeshRegion *)
-   MeshRegion[map] :> MeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
 
    (* #BoundaryMeshRegion *)
    BoundaryMeshRegion[map] :> BoundaryMeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
+
+   (* #MeshRegion *)
+   MeshRegion[map] :> MeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
    TriangulateMesh[map, opts___] := TriangulateMesh[BoundaryMeshRegion[map], opts],
    HighlightMesh[map, opts___] := HighlightMesh[BoundaryMeshRegion[map], opts],
    DimensionalMeshComponents[map, opts___] := DimensionalMeshComponents[
