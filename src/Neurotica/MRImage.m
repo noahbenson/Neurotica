@@ -1,4 +1,4 @@
-(* Image.m
+(* MRImage.m
  *
  * Utility functions for dealing with (mostly FreeSurfer) cortical volume image data in Mathematica.
  *
@@ -18,9 +18,9 @@
  *)
 
 (**************************************************************************************************)
-BeginPackage["Neurotica`Image`", {"Neurotica`Global`", "Neurotica`Util`"}];
-Unprotect["Neurotica`Image`*", "Neurotica`Image`Private`*"];
-ClearAll["Neurotica`Image`*", "Neurotica`Image`Private`*"];
+BeginPackage["Neurotica`MRImage`", {"Neurotica`Global`", "Neurotica`Util`"}];
+Unprotect["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
+ClearAll["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
 
 MeshVertexToVoxelIndex::usage = "MeshVertexToVoxelIndex[p, voldims] gives a translation of the surface point p ({x, y, z}) to an index ({i, j, k}) such that rounding the index values will give an approximate position of the surface point in the volume with dims given in voldims. If not provided, then voldims is taken to ba {256, 256, 256}. The first argument may also be a list of points, in which case the equivalent list of indices is returned.
 Note that this method is intended to work with typically processed FreeSurfer volumes and surfaces and is not designed for other programs or for volumes that are used as input to FreeSurfer.";
@@ -66,7 +66,7 @@ DefineImmutable[
   {(* Retreive (or edit) the raw image data *)
    ImageData[img] = data,
    (* Retreive (or edit) the raw image options *)
-   GraphicsOptions[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
+   Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
 
    (* Access the scale factors of min and max for the data *)
    MRImageMax[img] -> Max[ImageData[img]],
@@ -75,7 +75,7 @@ DefineImmutable[
    (* The image as it is represented internally *)
    Image3D[img] -> With[
      {dat = ImageData[img],
-      opts = GraphicsOptions[img]},
+      opts = Options[img]},
      If[!ArrayQ[dat, 3|4, NumericQ], 
        Message[MRImage3D::badarg, "ImageData must be a 3 or 4D numeric array"],
        Image3D[

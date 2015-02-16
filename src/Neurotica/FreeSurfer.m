@@ -23,7 +23,7 @@ BeginPackage[
   {"Neurotica`Global`",
    "Neurotica`Util`",
    "Neurotica`Mesh`",
-   "Neurotica`Image`"}];
+   "Neurotica`MRImage`"}];
 Unprotect["Neurotica`FreeSurfer`*", "Neurotica`FreeSurfer`Private`*"];
 ClearAll[ "Neurotica`FreeSurfer`*", "Neurotica`FreeSurfer`Private`*"];
 
@@ -80,6 +80,7 @@ FreeSurferSubject::usage = "FreeSurferSubject[directory] represents a FreeSurfer
 FreeSurferSubject::notfound = "FreeSurferSubject directory `1` does not seem to exist";
 FreeSurferSubject::baddata = "FreeSurferSubject directory `1` does not seem to contains FreeSurfer data: `2`";
 FreeSurferSubjectQ::usage = "FreeSurferSubjectQ[directory] yields true if and only if directory is a string referring to a directory that contains a FreeSurfer subject.";
+FreeSurferSubjectData::usage = "FreeSurferSubjectData[...] is a form that represents the data of a single FreeSurfer subject, as obtained via the FreeSurferSubject function.";
 
 (* Volume Functions *)
 FreeSurferSubjectSegments::usage = "FreeSurferSubjectSegments[sub] yields an Image3D object for subject sub whose values correspond to segments of the brain volume.";
@@ -120,6 +121,8 @@ FreeSurferSubjectParcellation2005::usage = "FreeSurferSubjectParcellation[sub, h
 FreeSurfer::nolabel = "The FreeSurferColorLUT.txt file could not be found. This file is normally in your FreeSurfer home directory. Try adding a FreeSurfer home directory (via AddFreeSurferHome[]) and re-evaluating.";
 FreeSurfer::notfound = "Data not found: `1`";
 Protect[FreeSurfer];
+
+
 
 $FSAverage::usage = "$FSAverage is the subject directory for the fsaverage FreeSurfer subject. If you add your freesurfer directory (or it is auto-detected), this will be automatically discovered (see AddFreeSurferHome, AddFreeSurferSubjectsDir, and AddFreeSurferSubject).";
 FSAverageSubject::usage = "FSAverageSubject[hemi] yields the subject data for the fsaverage subject's given hemisphere hemi.";
@@ -1522,7 +1525,15 @@ DefineImmutable[
           "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
           "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
           "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
-          "Parcellation" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed]}]]]}];
+          "Parcellation" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed]}]]]},
+  SetSafe -> True,
+  Symbol -> FreeSurferSubjectData];
+
+(* We want to have a nice box-form for the subjects *)
+MakeBoxes[s_FreeSurferSubjectData, form_] := RowBox[
+  {"FreeSurferSubjectData","[",
+   StyleBox[Path[s], "Text", FontWeight -> Bold, FontFamily -> "Courier"],
+   "]"}];
 
 
 (* FSAverage and FSAverageSym *********************************************************************)

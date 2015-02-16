@@ -70,6 +70,9 @@ Clone::badarg = "Bad argument given to Clone: `1`";
 MimicAssociation::usage = "MimicAssociation[...] is identical to Association[...] if the Mathematica version is at least 10.0; otherwise, it yields a symbol that imitates an association for most basic intents and purposes.";
 MimicAssociation::badarg = "Bad argument given to MimicAssociation: `1`";
 
+NormalizeRows::usage = "NormalizeRows[X] yields a transformation of the matrix X in which each row of X has been normalized; this is the equivalent of (Normalize /@ X) but is significantly optimized.";
+NormalizeColumns::usage = "NormalizeColumns[X] yields a transformation of the matrix X in which each column of X has been normalized. This is equivalent to Transpose[Normalze /@ Transpose[X]], but has been significantly optimized.";
+
 Begin["`Private`"];
 
 (* #$CacheDirectory *******************************************************************************)
@@ -508,6 +511,17 @@ If[$MathematicaVersion >= 10.0,
         sym /: KeyExistsQ[sym, k] = sym[k] != Missing["KeyAbsent", k];
         sym)]])];
 Protect[MimicAssociation];
+
+(* #NormalizeRows *********************************************************************************)
+NormalizeRows[X_] := With[
+  {tr = Transpose[X]},
+  Transpose[tr / Table[#, {Length[tr]}]&@Sqrt@Total[tr^2]]];
+NormalizeRows[{}] = {};
+
+(* #NormalizeColumns ******************************************************************************)
+NormalizeColumns[X_] := X / Table[#, {Length[X]}]&@Sqrt@Total[X^2];
+NormalizeColumns[{}] = {};
+Protect[NormalizeRows, NormalizeColumns];
 
 End[];
 EndPackage[];
