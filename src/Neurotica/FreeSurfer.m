@@ -338,7 +338,11 @@ ImportMGHData[stream_InputStream, opts___] := "Data" -> With[
       l_List /; Position[l, $Failed] != {} -> $Failed]]];
 MGHInterpret[data_] := With[
   {frames = Transpose["Frames" /. data, {4,1,2,3}]},
-  MRImage3D[frames, MetaInformation -> ("MetaInformation" /. data)]];
+  With[
+    {dims = Dimensions[frames]},
+    If[MatchQ[Union[dims], {1, _}],
+      Flatten[frames],
+      MRImage3D[frames, MetaInformation -> ("MetaInformation" /. data)]]]];
 ImportMGHObject[stream_InputStream, opts___] := MGHInterpret["Data" /.ImportMGHData[stream, opts]];
 ImportMGH[filename_, opts___] := Import[filename, "MGH", opts];
 Protect[ImportMGHHeader, ImportMGHFrames, ImportMGHFooter, ImportMGHMetaInformation, ImportMGHData, 
