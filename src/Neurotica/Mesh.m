@@ -1334,9 +1334,9 @@ DefineImmutable[
      
      (* Untranslated / primary interface *)
      VertexCoordinates[map] := Transpose @ VertexCoordinatesTr[map],
-     FaceList[map] := Transpose @ FaceList[map],
-     EdgePairs[map] := Transpose @ EdgePairs[map],
-     EdgeList[map] := ReplacePart[Transpose @ EdgePairs[map], {_,0} -> UndirectedEdge],
+     FaceList[map] := Transpose @ FaceListTr[map],
+     EdgePairs[map] := Transpose @ EdgePairsTr[map],
+     EdgeList[map] := ReplacePart[EdgePairs[map], {_,0} -> UndirectedEdge],
      
      (* pattern-matching *)
      VertexList[map, patt_] := Cases[VertexList[map], patt, {1}],
