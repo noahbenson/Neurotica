@@ -234,11 +234,11 @@ SetAttributes[DefineImmutable, HoldAll];
 Options[DefineImmutable] = {
   SetSafe -> True,
   Symbol -> Automatic};
-DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_List, OptionsPattern[]] := Check[
+DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := Check[
   Block[
     {sym},
     With[
-      {instructions = Thread[Hold[args]],
+      {instructions0 = Hold[args],
        type = Unique[SymbolName[Head[pattern]]],
        box = Replace[
          OptionValue[Symbol],
@@ -246,244 +246,254 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_List, OptionsPattern[]] 
           Except[_Symbol] :> Message[DefineImmutable::badarg, "Symbol option must be a symbol"]}],
        setFn = Replace[OptionValue[SetSafe], {True -> SetSafe, Except[True] -> Set}]},
       With[
-        {patterns = Apply[HoldPattern, #]& /@ instructions[[All, {1}, 1]],
-         heads = Replace[
-           instructions[[All, {1}, 0]],
-           {Hold[Set] -> Set,
-            Hold[Rule] -> Rule,
-            Hold[RuleDelayed] -> RuleDelayed,
-            Hold[SetDelayed] -> SetDelayed,
-            x_ :> Message[
-              DefineImmutable::badarg, 
-              "Instructions bust be ->, =, :=, or :> forms: " <> ToString[x]]},
-           {1}],
-         bodies = instructions[[All, {1}, 2]]},
-        If[Count[patterns, form_ /; form[[1,1]] === sym, {1}] < Length[patterns],
-          Message[
-            DefineImmutable::badarg, 
-            "All field patterns must use the object as their first parameter"]];
-        MapThread[
-          Function[
-            If[#1 =!= SetDelayed && #1 !MatchQ[Hold @@ #2, Hold[_[sym]]],
-              Message[DefineImmutable::badarg, "rule and set functions must be unary"]]],
-          {heads, patterns}];
-        (* Setup the graph of dependencies *)
+        {instructions = Thread @ NestWhile[#[[{1},2]]&, instructions0, #[[1,0]] === With&],
+         outerWithPos = Last @ NestWhile[
+           {(#[[1]])[[{1}, 2]], Append[#[[2]], 2]}&,
+           {instructions0, {}},
+           (#[[1]])[[1, 0]] === With&]},
         With[
-          {deps = Flatten@Last@Reap[
-             Sow[None, "Edge"];
-             Sow[None, "Init"];
-             Sow[None, "Delay"];
-             Sow[None, "Settable"];
-             MapThread[
-               Function[{head, body, id},
-                 If[head === SetDelayed,
-                   Sow[id, "Delay"],
-                   With[
-                     {matches = Select[
-                        Range[Length@patterns],
-                        (heads[[#]] =!= SetDelayed && Count[body, patterns[[#]], Infinity] > 0)&]},
-                     If[head =!= RuleDelayed, Sow[id, "Init"]];
-                     If[head === Set, Sow[id, "Settable"]];
-                     Scan[
-                       Function[
-                         If[id == #,
-                           Message[DefineImmutable::badarg, "Self-loop detected in dependencies"],
-                           Sow[DirectedEdge[#, id], "Edge"]]],
-                       matches]]]],
-               {heads, bodies, Range[Length@heads]}],
-             {"Edge", "Init", "Delay", "Settable"},
-             Rule[#1, Rest[#2]]&]},
+          {patterns = Apply[HoldPattern, #]& /@ instructions[[All, {1}, 1]],
+           heads = Replace[
+             instructions[[All, {1}, 0]],
+             {Hold[Set] -> Set,
+              Hold[Rule] -> Rule,
+              Hold[RuleDelayed] -> RuleDelayed,
+              Hold[SetDelayed] -> SetDelayed,
+              x_ :> Message[
+                DefineImmutable::badarg, 
+                "Instructions bust be ->, =, :=, or :> forms: " <> ToString[x]]},
+             {1}],
+           bodies = instructions[[All, {1}, 2]]},
+          If[Count[patterns, form_ /; form[[1,1]] === sym, {1}] < Length[patterns],
+            Message[
+              DefineImmutable::badarg, 
+              "All field patterns must use the object as their first parameter"]];
+          MapThread[
+            Function[
+              If[#1 =!= SetDelayed && #1 !MatchQ[Hold @@ #2, Hold[_[sym]]],
+                Message[DefineImmutable::badarg, "rule and set functions must be unary"]]],
+            {heads, patterns}];
+          (* Setup the graph of dependencies *)
           With[
-            {delay = "Delay" /. deps,
-             members = Complement[Range[Length@heads], "Delay" /. deps]},
-            (* The easiest part to setup is the delayed items; do them now *)
-            Do[
-              TagSetDelayed @@ Join[
-                Hold[box],
-                ReplacePart[Hold @@ {patterns[[id]]}, {1,1,1} -> Pattern@@{sym, Blank[box]}],
-                bodies[[id]]],
-              {id, "Delay" /. deps}];
-            (* The direct accessors are also pretty easy to create... *)
-            Do[
-              TagSetDelayed @@ Join[
-                Hold[box],
-                ReplacePart[
-                  Hold @@ {patterns[[members[[id]]]]}, 
-                  {1,1,1} -> Pattern@@{sym, Blank[box]}],
-                ReplacePart[Hold @@ {Hold[sym, Evaluate[id]]}, {1,0} -> Part]],
-              {id, Range[Length@members]}];
-            (* The constructor requires that we evaluate things in certain orders... 
-               we start by making some symols to use for each value *)
-            With[
-              {syms = Table[Unique[], {Length@members}],
-               (* We also make a graph of the dependencies *)
-               depGraph = With[
-                 {tmp = Graph[members, "Edge" /. deps]},
-                 If[!AcyclicGraphQ[tmp],
-                   Message[DefineImmutable::badarg, "Cyclical dependency detected"],
-                   tmp]]},
-              (* with the transitive closure of the dependency graph, we know all the downstream
-                 dependencies of any given element *)
-              With[
-                {depStream = With[
-                   {tc = TransitiveClosureGraph[depGraph]},
-                   Map[
-                     Function[
-                       {EdgeList[tc, DirectedEdge[_,#]][[All, 1]],
-                        EdgeList[tc, DirectedEdge[#,_]][[All, 2]]}],
-                     members]],
-                 (* Given the dependency graph, we can also determine the order non-delayed values
-                    need to be evaluated in to prevent dependency errors *)
-                 initOrder = Reverse@Part[
-                   NestWhileList[
-                     Function@With[
-                       {goal = #[[1]], known = #[[3]]},
-                       With[
-                         {knowable = Select[
-                            goal,
-                            Function[
-                              0 == Length@Complement[
-                                EdgeList[depGraph, DirectedEdge[_,#]][[All,1]], 
-                                known]]]},
-                         {Complement[goal, knowable], knowable, Union[Join[known, knowable]]}]],
+            {deps = Flatten@Last@Reap[
+               Sow[None, "Edge"];
+               Sow[None, "Init"];
+               Sow[None, "Delay"];
+               Sow[None, "Settable"];
+               MapThread[
+                 Function[{head, body, id},
+                   If[head === SetDelayed,
+                     Sow[id, "Delay"],
                      With[
-                       {easy = Select[
-                          "Init" /. deps,
-                          EdgeCount[depGraph, DirectedEdge[_,#]] == 0&]},
-                       {Complement["Init" /. deps, easy], easy, easy}],
-                     Length[#[[1]]] > 0&],
-                   All, 2]},
-                (* okay, now we build the constructor;
-                   this is a big ugly code chunk due to the macro-nature of it... *)
-                SetDelayed @@ Join[
-                  Hold[pattern],
-                  ReplaceAll[
-                    Fold[
-                      Function[
-                        ReplacePart[
-                          Hold@Evaluate@Join[
-                            Hold@Evaluate@Map[
-                              Join[Hold@@{syms[[#]]}, bodies[[members[[#]]]]]&,
-                              #2],
-                            #1],
-                          {{1,1,_,0} -> Set,
-                           {1,0} -> With}]],
-                      With[
-                        {idcs = Map[
-                           Position[members,#][[1,1]]&,
-                           Complement[members, Flatten[initOrder]]],
-                         formSym = Unique[]},
-                        ReplacePart[
-                           Hold@Evaluate@Join[
+                       {matches = Select[
+                          Range[Length@patterns],
+                          (heads[[#]] =!= SetDelayed && Count[body,patterns[[#]],Infinity] > 0)&]},
+                       If[head =!= RuleDelayed, Sow[id, "Init"]];
+                       If[head === Set, Sow[id, "Settable"]];
+                       Scan[
+                         Function[
+                           If[id == #,
+                             Message[DefineImmutable::badarg, "Self-loop detected in dependencies"],
+                             Sow[DirectedEdge[#, id], "Edge"]]],
+                         matches]]]],
+                 {heads, bodies, Range[Length@heads]}],
+               {"Edge", "Init", "Delay", "Settable"},
+               Rule[#1, Rest[#2]]&]},
+            With[
+              {delay = "Delay" /. deps,
+               members = Complement[Range[Length@heads], "Delay" /. deps]},
+              (* The easiest part to setup is the delayed items; do them now *)
+              Do[
+                TagSetDelayed @@ Join[
+                  Hold[box],
+                  ReplacePart[Hold @@ {patterns[[id]]}, {1,1,1} -> Pattern@@{sym, Blank[box]}],
+                  bodies[[id]]],
+                {id, "Delay" /. deps}];
+              (* The direct accessors are also pretty easy to create... *)
+              Do[
+                TagSetDelayed @@ Join[
+                  Hold[box],
+                  ReplacePart[
+                    Hold @@ {patterns[[members[[id]]]]}, 
+                    {1,1,1} -> Pattern@@{sym, Blank[box]}],
+                  ReplacePart[Hold @@ {Hold[sym, Evaluate[id]]}, {1,0} -> Part]],
+                {id, Range[Length@members]}];
+              (* The constructor requires that we evaluate things in certain orders... 
+                 we start by making some symols to use for each value *)
+              With[
+                {syms = Table[Unique[], {Length@members}],
+                 (* We also make a graph of the dependencies *)
+                 depGraph = With[
+                   {tmp = Graph[members, "Edge" /. deps]},
+                   If[!AcyclicGraphQ[tmp],
+                     Message[DefineImmutable::badarg, "Cyclical dependency detected"],
+                     tmp]]},
+                (* with the transitive closure of the dependency graph, we know all the downstream
+                   dependencies of any given element *)
+                With[
+                  {depStream = With[
+                     {tc = TransitiveClosureGraph[depGraph]},
+                     Map[
+                       Function[
+                         {EdgeList[tc, DirectedEdge[_,#]][[All, 1]],
+                          EdgeList[tc, DirectedEdge[#,_]][[All, 2]]}],
+                       members]],
+                   (* Given the dependency graph, we can also determine the order non-delayed values
+                      need to be evaluated in to prevent dependency errors *)
+                   initOrder = Reverse@Part[
+                     NestWhileList[
+                       Function@With[
+                         {goal = #[[1]], known = #[[3]]},
+                         With[
+                           {knowable = Select[
+                              goal,
+                              Function[
+                                0 == Length@Complement[
+                                  EdgeList[depGraph, DirectedEdge[_,#]][[All,1]], 
+                                  known]]]},
+                           {Complement[goal, knowable], knowable, Union[Join[known, knowable]]}]],
+                       With[
+                         {easy = Select[
+                            "Init" /. deps,
+                            EdgeCount[depGraph, DirectedEdge[_,#]] == 0&]},
+                         {Complement["Init" /. deps, easy], easy, easy}],
+                       Length[#[[1]]] > 0&],
+                     All, 2]},
+                  (* okay, now we build the constructor;
+                     this is a big ugly code chunk due to the macro-nature of it... *)
+                  SetDelayed @@ Join[
+                    Hold[pattern],
+                    With[
+                      {constructorBody = ReplaceAll[
+                         Fold[
+                           Function[
                              ReplacePart[
-                               Hold@Evaluate[Hold[#1,Unique[]]& /@ syms[[idcs]]],
-                               {1,_,0} -> Set],
-                             With[
-                               {form = Hold@Evaluate[box @@ syms]},
-                                  (*Map[
-                                    If[Position[initOrder, #] == {},
-                                    Hold@Evaluate@Hold@Evaluate[syms[[#]]],
-                                    syms[[#]]]&,
-                                    Range[Length@syms]]*)
-                               ReplacePart[
-                                 Hold@Evaluate@Join[
-                                   ReplacePart[
-                                     Hold @@ {{Flatten[Hold[Hold@Evaluate@formSym, form]]}},
-                                     {1,1,0} -> Set],
+                               Hold@Evaluate@Join[
+                                 Hold@Evaluate@Map[
+                                   Join[Hold@@{syms[[#]]}, bodies[[members[[#]]]]]&,
+                                   #2],
+                                 #1],
+                               {{1,1,_,0} -> Set,
+                                {1,0} -> With}]],
+                           With[
+                             {idcs = Map[
+                                Position[members,#][[1,1]]&,
+                                Complement[members, Flatten[initOrder]]],
+                              formSym = Unique[]},
+                             ReplacePart[
+                               Hold@Evaluate@Join[
+                                 ReplacePart[
+                                   Hold@Evaluate[Hold[#1,Unique[]]& /@ syms[[idcs]]],
+                                   {1,_,0} -> Set],
+                                 With[
+                                   {form = Hold@Evaluate[box @@ syms]},
                                    ReplacePart[
                                      Hold@Evaluate@Join[
-                                       Flatten[
-                                         Hold @@ MapThread[
-                                           Function[
-                                             ReplacePart[
-                                               ReplaceAll[
-                                                 Hold@Evaluate@Hold[
-                                                   {#1}, 
-                                                   Evaluate[Join[Hold[#1], #2]]],
-                                                 {sym -> formSym}],
-                                               {{1,2,0} -> setFn,
-                                                {1,0} -> SetDelayed,
-                                                {1,1,0} -> Evaluate}]],
-                                             {syms[[idcs]], bodies[[members[[idcs]]]]}]],
-                                       Hold@Evaluate@formSym],
-                                     {1,0} -> CompoundExpression]],
-                                 {1,0} -> With]]],
-                           {1,0} -> With]],
-                      Map[Position[members, #][[1,1]]&, initOrder, {2}]],
-                    MapThread[Rule, {patterns[[members]], syms}]]];
-                (* we also want to build a clone function *)
-                With[
-                  {settables = "Settable" /. deps,
-                   patternNames = #[[1,0]]& /@ patterns},
-                  Evaluate[box] /: Clone[b_box, changes___Rule] := Check[
-                    With[
-                      {rules = {changes}},
-                      Which[
-                        (* No changes to be made; just return the current object *)
-                        rules == {}, b,
-                        (* multiple changes: do them one at a time *)
-                        Length[rules] > 1, Fold[Clone, b, rules],
-                        (* otherwise, we have one change; just handle it *)
-                        True, With[
-                          {id = Replace[
-                             Position[patternNames, rules[[1,1]]], 
-                             {{{i_}} /; MemberQ[settables, i] :> i,
-                              _ :> Message[
-                                Clone::badarg,
-                                "unrecognized or unsettable rule: " <> ToString[rules[[1,1]]]]}],
-                           val = rules[[1,2]]},
-                          (* Iterate through the values that depend on this one *)
-                          With[
-                            {harvest = Reap[
-                               Fold[
-                                 Function@With[
-                                   {bCur = #1, iids = #2},
-                                   ReplacePart[
-                                     bCur,
-                                     Map[
-                                       Function[
-                                         Position[members, #1][[1,1]] -> If[
-                                           heads[[#1]] === RuleDelayed,
-                                           With[
-                                             {tmp = Unique[]},
-                                             SetAttributes[Evaluate[tmp], Temporary];
-                                             Sow[tmp -> bodies[[#1]]];
-                                             tmp],
-                                           ReleaseHold@ReplaceAll[
-                                             bodies[[#1]],
-                                             sym -> bCur]]],
-                                       iids]]],
-                                 ReplacePart[b, Position[members, id][[1,1]] -> val],
-                                 Rest@First@Last@Reap[
-                                   NestWhile[
-                                     Function[{G},
-                                       With[
-                                         {vs = Select[VertexList[G], VertexInDegree[G,#] == 0&]},
-                                         Sow[vs];
-                                         VertexDelete[G, vs]]],
-                                     Subgraph[
-                                       depGraph,
-                                       VertexOutComponent[depGraph, id, Infinity]],
-                                     VertexCount[#] > 0&]]]]},
-                            (* harvest[[1]] is the new box'ed object; we need to setup the 
-                               temporary symbols, though. *)
+                                       ReplacePart[
+                                         Hold @@ {{Flatten[Hold[Hold@Evaluate@formSym, form]]}},
+                                         {1,1,0} -> Set],
+                                       ReplacePart[
+                                         Hold@Evaluate@Join[
+                                           Flatten[
+                                             Hold @@ MapThread[
+                                               Function[
+                                                 ReplacePart[
+                                                   ReplaceAll[
+                                                     Hold@Evaluate@Hold[
+                                                       {#1}, 
+                                                       Evaluate[Join[Hold[#1], #2]]],
+                                                     {sym -> formSym}],
+                                                   {{1,2,0} -> setFn,
+                                                    {1,0} -> SetDelayed,
+                                                    {1,1,0} -> Evaluate}]],
+                                               {syms[[idcs]], bodies[[members[[idcs]]]]}]],
+                                           Hold@Evaluate@formSym],
+                                         {1,0} -> CompoundExpression]],
+                                     {1,0} -> With]]],
+                               {1,0} -> With]],
+                           Map[Position[members, #][[1,1]]&, initOrder, {2}]],
+                         MapThread[Rule, {patterns[[members]], syms}]]},
+                      (* At this point, we need to return a Hold[] pattern, and constructorBody is
+                         all that we really need; however, we may need to wrap some extra data
+                         around our definitions... *)
+                      If[outerWithPos == {}, 
+                        constructorBody,
+                        ReplacePart[
+                          ReplacePart[instructions0, Prepend[outerWithPos, 1] -> constructorBody],
+                          Join[{1}, outerWithPos, {0}] -> Identity]]]];
+                  (* we also want to build a clone function *)
+                  With[
+                    {settables = "Settable" /. deps,
+                     patternNames = #[[1,0]]& /@ patterns},
+                    Evaluate[box] /: Clone[b_box, changes___Rule] := Check[
+                      With[
+                        {rules = {changes}},
+                        Which[
+                          (* No changes to be made; just return the current object *)
+                          rules == {}, b,
+                          (* multiple changes: do them one at a time *)
+                          Length[rules] > 1, Fold[Clone, b, rules],
+                          (* otherwise, we have one change; just handle it *)
+                          True, With[
+                            {id = Replace[
+                               Position[patternNames, rules[[1,1]]], 
+                               {{{i_}} /; MemberQ[settables, i] :> i,
+                                _ :> Message[
+                                  Clone::badarg,
+                                  "unrecognized or unsettable rule: " <> ToString[rules[[1,1]]]]}],
+                             val = rules[[1,2]]},
+                            (* Iterate through the values that depend on this one *)
                             With[
-                              {finalSym = Unique[]},
-                              Scan[
-                                Function@With[
-                                  {memSym = #[[1]], memBody = #[[2]]},
-                                  ReplacePart[
-                                    {memSym, Join[
-                                       Hold@Evaluate@memSym,
-                                       ReplaceAll[memBody, sym -> finalSym]]},
-                                    {{2,0} -> Set,
-                                     0 -> SetDelayed}]],
-                                Flatten[harvest[[2]]]];
-                              Set @@ Join[Hold[Evaluate@finalSym], Hold[harvest][[{1},1]]];
-                              finalSym]]]]],
-                    $Failed]];
+                              {harvest = Reap[
+                                 Fold[
+                                   Function@With[
+                                     {bCur = #1, iids = #2},
+                                     ReplacePart[
+                                       bCur,
+                                       Map[
+                                         Function[
+                                           Position[members, #1][[1,1]] -> If[
+                                             heads[[#1]] === RuleDelayed,
+                                             With[
+                                               {tmp = Unique[]},
+                                               SetAttributes[Evaluate[tmp], Temporary];
+                                               Sow[tmp -> bodies[[#1]]];
+                                               tmp],
+                                             ReleaseHold@ReplaceAll[
+                                               bodies[[#1]],
+                                               sym -> bCur]]],
+                                         iids]]],
+                                   ReplacePart[b, Position[members, id][[1,1]] -> val],
+                                   Rest@First@Last@Reap[
+                                     NestWhile[
+                                       Function[{G},
+                                         With[
+                                           {vs = Select[VertexList[G], VertexInDegree[G,#] == 0&]},
+                                           Sow[vs];
+                                           VertexDelete[G, vs]]],
+                                       Subgraph[
+                                         depGraph,
+                                         VertexOutComponent[depGraph, id, Infinity]],
+                                       VertexCount[#] > 0&]]]]},
+                              (* harvest[[1]] is the new box'ed object; we need to setup the 
+                                 temporary symbols, though. *)
+                              With[
+                                {finalSym = Unique[]},
+                                Scan[
+                                  Function@With[
+                                    {memSym = #[[1]], memBody = #[[2]]},
+                                    ReplacePart[
+                                      {memSym, Join[
+                                         Hold@Evaluate@memSym,
+                                         ReplaceAll[memBody, sym -> finalSym]]},
+                                      {{2,0} -> Set,
+                                       0 -> SetDelayed}]],
+                                  Flatten[harvest[[2]]]];
+                                Set @@ Join[Hold[Evaluate@finalSym], Hold[harvest][[{1},1]]];
+                                finalSym]]]]],
+                      $Failed]];
                 SetAttributes[Evaluate[box], Protected];
-                SetAttributes[Evaluate[box], HoldAll]]]]]]]],
+                SetAttributes[Evaluate[box], HoldAll]]]]]]]]],
   $Failed];
 
 (* #MimicAssociation ******************************************************************************)

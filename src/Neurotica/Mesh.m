@@ -78,18 +78,55 @@ CortexToSphere::usage = "CortexToSphere[c] yields a CoticalMesh similar to c but
 
 VertexCoordinates::usage = "VertexCoordinates[mesh] yields the list of vertex coordinates for the given mesh in vertex order.";
 
+CalculateFaceAngleCosinesTr::usage = "CalculateFaceAngleCosinesTr[Ft, Xt] is a compiled function that yields a list of the cosines of the angles of each face in given in the transposed face list Ft using the given transposed coordinate list Xt. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceAnglesTr::usage = "CalculateFaceAnglesTr[Ft, Xt] is a compiled function that yields a list of the angles of each face in given in the transposed face list Ft using the given transposed coordinate list Xt. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceAngleCosines::usage = "CalculateFaceAngleCosines[F, X] is a compiled function that yields a list of the angles of each face in given in the face list F using the given coordinate list X. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceAngles::usage = "CalculateFaceAngles[F, X] is a compiled function that yields a list of the angles of each face in given in the face list F using the given coordinate list X. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceNormalsTr::usage = "CalculateFaceNormalsTr[Ft, Xt] is a compiled function that yields a list of the {x, y, z} coordinates of the normal vectors to each face in the transposed face list Ft using the given transposed coordinate list Xt. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceNormals::usage = "CalculateFaceNormals[F, X] is a compiled function that yields a list of the normal vectors of each face given in the face list F using the given transposed coordinate list X. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceAxesTr::usage = "CalculateFaceAxesTr[Ft, Xt] is a compiled function that yields a list of the {{x1, x2}, {y1, y2}, {z1, z2}} coordinate lists of the two axes ({x1, y1, z1} and {x2, y2, z2}) of each face in the given transposed face list Ft and the given transposed coordinate list Xt. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceAxes::usage = "CalculateFaceAxes[F, X] is a compiled function that yields a list of the axes for each face given in the face list F using the given coordinate list X. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFacePlaneCoordinatesTr::usage = "CalculateFacePlaneCoordinatesTr[Ft, Xt, At] is a compiled function that yields a list of the {x,y} 2D coordinates for each point of each face given in the transposed face list Ft using the given transposed coordinate list Xt. The result of this calculation is equivalent to Transpose[q, {3,2,1}] where q is the result of the non-transposed version of the function. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFacePlaneCoordinates::usage = "CalculateFacePlaneCoordinates[F, X, A] is a compiled function that yields a list of the {x,y} 2D coordinates for each point of each face given in the face list F using the given coordinate list X. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateVertexNormalsTr::usage = "CalculateVertexNormalsTr[Ft, Xt] yields the transposed normal vectors to each vertex given in the 3 by n matrix of coordinates in Xt where the triangle faces are given by columns of integer triples in Ft.";
+CalculateVertexNormals::usage = "CalculateVertexNormals[F, X] yields the normal vector to each vertex given in the 3 by n matrix of coordinates in X where the triangle faces are given by integer triples in F.";
+CorticalMeshNeighborhood::usage = "CorticalMeshNeighborhood[mesh, u0, d] yields the list of vertices in the given cortical mesh such that the edge-weighted distance from u0 to each vertex returned is less than d.";
+
+VertexCoordinatesTr::usage = "VertexCoordinatesTr[mesh] yields the transposed list of vertex coordinates for the given mesh: Transpose[VertexCoordinates[mesh]].";
+VertexNormalsTr::usage = "VertexNormalsTr[mesh] yields the transposed list of vertex normals for each vertex in the given mesh: Transpose[VertexNormals[mesh]].";
+FaceListTr::usage = "FaceListTr[s] yields a transposition of the FaceList[s] for the given cortical mesh or map s.";
+FaceAngleCosinesTr::usage = "FaceAngleCosinesTr[s] yields a transposition of the FaceAngleCosines[s] for the given cortical mesh or map s.";
+FaceAnglesTr::usage = "FaceAnglesTr[s] yields a transposition of the FaceAngles[s] for the given cortical mesh or map s.";
+FaceNormalsTr::usage = "FaceNormalsTr[s] yields a transposition of the FaceNormals[s] for the given cortical mesh or map s such that FaceNormalsTr[s] == Transpose[FaceNormals[s], {3,2,1}].";
+FaceAxesTr::usage = "FaceAxesTr[s] yields a transposition of the FaceAxes[s] for the given cortical mesh or map s such that FaceAxesTr[s] == Transpose[FaceAxes[s], {3,2,1}].";
+FaceCoordinatesTr::usage = "FaceCoordinatesTr[s] yields a transposition of the FaceCoordinates[s] for the given cortical mesh or map s such that FaceCoordinatesTr[s] == Transpose[FaceCoordinates[s], {3,2,1}].";
+FacePlaneCoordinatesTr::usage = "FacePlaneCoordinatesTr[s] yields a transposition of the FacePlaneCoordinates[s] for the given cortical mesh or map s such that FacePlaneCoordinatesTr[s] == Transpose[FacePlaneCoordinates[s], {3,2,1}].";
+
 FaceList::usage = "FaceList[s] yields a list of all faces in the surface or map s, if any, as lists of indices into VertexCoordinates[s].";
 FaceCount::usage = "FaceCount[s] yields the count of all faces in the surface or map s.";
+FaceAngleCosines::usage = "FaceAngles[s] yields a list of the cosines of the angles of each edge in the FaceList[s] where s may be a surface or a map. FaceAngles[s, X] yields the angles for s if the vertices in s had coordinates equal to those in the list X.";
 FaceAngles::usage = "FaceAngles[s] yields a list of the angles (in radians) of each edge in the FaceList[s] where s may be a surface or a map. FaceAngles[s, X] yields the angles for s if the vertices in s had coordinates equal to those in the list X.";
 FaceIndex::usage = "FaceIndex[s] yields a list of the indices into FaceList[s] such that the i'th element in FaceIndex[s] is the list of indices at which the i'th vertex in VertexCoordinates[s] appears in FaceList[s].";
 FaceNormals::usage = "FaceNormals[s] yields a list of normal vectors to each trianglular face in the surface mesh s. The vector yielded for each face is orthogonal to the plane of the face.";
 FaceAxes::usage = "FaceAxe[s] yields a list of the orthogonal axes to each of the faces in the surface mesh s.";
 FaceCoordinates::usage = "FaceCoordinates[s] yeilds a list of faces in which the coordinates insted of the vertex indices for each face are given.";
-FaceRelativeCoordinates::usage = "FaceRelativeCoordinates[s] yeilds a list of coordinates, one for each face in the surface mesh s, that has been normalized to two dimensions.";
+FacePlaneCoordinates::usage = "FacePlaneCoordinates[s] yeilds a list of coordinates, one for each face in the surface mesh s, that has been normalized to two dimensions.";
+
+EdgePairsTr::usage = "EdgePairsTr[s] yields a transposition of EdgePairs[s] for the given cortical mesh or map s.";
+EdgeCoordinatesTr::usage = "EdgeCoordinatesTr[s] yields a transposition of EdgeCoordinates[s] for the given cortical mesh or map s.";
 
 EdgePairs::usage = "EdgePairs[s] yields a list of the undirected edges between vertices in the surface mesh s; unlike the EdgeList function, this function yields the edges as lists instead of undirected edges.";
 EdgeLengths::usage = "EdgeLengths[s] yields a list of the lengths (Euclidean norm) of each edge in the EdgeList[s] where s may be a surface mesh object or projection.";
 EdgeCoordinates::usage = "EdgeCoordinates[s] yields a list identical to EdgePairs[s] except that the vertex ids in the list have been replaced with the coordinates of each vertex.";
+
+VertexFaceMatrix::usage = "VertexFaceMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if vertex j is the k'th part of face i and 0 if not (where m is the number of faces in the mesh M).";
+VertexEdgeMatrix::usage = "VertexEdgeMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if vertex j is the k'th part of edge i and 0 if not (where m is the number of edges in the mesh M).";
+EdgeFaceMatrix::usage = "VertexFaceMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if edge j is the kth part of face i and 0 if not (where m is the number of faces in the mesh M).";
+
+SumOverFacesTr::usage = "SumOverFacesTr[M, Q] yields the 3 x n result of summing over the faces given in the matrix Q whose first dimension must be equal to 3 and whose last dimension must be equal to the number of faces in cortical mesh or map M.";
+SumOverEdgesTr::usage = "SumOverEdgesTr[M, Q] yields the 3 x n result of summing over the edges given in the matrix Q whose first dimension must be equal to 2 and whose last dimension must be equal to the number of edges in cortical mesh or map M.";
+SumOverFaces::usage = "SumOverFaces[M, Q] yields the result of summing over the faces given in the matrix Q whose last dimension must be equal to 3 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
+SumOverEdges::usage = "SumOverEdges[M, Q] yields the result of summing over the edges given in the matrix Q whose last dimension must be equal to 2 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
 
 NeighborhoodList::usage = "NeighborhoodList[s] yields a list of length N (where N is the number of vertices in s) of the neighboring vertices of each vertex; each entry k of the list is a list of the integer id's of the neighbors of the kth vertex. The neighbor id's are sorted such that they are listed in a counter-clockwise order around vertex k starting from the x-axis. The argument s may be either a map or a surface.";
 NeighborhoodAngles::usage = "NeighborhoodAngles[mesh] yields a list of the angles between the nodes in the NeighborhoodList; these angles are in the same order as the nodes in NeighborhoodList such that the first angle in a neighborhood is between the first vertex in the neighborhood, the central vertex, and second vertex in the neighborhood and the last angle in the neighborhood angles list is the angle between the first vertex in the neighborhood list, the center vertex, and the last vertex in the neighborhood list.
@@ -117,10 +154,6 @@ CortexPlot::usage = "CortexPlot[mesh] yields a Graphics form for the given Corti
 
 CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature c in a CortexPlot or CortexPlot3D; c may be a list or a single value.";
 CorticalCurvatureVertexColors::usage = "CorticalCurvatureVertexColors[m] yields the colors for each vertex in the given mesh m according to CorticalCurvatureColor[c] for the curvature c of each vertex; if there is no curvature proeprty defined, then Gray is used for each vertex.";
-
-CalculateVertexNormals::usage = "CalculateVertexNormals[X, F] yields the normal vector to each vertex given in the 3 by n matrix of coordinates in X where the triangle faces are given by integer triples in F. These normal vectors are not normalized.";
-
-CorticalMeshNeighborhood::usage = "CorticalMeshNeighborhood[mesh, u0, d] yields the list of vertices in the given cortical mesh such that the edge-weighted distance from u0 to each vertex returned is less than d.";
 
 Begin["`Private`"];
 
@@ -175,43 +208,6 @@ NeighborhoodEdgeLengthsCompiled = Compile[{{x0, _Real, 1}, {x, _Real, 2}},
   Parallelization -> True];
 Protect[NeighborhoodEdgeLengthsCompiled];
 
-(* #FaceNormalsCompiled *)
-FaceNormalsCompiled = Compile[
-  {{v, _Real, 2}, {cells, _Integer, 2}},
-  With[
-    {cellsTr = Transpose[cells]},
-    With[
-      {u1 = Transpose[v[[cellsTr[[2]]]] - v[[cellsTr[[1]]]]],
-       u2 = Transpose[v[[cellsTr[[3]]]] - v[[cellsTr[[1]]]]]},
-      With[
-        {crosses = {
-           u1[[2]]*u2[[3]] - u1[[3]]*u2[[2]],
-           u1[[3]]*u2[[1]] - u1[[1]]*u2[[3]],
-           u1[[1]]*u2[[2]] - u1[[2]]*u2[[1]]}},
-        With[
-          {norms = Sqrt@Total[crosses^2]},
-          MapThread[
-            If[#2 == 0.0, 0.0, #1/#2]&,
-            {crosses, {norms, norms, norms}},
-            2]]]]],
-  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}];
-Protect[FaceNormalsCompiled];
-
-(* #FaceNormalsUnnormalizedCompiled *)
-FaceNormalsUnnormalizedCompiled = Compile[
-  {{v, _Real, 2}, {cells, _Integer, 2}},
-  With[
-    {cellsTr = Transpose[cells]},
-    With[
-      {u1 = Transpose[v[[cellsTr[[2]]]] - v[[cellsTr[[1]]]]],
-       u2 = Transpose[v[[cellsTr[[3]]]] - v[[cellsTr[[1]]]]]},
-      Transpose[{
-        u1[[2]]*u2[[3]] - u1[[3]]*u2[[2]],
-        u1[[3]]*u2[[1]] - u1[[1]]*u2[[3]],
-        u1[[1]]*u2[[2]] - u1[[2]]*u2[[1]]}]]],
-  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}];
-Protect[FaceNormalsUnnormalizedCompiled];
-
 (* #NeighborhoodSort3DCompiled ********************************************************************)
 NeighborhoodSort3DCompiled = Compile[
   {{x0, _Real, 1}, {neivec, _Complex, 1}, {nei, _Integer, 1}, {xnei, _Real, 2}},
@@ -233,62 +229,121 @@ NeighborhoodSort2DCompiled = Compile[
   RuntimeOptions -> "Speed"];
 
 (* #CalculateVertexNormals ************************************************************************)
-CalculateVertexNormals[v_List, cells_List] := Check[
+CalculateVertexNormalsTr[Ft_List, Xt_List] := With[
+  {nx3 = 3 * Length[First@Ft]},
   With[
-    {cellsTr = Transpose[cells],
-     nx3 = 3 * Length[cells]},
+    {u1 = Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]],
+     u2 = Xt[[All, Ft[[3]]]] - Xt[[All, Ft[[1]]]],
+     P = SparseArray[
+       Rule[
+         Transpose@{Join[Ft[[1]], Ft[[2]], Ft[[3]]], Range[nx3]}, 
+         ConstantArray[1, nx3]]]},
     With[
-      {u1 = Transpose[v[[cellsTr[[2]]]] - v[[cellsTr[[1]]]]],
-       u2 = Transpose[v[[cellsTr[[3]]]] - v[[cellsTr[[1]]]]],
-       P = SparseArray[
-         Rule[
-           Transpose@{Join @@ cellsTr, Range[nx3]}, 
-           ConstantArray[1, nx3]]]},
-      With[
-        {q = Transpose[
-           {u1[[2]]*u2[[3]] - u1[[3]]*u2[[2]],
-            u1[[3]]*u2[[1]] - u1[[1]]*u2[[3]],
-            u1[[1]]*u2[[2]] - u1[[2]]*u2[[1]]}]},
-        NormalizeRows @ Dot[P, Join[q, q, q]]]]],
-  $Failed];
+      {q = Transpose[
+         {u1[[2]]*u2[[3]] - u1[[3]]*u2[[2]],
+          u1[[3]]*u2[[1]] - u1[[1]]*u2[[3]],
+          u1[[1]]*u2[[2]] - u1[[2]]*u2[[1]]}]},
+      NormalizeRows @ Dot[P, Join[q, q, q]]]]];
+CalculateVertexNormals[F_List, X_List] := Transpose @ CalculateVertexNormalsTr[
+  Transpose @ F,
+  Transpose @ X];
+Protect[CalculateVertexNormalsTr, CalculateVertexNormals];
 
-(* #FaceAxesCompiled *)
-FaceAxesCompiled2D = Compile[{{x0, _Real, 1}, {xnei, _Real, 2}},
+(* #CalculateFaceAngleCosinesTr *******************************************************************)
+CalculateFaceAngleCosinesTr = Compile[
+  {{Ft, _Integer, 2}, {Xtr, _Real, 2}},
   With[
-    {x = Transpose[xnei]},
-    With[
-      {u = (RotateLeft /@ x) - x},
-      With[
-        {n = Sqrt[Total[u^2]]},
-        {{u[[1]]/n, u[[2]]/n}, {-u[[2]]/n, u[[1]]/n}}]]],
+    {sides = Partition[#, Length@First@Ft]& /@ NormalizeColumns[
+       Xtr[[All, Join[Ft[[2]], Ft[[3]], Ft[[1]]]]] - Xtr[[All, Join[Ft[[1]], Ft[[2]], Ft[[3]]]]]]},
+    {Total[sides[[1]] * -sides[[3]]],
+     Total[sides[[2]] * -sides[[1]]],
+     Total[sides[[3]] * -sides[[2]]]}],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
-FaceAxesCompiled3D = Compile[{{x0, _Real, 1}, {xnei, _Real, 2}, {tnorm, _Real, 2}},
-  With[
-    {x = Transpose[xnei]},
-    With[
-      {u = (RotateLeft /@ x) - x,
-       dx = MapThread[Subtract, {x0, x}]},
-      With[
-        {n = Sqrt[Total[u^2]]},
-        {{u[[1]]/n, u[[2]]/n, u[[3]]/n},
-         {tnorm[[2]]*u[[3]]/n - tnorm[[3]]*u[[2]]/n, 
-          tnorm[[3]]*u[[1]]/n - tnorm[[1]]*u[[3]]/n,
-          tnorm[[1]]*u[[2]]/n - tnorm[[2]]*u[[1]]/n}}]]],
-  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-  Parallelization -> True];
-Protect[FaceAxes2DCompiled, FaceAxes3DCompiled];
+(* #CalculateFaceAnglesTr *************************************************************************)
+CalculateFaceAnglesTr[Ft_List, Xtr_List] := ArcCos @ CalculateFaceAngleCosinesTr[Ft, Xtr];
+(* #CalculateFaceAngleCosines *********************************************************************)
+CalculateFaceAngleCosines[F_List, X_List] := Transpose @ CalculateFaceAngleCosinesTr[
+  Transpose @ F,
+  Transpose @ X];
+(* #CalculateFaceAngles ***************************************************************************)
+CalculateFaceAngles[Ft_List, Xtr_List] := Transpose @ ArcCos @ CalculateFaceAngleCosinesTr[
+  Transpose @ F,
+  Transpose @ X];
+Protect[CalculateFaceAngleCosinesTr, CalculateFaceAngleCosines, 
+        CalculateFaceAnglesTr, CalculateFaceAngles];
 
-(* #TriangleCoordinatesCompiled *)
-FaceCoordinatesCompiled = Compile[{{x0, _Real, 1}, {xnei, _Real, 2}, {axes, _Real, 3}},
+(* #CalculateFaceNormals *)
+CalculateFaceNormalsTr = Compile[
+  {{Ft, _Integer, 2}, {Xt, _Real, 2}},
   With[
-    {x = Transpose[xnei]},
-    With[
-      {dx = MapThread[Subtract, {x0, x}]},
-      {Total[axes[[1]] * dx], Total[axes[[2]] * dx]}]],
+      {u1 = Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]],
+       u2 = Xt[[All, Ft[[3]]]] - Xt[[All, Ft[[1]]]]},
+      With[
+        {crosses = {
+           u1[[2]]*u2[[3]] - u1[[3]]*u2[[2]],
+           u1[[3]]*u2[[1]] - u1[[1]]*u2[[3]],
+           u1[[1]]*u2[[2]] - u1[[2]]*u2[[1]]}},
+        With[
+          {norms = (Sqrt[#] + 1.0 - Sign[Chop[#]])& @ Total[crosses^2]},
+          (* the number with the sign prevents divide by 0 for 0-norm cross-products *)
+          crosses / {norms, norms, norms}]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
-Protect[FaceCoordinatesCompiled];
+CalculateFaceNormals[F_List, X_List] := Transpose @ CalculateFaceNormalsTr[
+  Transpose @ F,
+  Transpose @ X];
+Protect[CalculateFaceNormalsTr, CalculateFaceNormals];
+
+(* #CalculateFaceAxes *)
+CalculateFaceAxes3DTr = Compile[
+  {{Ft, _Integer, 2}, {Xt, _Real, 2}, {normals, _Real, 2}},
+  With[
+    {side1s = Sqrt @ Total @ (Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]])^2},
+    Transpose @ {
+      side1s,
+      {normals[[2]] * side1s[[3]] - side1s[[2]] * normals[[3]],
+       side1s[[1]] * normals[[3]] - normals[[1]] * side1s[[3]],
+       side1s[[2]] * normals[[1]] - normals[[2]] * side1s[[1]]}}],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+  Parallelization -> True];
+CalculateFaceAxes2DTr = Compile[
+  {{Ft, _Integer, 2}, {Xt, _Real, 2}},
+  With[
+    {side1s = Sqrt @ Total @ (Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]])^2},
+    Transpose @ {side1s, {-side1s[[2]], side1s[[1]]}}],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+  Parallelization -> True];
+CalculateFaceAxesTr[Ft_List, Xt_List, normt_List] := CalculateFaceAxes3DTr[Ft, Xt, normt];
+CalculateFaceAxes[F_List, X_List, norm_List] := CalculateFaceAxes3DTr[
+  Transpose @ F,
+  Transpose @ X,
+  Transpose @ norm];
+CalculateFaceAxesTr[Ft_List, Xt_List] := If[Length[Xt] == 2,
+  CalculateFaceAxes2DTr[Ft, Xt],
+  CalculateFaceAxes3DTr[Ft, Xt, CalculateFaceNormalsTr[Ft, Xt]]];
+CalculateFaceAxes[F_List, X_List] := If[Length[First@X] == 2,
+  CalculateFaceAxes2DTr[Transpose @ F, Transpose @ X],
+  With[
+    {Ft = Transpose@F, Xt = Transpose@X}, 
+    CalculateFaceAxes3DTr[Ft, Xt, CalculateFaceNormalsTr[Ft, Xt]]]];
+Protect[CalculateFaceAxes, CalculateFaceAxesTr, CalculateFaceAxes3DTr, CalculateFaceAxes2DTr];
+
+(* #CalculateFacePlaneCoordinates *)
+CalculateFacePlaneCoordinatesTr = Compile[
+  {{Ft, _Integer, 2}, {Xt, _Real, 2}, {At, _Real, 3}},
+  Outer[
+    Total[#1 * #2]&,
+    Transpose[At],
+    {Xt[[All, Ft[[1]]]], Xt[[All, Ft[[2]]]], Xt[[All, Ft[[3]]]]},
+    1, 1],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+  Parallelization -> True];
+CalculateFacePlaneCoordinates[F_List, X_List, A_List] := CalculateFacePlaneCoordinatesTr[
+  Transpose @ F,
+  Transpose @ X,
+  Transpose[A, {3,2,1}]];
+Protect[CalculateFacePlaneCoordinates, CalculateFacePlaneCoordinatesTr];
 
 (* #ParseMeshProperties *)
 ParseMeshProperties[X_, other_] := With[
@@ -604,433 +659,501 @@ Options[CorticalMesh] = Join[
    MetaInformation -> {}}];
 DefineImmutable[
   CorticalMesh[V_, F_, OptionsPattern[]] :> mesh,
-  {(* First, we declare constants that depend on nothing else and thus can be used without fear of
-    * forcing reevaluation of other values. These are all private.
-    *)
-   InitialVertexCoordinates[mesh] -> ReplaceRepeated[V, Property[x_, _] :> x],
-   InitialVertexList[mesh]        -> Range[Length[InitialVertexCoordinates[mesh]]],
-   InitialFaceList[mesh]          -> ReplaceRepeated[F, Property[f_, _] :> f],
-   InitialEdgePairs[mesh]         -> Union@Flatten[
-     {#[[{1,2}]], #[[{1,3}]], #[[{2,3}]]}& /@ Sort /@ FaceList[mesh],
-     1],
+  (* We do want to declare a few locals here *)
+  With[
+    {optionalProperties = Last@Reap[
+       Replace[
+         OptionValue[Properties] /. None -> {},
+         {r:Rule[_Integer, {_Rule..}] :> Sow[r, "Vertex"],
+          r:Rule[{_Integer, _Integer}, {_Rule..}] :> Sow[r, "Edge"],
+          Rule[UndirectedEdge[a_Integer, b_Integer], rs:{_Rule..}] :> Sow[{a,b} -> rs, "Edge"],
+          r:Rule[{_Integer,_Integer,_Integer}, {_Rule..}] :> Sow[r, "Face"],
+          x_ :> Message[CorticalMesh::badarg, "badly formatted property option"]},
+         {1}],
+       {"Vertex", "Edge", "Face"},
+       (Sequence@@#2)&],
+     cleaned = With[
+       {step1 = ReplaceRepeated[{V, F}, Property[x_, _] :> x]},
+       {step1[[1]], 
+        With[
+          {Ftr = Transpose @ step1[[2]]},
+          Transpose @ Union[
+            Sort /@ Transpose @ {
+              Join[Ftr[[1]],Ftr[[1]],Ftr[[2]]],
+              Join[Ftr[[2]],Ftr[[3]],Ftr[[3]]]}]],
+        step1[[2]]}]},
+    {(* ======================================= Privates ======================================== *)
 
-   (* Options is settable, but depends on nothing but InitialOptions 
-      (and should have nothing downstream but CorticalMeshQ) *)
-   Options[mesh] = Map[(# -> OptionValue[#])&, $CortexPlot3DOptions[[All, 1]]],
+     (* #VertexProperties, #EdgeProperties, #FaceProperties *)
+     VertexProperties[mesh] = ParseMeshProperties[V, optionalProperties[[1]]],
+     EdgeProperties[mesh] = ParseMeshProperties[Transpose @ cleaned[[2]], optionalProperties[[2]]],
+     FaceProperties[mesh] = ParseMeshProperties[F, optionalProperties[[3]]],
+     
+     (* #FaceIndexArray [private] *)
+     FaceIndexArray[mesh] :> With[
+       {Ft = FaceListTr[mesh],
+        RF = Range[FaceCount[mesh]]},
+       SparseArray @ Rule[
+         Transpose @ MapThread[
+           Join,
+           {Ft,
+            {Ft[[2]], Ft[[3]], Ft[[1]]},
+            {Ft[[3]], Ft[[1]], Ft[[2]]},
+            {Ft[[3]], Ft[[2]], Ft[[1]]},
+            {Ft[[2]], Ft[[1]], Ft[[3]]},
+            {Ft[[1]], Ft[[3]], Ft[[2]]}}],
+         Join[RF, RF, RF, RF, RF, RF]]],
+     (* #EdgeIndexArray [private] *)
+     EdgeIndexArray[mesh] :> With[
+       {Et = EdgePairsTr[mesh],
+        RE = Range[EdgeCount[mesh]]},
+       SparseArray[Transpose[MapThread[Join, {Et, Reverse[Et]}]] -> Join[RE, RE]]],
+     (* VertexIndexArray [private] *)
+     VertexIndexArray[mesh] :> If[VertexList[mesh] == Range[VertexCount[mesh]],
+       VertexList[mesh],
+       Normal @ SparseArray[VertexList[mesh] -> Range[VertexCount[mesh]]]],
+     
+     (* #SumOverFacesMatrix and #SumOverEdgesMatrix *)
+     SumOverFacesMatrix[mesh] :> SparseArray[
+       Transpose[{Range[3*FaceCount[mesh]], Join @@ FaceListTr[mesh]}] -> 1],
+     SumOverEdgesMatrix[mesh] :> SparseArray[
+       Transpose[{Range[2*EdgeCount[mesh]], Join @@ EdgePairsTr[mesh]}] -> 1],
 
-   (* SourceImage also should not have dependencies *)
-   SourceImage[mesh] = OptionValue[SourceImage],
 
-   (* MetaInformation is a place-holder but also has no dependencies *)
-   MetaInformation[mesh] = OptionValue[MetaInformation],
+     (* ======================================= Settables ======================================= *)
 
-   (* Now we have the settable versions of the above *)
-   VertexCoordinates[mesh] = InitialVertexCoordinates[mesh],
-   FaceList[mesh] = InitialFaceList[mesh],
-   EdgePairs[mesh] = InitialEdgePairs[mesh],
-   EdgePairs[mesh, patt_] := Cases[EdgePairs[mesh], patt, {1}],
-   FaceList[mesh, patt_] := Cases[FaceList[mesh], patt, {1}],
+     (* All data is actually stored transposed for efficiency *)
+     VertexCoordinatesTr[mesh] = Transpose @ cleaned[[1]],
+     FaceListTr[mesh]          = Transpose @ cleaned[[3]],
+     Options[mesh]             = Map[(# -> OptionValue[#])&, Options[CorticalMesh][[All,1]]],
 
-   (* VertexList is not settable, but it is public thus depends on the current vertex coordinates *)
-   VertexList[mesh] -> Range[Length[VertexCoordinates[mesh]]],
-   VertexList[mesh, patt_] := Cases[VertexList[mesh], patt, {1}],
 
-   (* Here we have indices; the index arrays are private, but the index functions are public *)
+     (* ====================================== Immediates ======================================= *)
 
-   (* #FaceIndexArray [private] *)
-   FaceIndexArray[mesh] :> With[
-     {Ft = Transpose @ FaceList[mesh],
-      RF = Range[FaceCount[mesh]]},
-     SparseArray @ Rule[
-       Transpose @ MapThread[
-         Join,
-         {Ft,
-          {Ft[[2]], Ft[[3]], Ft[[1]]},
-          {Ft[[3]], Ft[[1]], Ft[[2]]},
-          {Ft[[3]], Ft[[2]], Ft[[1]]},
-          {Ft[[2]], Ft[[1]], Ft[[3]]},
-          {Ft[[1]], Ft[[3]], Ft[[2]]}}],
-       Join[RF, RF, RF, RF, RF, RF]]],
-   (* #EdgeIndexArray [private] *)
-   EdgeIndexArray[mesh] :> With[
-     {Et = Transpose @ EdgePairs[mesh],
-      RE = Range[EdgeCount[mesh]]},
-     SparseArray[Transpose[MapThread[Join, {Et, Reverse[Et]}]] -> Join[RE, RE]]],
-   (* VertexIndexArray [private] *)
-   VertexIndexArray[mesh] :> If[VertexList[mesh] == Range[VertexCount[mesh]],
-     VertexList[mesh],
-     Normal @ SparseArray[VertexList[mesh] -> Range[VertexCount[mesh]]]],
+     (* #EdgePairs is deducible strictly from the FaceList *)
+     EdgePairsTr[mesh] -> cleaned[[2]],
 
-   (* #FaceIndex *)
-   FaceIndex[mesh, {a_Integer, b_Integer, c_Integer}] := With[
-     {id = FaceIndexArray[mesh][[a,b,c]]},
-     If[id == 0, $Failed, id]],
-   (* EdgeIndex *)
-   EdgeIndex[mesh, (List|UndirectedEdge)[a_Integer, b_Integer]] := With[
-     {id = EdgeIndexArray[mesh][[a,b]]},
-     If[id == 0, $Failed, id]],     
-   (* VertexIndex *)
-   VertexIndex[mesh, i_Integer] := With[
-     {id = If[i > Length[VertexIndexArray[mesh]], 0, VertexIndexArray[mesh][[i]]]},
-     If[id == 0, $Failed, id]],
-   VertexIndex[mesh, is_List] := With[
-     {idx = VertexIndexArray[mesh]},
-     Map[Part[idx, #]&, is, {-2}]],
+     (* #VertexCount *)
+     VertexCount[mesh] -> Length @ First @ VertexCoordinatesTr[mesh],
+     (* #EdgeCount *)
+     EdgeCount[mesh] -> Length @ First @ EdgePairsTr[mesh],
+     (* #FaceCount *)
+     FaceCount[mesh] -> Length @ First @ FaceListTr[mesh],
 
-   (* These indices depend only on the face list and edge pairs and tell us to which faces a vertex
-    * or an edge belongs.
-    *)
-   VertexEdgeList[mesh] :> With[
-     {RE = Range[EdgeCount[mesh]],
-      EP = Transpose@EdgePairs[mesh]},
-     Part[
-       SplitBy[
-         SortBy[
-           Transpose[{Join[EP[[1]], EP[[2]]], Join[RE, RE]}],
-           First],
-         First],
-       All, All, 2]],
-   VertexFaceList[mesh] :> With[
-     {T = VertexIndex[mesh, Transpose @ FaceList[mesh]],
-      RT = Range[FaceCount[mesh]]},
-     Part[
-       SplitBy[
-         SortBy[
-           Transpose[{Join @@ T, Join[RT, RT, RT]}],
-           First],
-         First],
-       All, All, 2]],
-   VertexEdgeList[mesh, i_Integer] := Part[VertexEdgeList[mesh], VertexIndex[mesh, i]],
-   VertexFaceList[mesh, i_Integer] := Part[VertexFaceList[mesh], VertexIndex[mesh, i]],
-   EdgeFaceList[mesh] :> With[
-     {Ft = VertexIndex[mesh, Transpose @ FaceList[mesh]],
-      RT = Range[FaceCount[mesh]],
-      eidx = EdgeIndexArray[mesh]},
-     With[
-       {edges = Extract[
-          eidx,
-          Transpose @ {
-            Join[Ft[[1]], Ft[[2]], Ft[[3]]],
-            Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
+     (* VertexList is not settable but is public thus depends on the current vertex coordinates *)
+     VertexList[mesh] -> Range[VertexCount[mesh]],
+
+     (* #CorticalMeshQ tests whether the mesh is valid and yields True if so *)
+     CorticalMeshQ[mesh] -> Which[
+       !ArrayQ[VertexCoordinatesTr[mesh], 2, NumericQ], Message[
+         CorticalMesh::badarg,
+         "VertexCoordinates must be a 2D numeric array"],
+       !MatchQ[Dimensions[VertexCoordinatesTr[mesh]], {3, _}], Message[
+         CorticalMesh::badarg,
+         "VertexCoordinates must contain 3D points"],
+       !ArrayQ[FaceListTr[mesh], 2, IntegerQ], Message[
+         CorticalMesh::badarg, 
+         "FaceList conatins non-integer values"],
+       Length[FaceListTr[mesh]] != 3, Message[
+         CorticalMesh::badarg,
+         "FaceList must contain triangles only"],
+       Min[Join@@FaceListTr[mesh]] < 1, Message[
+         CorticalMesh::badarg, 
+         "FaceList conatins values less than 1"],
+       Max[Join@@FaceListTr[mesh]] > VertexCount[mesh], Message[
+         CorticalMesh::badarg, 
+         "FaceList conatins values greater than the number of vertices"],
+       And[
+         Options[mesh] =!= Automatic,
+         Complement[Options[mesh][[All,1]], Options[CorticalMesh][[All, 1]]] != {}], Message[
+           CorticalMesh::badarg,
+           "Unrecognized option given to CorticalMesh"],
+       True, True],
+
+
+
+     (* ======================================== Delays ========================================= *)
+
+     (* These indices depend only on the face list and edge pairs and tell us to which faces a
+      * vertex or an edge belongs.
+      *)
+     VertexEdgeList[mesh] :> With[
+       {RE = Range[EdgeCount[mesh]],
+        EP = VertexIndex[mesh, EdgePairsTr[mesh]]},
        Part[
          SplitBy[
            SortBy[
-             Transpose[{edges, Join[RT, RT, RT]}],
+             Transpose[{Join[EP[[1]], EP[[2]]], Join[RE, RE]}],
              First],
            First],
-         All, All, 2]]],
-   EdgeFaceList[mesh, e_] := Part[EdgeFaceList[mesh], EdgeIndex[mesh, e]],
-
-   (* In this section, we deal with options.
-    * Options must not depend on current values and instead must be changed via the SetOptions
-    * interface, which is defined below, after the body of the immutable definition.
-    *)
-
-   (* #OptionalProperties [private] *)
-   OptionalProperties[mesh] -> Last@Reap[
-     Replace[
-       OptionValue[Properties] /. None -> {},
-       {r:Rule[_Integer, {_Rule..}] :> Sow[r, "Vertex"],
-        r:Rule[{_Integer, _Integer}, {_Rule..}] :> Sow[r, "Edge"],
-        Rule[UndirectedEdge[a_Integer, b_Integer], rs:{_Rule..}] :> Sow[{a,b} -> rs, "Edge"],
-        r:Rule[{_Integer,_Integer,_Integer}, {_Rule..}] :> Sow[r, "Face"],
-        x_ :> Message[CorticalMesh::badarg, "badly formatted property option"]},
-       {1}],
-     {"Vertex", "Edge", "Face"},
-     (Sequence@@#2)&],
-
-   (* #VertexProperties [private] *)
-   VertexProperties[mesh] = ParseMeshProperties[V, OptionalProperties[mesh][[1]]],
-   (* Note that VertexProperties does not depend on VertexCoordinates or FaceList so does not get
-      recalculated when someone changes the coordinates, for example. This lets us intelligently
-      carry over properties between clones. *)
-
-   (* #EdgeProperties [private] *)
-   EdgeProperties[mesh] = ParseMeshProperties[
-     InitialEdgePairs[mesh],
-     OptionalProperties[mesh][[2]]],
-
-   (* #FaceProperties [private] *)
-   FaceProperties[mesh] = ParseMeshProperties[F, OptionalProperties[mesh][[3]]],
-
-   (* Now that those private mutables have been setup without dependence on the current state of
-    * variables like VertexCoordinates, we can make the Properties value depend on them, so that
-    * an update of any of them will result in an update of the properties and properties list, etc.
-    *)
-
-   (* #Properties *)
-   Properties[mesh] :> With[
-     {allPropNames = Union[
-        VertexProperties[mesh][[All,1]],
-        EdgeProperties[mesh][[All,1]],
-        FaceProperties[mesh][[All,1]]]},
-     Map[
-       Function[{name},
-         name -> MapThread[
-           If[#1 === $Failed, #2 -> #1, ReplacePart[#1, 1 -> #2]]&,
-           {{FirstCase[VertexProperties[mesh], (Rule|RuleDelayed)[name,val_],$Failed],
-             FirstCase[EdgeProperties[mesh], (Rule|RuleDelayed)[name,val_], $Failed],
-             FirstCase[FaceProperties[mesh], (Rule|RuleDelayed)[name,val_], $Failed]},
-            {VertexList, EdgeList, FaceList}}]],
-       allPropNames]],
-   (* #PropertyList *)
-   PropertyList[mesh] := Join[Properties[mesh][[All, 1]], {EdgeWeight, VertexCoordinates}],
-   (* Note that property value and set property are below, outside the immutable definition *)
-
-   (* #VertexCount *)
-   VertexCount[mesh] -> Length[VertexCoordinates[mesh]],
-   VertexCount[mesh, patt_] := Count[VertexList[mesh], patt, {1}],
-   (* #EdgeCount *)
-   EdgeCount[mesh] -> Length[EdgePairs[mesh]],
-   EdgeCount[mesh, patt_] := Count[EdgePairs[mesh], patt, {1}],
-   (* #FaceCount *)
-   FaceCount[mesh] -> Length[FaceList[mesh]],
-   FaceCount[mesh, patt_] := Count[FaceList[mesh], patt, {1}],
-   (* #VertexDegree *)
-   VertexDegree[mesh] :> Length /@ NeighborhoodList[mesh],
-   VertexInDegree[mesh] := VertexDegree[mesh],
-   VertexOutDegree[mesh] := VertexDegree[mesh],
-   VertexDegree[mesh, i_Integer] := VertexDegree[mesh][[VertexIndex[mesh, i]]],
-   VertexInDegree[mesh, i_Integer] := VertexDegree[mesh][[VertexIndex[mesh, i]]],
-   VertexOutDegree[mesh, i_Integer] := VertexDegree[mesh][[VertexIndex[mesh, i]]],
-
-   (* #FaceAngles *)
-   FaceAngles[mesh, XX_] := With[
-     {Ft = Transpose[FaceList[mesh]]},
-     With[
-       {FX = Transpose[{XX[[Ft[[1]]]], XX[[Ft[[2]]]], XX[[Ft[[3]]]]}, {1,3,2}],
-        n = Length[Ft[[1]]]},
+         All, All, 2]],
+     VertexFaceList[mesh] :> With[
+       {T = VertexIndex[mesh, FaceListTr[mesh]],
+        RT = Range[FaceCount[mesh]]},
+       Part[
+         SplitBy[
+           SortBy[
+             Transpose[{Join @@ T, Join[RT, RT, RT]}],
+             First],
+           First],
+         All, All, 2]],
+     EdgeFaceList[mesh] :> With[
+       {Ft = VertexIndex[mesh, Transpose @ FaceList[mesh]],
+        RT = Range[FaceCount[mesh]],
+        eidx = EdgeIndexArray[mesh]},
        With[
-         {dFX = Transpose @ Partition[#, n]& /@ NormalizeColumns @ MapThread[
-            Join,
-            {FX[[2]] - FX[[1]], FX[[3]] - FX[[2]], FX[[1]] - FX[[3]]}]},
-         Transpose @ ArcCos[
-           {Total[dFX[[1]] * -dFX[[3]]],
-            Total[dFX[[2]] * -dFX[[1]]],
-            Total[dFX[[3]] * -dFX[[2]]]}]]]],
-   FaceAngles[mesh] :> FaceAngles[mesh, VertexCoordinates[mesh]],
-   (* #FaceNormals *)
-   FaceNormals[mesh] :> FaceNormalsCompiled[VertexList[mesh], FaceList[mesh]],
-   FaceNormals[mesh, X_] := FaceNormalsCompiled[X, FaceList[mesh]],
-   (* #FaceAxes *)
-   FaceAxes[mesh] :> With[
-     {X = VertexCoordinates[mesh],
-      nei = NeighborhoodList[mesh]},
-     With[
-       {Xnei = X[[#]]& /@ nei},
-       MapThread[FaceAxesCompiled3D, {X, Xnei, MapThread[TriangleNormalsCompiled, {X, Xnei}]}]]],
-   (* #FaceCoordinates *)
-   FaceCoordinates[mesh] :> With[
-     {X = VertexCoordinates[mesh],
-      FF = FaceList[mesh]},
-     X[[#]]& /@ FF],
-   (* #FaceRelativeCoordinates *)
-   FaceRelativeCoordinates[mesh] :> With[
-     {X = VertexCoordinates[mesh],
-      nei = NeighborhoodList[mesh],
-      Fn = FaceNormals[mesh]},
-     With[
-       {Xnei = X[[#]]& /@ nei},
-       MapThread[
-         TriangleCoordinatesCompiled,
-         {X, Xnei, MapThread[FaceAxesCompiled3D, {X, Xnei, Fn}]}]]],
+         {edges = Extract[
+            eidx,
+            Transpose @ {
+              Join[Ft[[1]], Ft[[2]], Ft[[3]]],
+              Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
+         Part[
+           SplitBy[
+             SortBy[
+               Transpose[{edges, Join[RT, RT, RT]}],
+               First],
+             First],
+           All, All, 2]]],
 
-   (* #EdgeList *)
-   EdgeList[mesh] :> Map[Apply[UndirectedEdge, #]&, EdgePairs[mesh]],
-   EdgeList[mesh, patt_] := Count[EdgeList[mesh], patt, {1}],
-   (* #EdgeLengths *)
-   EdgeLengths[mesh] :> With[
-     {EL = Transpose[EdgePairs[mesh]],
-      X = VertexCoordinates[mesh]},
-     With[
-       {X1 = Transpose[X[[EL[[1]]]]],
-        X2 = Transpose[X[[EL[[2]]]]]},
-       Sqrt[
-         Plus[
-           (X1[[1]] - X2[[1]])^2,
-           (X1[[2]] - X2[[2]])^2,
-           (X1[[3]] - X2[[3]])^2]]]],
-   EdgeWeight[mesh] := EdgeLengths[mesh],
-   EdgeWeight[mesh, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
-     EdgeLengths[mesh],
-     EdgeIndex[e]],
-   EdgeWeight[mesh, es:{(List|UndirectedEdge)[_Integer,_Integer]..}] := Part[
-     EdgeLengths[mesh],
-     EdgeIndex[mesh, #]& /@ es],
-   (* #EdgeCoordinates *)
-   EdgeCoordinates[mesh] :> With[{X = VertexCoordinates[mesh]}, X[[#]]& /@ EdgePairs[mesh]],
-   
-   (* #NeighborhoodList *)
-   NeighborhoodList[mesh] :> With[
-     {X = VertexCoordinates[mesh],
-      E = Transpose@EdgePairs[mesh],
-      normals = VertexNormals[mesh]},
-     With[
-       {neivecs = NeighborhoodVectors[mesh],
-        neis = Part[
-          SplitBy[
-            SortBy[
-              Transpose[{Join[E[[1]], E[[2]]], Join[E[[2]], E[[1]]]}],
-              First],
-            First],
-          All, All, 2]},
-       MapThread[NeighborhoodSort3DCompiled, {X, neivecs, neis, X[[#]] & /@ neis}]]],
-   (* #NeighborhoodVectors [private] *)
-   NeighborhoodVectors[mesh] := With[
-     {Xt = Transpose[VertexNormals[mesh]]},
-     With[
-       {x = Xt[[1]], y = Xt[[2]], z = Xt[[3]],
-        norms = Sqrt@Total[Xt^2]},
-       Transpose[
-         {(y + I*x*z/norms)/(I*x + y),
-          (I*x + y*z/norms)/(x - I*y),
-          -(x + I*y)/norms}]]],
-   (* #NeighborhoodAngles *)
-   NeighborhoodAngles[mesh] :> With[
-     {X = VertexCoordinates[mesh],
-      nei = NeighborhoodList[mesh]},
-     MapThread[NeighborhoodAnglesCompiled3D, {X, X[[#]]& /@ nei}]],
-   NeighborhoodAngles[mesh, X_] := MapThread[
-     NeighborhoodAnglesCompiled3D, 
-     {X, X[[#]]& /@ NeighborhoodList[mesh]}],
-   (* #NeighborhoodBisectors *)
-   NeighborhoodBisectors[mesh] :> With[
-     {X = VertexCoordinates[mesh],
-      nei = NeighborhoodList[mesh]},
-     MapThread[NeighborhoodBisectorsCompiled, {X, X[[#]] & /@ nei}]],
-   NeighborhoodBisectors[mesh, X_] := MapThread[
-     NeighborhoodBisectorsCompiled, 
-     {X, X[[#]]& /@ NeighborhoodList[mesh]}],
-   (* #NeighborhoodEdgeLengths *)
-   NeighborhoodEdgeLengths[mesh] :> With[
-     {X = VertexCoordinates[mesh],
-      nei = NeighborhoodList[mesh]},
-     MapThread[NeighborhoodEdgeLengthsCompiled, {X, X[[#]]& /@ nei}]],
-   NeighborhoodEdgeLengths[mesh, X_] := MapThread[
-     NeighborhoodEdgeLengthsCompiled, 
-     {X, X[[#]]& /@ NeighborhoodList[mesh]}],
+     (* #Properties *)
+     Properties[mesh] :> With[
+       {allPropNames = Union[
+          VertexProperties[mesh][[All,1]],
+          EdgeProperties[mesh][[All,1]],
+          FaceProperties[mesh][[All,1]]]},
+       Map[
+         Function[{name},
+           name -> MapThread[
+             If[#1 === $Failed, #2 -> #1, ReplacePart[#1, 1 -> #2]]&,
+             {{FirstCase[VertexProperties[mesh], (Rule|RuleDelayed)[name,val_], $Failed],
+               FirstCase[EdgeProperties[mesh], (Rule|RuleDelayed)[name,val_],   $Failed],
+               FirstCase[FaceProperties[mesh], (Rule|RuleDelayed)[name,val_],   $Failed]},
+              {VertexList, EdgeList, FaceList}}]],
+         allPropNames]],
 
 
-   (* #VertexNormals *)
-   VertexNormals[mesh] :> CalculateVertexNormals[VertexCoordinates[mesh], FaceList[mesh]],
-   VertexNormals[mesh, X_] := CalculateVertexNormals[X, FaceList[mesh]],
+
+     (* ======================================== Methods ======================================== *)
+
+     (* A few simple extensions of the immediates that count things *)
+     VertexCount[mesh, patt_] := Count[VertexList[mesh], patt, {1}],
+     FaceCount[mesh, patt_] := Count[FaceList[mesh], patt, {1}],
+     EdgeCount[mesh, patt_] := Count[EdgePairs[mesh], patt, {1}],
      
-   (* #MeshRegion *)
-   MeshRegion[mesh] :> MeshRegion[VertexCoordinates[mesh], Polygon[FaceList[mesh]]],
+     (* EdgeList is here just for the compatibility with graph-like operations (use EdgePairs) *)
+     EdgeList[mesh] := ReplacePart[EdgePairs[mesh], {_,0} -> UndirectedEdge],
+     EdgeList[mesh, patt_] := Cases[EdgeList[mesh], patt, {1}],
+     
+     (* Untransposed accessors to basic data *)
+     VertexCoordinates[mesh] := Transpose @ VertexCoordinatesTr[mesh],
+     FaceList[mesh] := Transpose @ FaceListTr[mesh],
+     EdgePairs[mesh] := Transpose @ EdgePairsTr[mesh],
+     EdgePairs[mesh, patt_] := Cases[Transpose @ EdgePairsTr[mesh], patt, {1}],
+     FaceList[mesh, patt_] := Cases[Transpose @ FaceListTr[mesh], patt, {1}],
+     VertexList[mesh, patt_] := Cases[VertexList[mesh], patt, {1}],
+     
+     (* #PropertyList method extension *)
+     PropertyList[mesh] := Join[Properties[mesh][[All, 1]], {EdgeWeight, VertexCoordinates}],
+     
+     (* A few simple extensions of the private indices above *)
+     (* #FaceIndex *)
+     FaceIndex[mesh, {a_Integer, b_Integer, c_Integer}] := With[
+       {id = FaceIndexArray[mesh][[a,b,c]]},
+       If[id == 0, $Failed, id]],
+     FaceIndex[mesh, list_List] := With[
+       {id = FaceIndexArray[mesh]},
+       ReplaceAll[
+         Map[Extract[id, #]&, list, {-2}],
+         0 -> $Failed]],
+     (* EdgeIndex *)
+     EdgeIndex[mesh, (List|UndirectedEdge)[a_Integer, b_Integer]] := With[
+       {id = EdgeIndexArray[mesh][[a,b]]},
+       If[id == 0, $Failed, id]],     
+     FaceIndex[mesh, list_List] := With[
+       {id = EdgeIndexArray[mesh]},
+       ReplaceAll[
+         Map[Extract[id, #]&, list, {-2}],
+         0 -> $Failed]],
+     (* VertexIndex *)
+     VertexIndex[mesh, i_Integer] := With[
+       {id = If[i > Length[VertexIndexArray[mesh]], 0, VertexIndexArray[mesh][[i]]]},
+       If[id == 0, $Failed, id]],
+     VertexIndex[mesh, is_List] := With[
+       {idx = VertexIndexArray[mesh]},
+       Map[Part[idx, #]&, is, {-2}]],
 
-   (* #BoundaryMeshRegion *)
-   BoundaryMeshRegion[mesh] :> BoundaryMeshRegion[VertexCoordinates[mesh], Polygon[FaceList[mesh]]],
-   TriangulateMesh[mesh, opts___] := TriangulateMesh[BoundaryMeshRegion[mesh], opts],
-   HighlightMesh[mesh, opts___] := HighlightMesh[BoundaryMeshRegion[mesh], opts],
-   DimensionalMeshComponents[mesh, opts___] := DimensionalMeshComponents[
-     BoundaryMeshRegion[mesh], 
-     opts],
-   ConnectedMeshComponents[mesh, opts___] := ConnectedMeshComponents[
-     BoundaryMeshRegion[mesh], 
-     opts],
-   MeshCoordinates[mesh, opts___] := MeshCoordinates[BoundaryMeshRegion[mesh], opts],
-   MeshCells[mesh, opts___] := MeshCells[BoundaryMeshRegion[mesh], opts],
-   MeshPrimitives[mesh, opts___] := MeshPrimitives[BoundaryMeshRegion[mesh], opts],
-   MeshCellIndex[mesh, opts___] := MeshCellIndex[BoundaryMeshRegion[mesh], opts],
-   MeshCellCount[mesh, opts___] := MeshCellCount[BoundaryMeshRegion[mesh], opts],
-   RegionDimension[mesh, opts___] := RegionDimension[BoundaryMeshRegion[mesh], opts],
-   RegionEmbeddingDimension[mesh, opts___] := RegionEmbeddingDimension[
+     (* extensions of the opposite indices; edge/face lists *)
+     VertexEdgeList[mesh, i_Integer] := Part[VertexEdgeList[mesh], VertexIndex[mesh, i]],
+     VertexEdgeList[mesh, l_List] := With[
+       {idx = VertexEdgeList[mesh]},
+       Map[Part[idx, #]&, VertexIndex[mesh, i], {-2}]],
+     VertexFaceList[mesh, i_Integer] := Part[VertexFaceList[mesh], VertexIndex[mesh, i]],
+     VertexFaceList[mesh, l_List] := With[
+       {idx = VertexFaceList[mesh]},
+       Map[Part[idx, #]&, VertexIndex[mesh, i], {-2}]],
+     EdgeFaceList[mesh, e_] := With[
+       {idx = EdgeFaceList[mesh]},
+       Which[
+         Head[e] === UndirectedEdge, Part[idx, EdgeIndex[mesh, e]],
+         MatchQ[e, {_Integer, _Integer}], Part[idx, EdgeIndex[mesh, e]],
+         ListQ[e], Map[Part[idx, #]&, e, {-2}],
+         True, $Failed]],
+     
+     (* #VertexDegree *)
+     VertexDegree[mesh] := Length /@ NeighborhoodList[mesh],
+     VertexInDegree[mesh] := VertexDegree[mesh],
+     VertexOutDegree[mesh] := VertexDegree[mesh],
+     VertexDegree[mesh, i_Integer] := VertexDegree[mesh][[VertexIndex[mesh, i]]],
+     VertexInDegree[mesh, i_Integer] := VertexDegree[mesh][[VertexIndex[mesh, i]]],
+     VertexOutDegree[mesh, i_Integer] := VertexDegree[mesh][[VertexIndex[mesh, i]]],
+
+     (* #SumOverFaces *)
+     SumOverFacesTr[mesh, datat_] := Dot[
+       MapThread[Join, {datat, datat, datat}],
+       SumOverFacesMatrix[mesh]],
+     SumOverFaces[mesh, data_] := Dot[Transpose @ Join[data, data, data], SumOverFacesMatrix[mesh]],
+     SumOverFaceVerticesTr[mesh, datat_] := Dot[Join @@ datat, SumOverFacesMatrix[mesh]],
+     SumOverFaceVertices[mesh, data_] := Dot[Join @@ Transpose[data], SumOverFacesMatrix[mesh]],
+     (* #SumOverEdges *)
+     SumOverEdgesTr[mesh, datat_] := Dot[
+       MapThread[Join, {datat, datat}],
+       SumOverEdgesMatrix[mesh]],
+     SumOverEdges[mesh, data_] := Dot[
+       Transpose @ Join[data, data],
+       SumOverEdgesMatrix[mesh]],
+     SumOverEdgeVerticesTr[mesh, datat_] := Dot[Join @@ datat, SumOverEdgesMatrix[mesh]],
+     SumOverEdgeVertices[mesh, data_] := Dot[Join @@ Transpose[data], SumOverEdgesMatrix[mesh]],
+
+
+     (* ================================ Geometrical Properties ================================= *)
+
+     (* ------------------------------------------ Faces ---------------------------------------- *)
+
+     (* #FaceAngles *)
+     FaceAngleCosinesTr[mesh] :> CalculateFaceAngleCosinesTr[
+       FaceListTr[mesh],
+       VertexCoordinatesTr[mesh]],
+     FaceAngleCosinesTr[mesh, Xtr_] := CalculateFaceAngleCosinesTr[FaceListTr[mesh], Xtr],
+     FaceAnglesTr[mesh, Xtr_]       := CalculateFaceAnglesTr[FaceListTr[mesh], Xtr],
+     FaceAngleCosines[mesh, Xx_]    := CalculateFaceAngleCosines[FaceList[mesh], Xx],
+     FaceAngles[mesh, Xx_]          := CalculateFaceAngles[FaceList[mesh], Xx],
+     FaceAnglesTr[mesh]       := ArcCos @ FaceAngleCosinesTr[mesh],
+     FaceAngleCosines[mesh]   := Transpose @ FaceAngleCosinesTr[mesh],
+     FaceAngles[mesh]         := Transpose @ ArcCos @ FaceAngleCosinesTr[mesh],
+
+     (* #FaceNormals *)
+     FaceNormalsTr[mesh] :> CalculateFaceNormalsTr[FaceListTr[mesh], VertexCoordinatesTr[mesh]],
+     FaceNormals[mesh] := Transpose @ FaceNormalsTr[mesh],
+     FaceNormalsTr[mesh, Xtr_] := CalculateFaceNormalsTr[FaceListTr[mesh], Xtr],
+     FaceNormals[mesh, X_] := Transpose @ CalculateFaceNormalsTr[FaceListTr[mesh], Transpose @ X],
+     
+     (* #FaceAxes *)
+     FaceAxesTr[mesh] :> CalculateFaceAxes3DTr[
+       FaceListTr[mesh],
+       VertexCoordinatesTr[mesh],
+       FaceNormalsTr[mesh]],
+     FaceAxes[mesh] := Transpose @ FaceAxesTr[mesh],
+     FaceAxesTr[mesh, Xt_] := CalculateFaceAxesTr[FaceListTr[mesh], Xt],
+     FaceAxes[mesh, Xx_] := Transpose @ CalculateFaceAxesTr[FaceListTr[mesh], Transpose @ Xx],
+
+     (* #FaceCoordinates *)
+     FaceCoordinatesTr[mesh] :> With[
+       {Xt = VertexCoordinatesTr[mesh],
+        Ft = FaceListTr[mesh]},
+       Transpose @ {Xt[[All, Ft[[1]]]], Xt[[All, Ft[[2]]]], Xt[[All, Ft[[3]]]]}],
+     FaceCoordinates[mesh] := Transpose[FaceCoordinatesTr[mesh], {3,2,1}],
+
+     (* #FacePlaneCoordinates *)
+     FacePlaneCoordinatesTr[mesh] :> CalculateFacePlaneCoordinatesTr[
+       FaceListTr[mesh],
+       VerteListTr[mesh],
+       FaceAxesTr[mesh]],
+     FacePlaneCoordinatesTr[mesh, Xt_] := CalculateFacePlaneCoordinatesTr[
+       FaceListTr[mesh],
+       Xt,
+       FaceAxesTr[mesh, Xt]],
+     FacePlaneCoordinates[mesh] := Transpose @ FacePlaneCoordinatesTr[mesh],
+     FacePlaneCoordinates[mesh, Xx_] := Transpose @ FacePlaneCoordinatesTr[mesh, Transpose @ Xx],
+
+     (* ------------------------------------------ Edges ---------------------------------------- *)
+
+     (* #EdgeCoordinates *)
+     EdgeCoordinatesTr[mesh] :> With[
+       {Xt = VertexCoordinatesTr[mesh],
+        EL = EdgePairsTr[mesh]},
+       Transpose @ {Xt[[All, EL[[1]]]], Xt[[All, EL[[2]]]]}],
+     EdgeCoordinates[mesh] := Transpose @ EdgeCoordinates[mesh],
+     
+     (* #EdgeLengths *)
+     EdgeLengths[mesh] :> With[
+       {EL = EdgePairsTr[mesh],
+        Xt = VertexCoordinatesTr[mesh]},
+       Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
+     EdgeWeight[mesh] := EdgeLengths[mesh],
+     EdgeWeight[mesh, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
+       EdgeLengths[mesh],
+       EdgeIndex[mesh, e]],
+     EdgeWeight[mesh, es:{{_Integer,_Integer}..}] := Part[
+       EdgeLengths[mesh],
+       EdgeIndex[mesh, es]],
+     EdgeWeight[mesh, es:{(List|UndirectedEdge)[_Integer, _Integer]..}] := Part[
+       EdgeLengths[mesh],
+       EdgeIndex[mesh, ReplaceAll[es, UndirectedEdges -> List]]],
+
+     (* ---------------------------------------- Vertices --------------------------------------- *)
+
+     (* #VertexNormals *)
+     VertexNormalsTr[mesh] :> NormalizeColumns @ SumOverFacesTr[mesh, FaceNormalsTr[mesh]],
+     VertexNormalsTr[mesh, Xt_] := NormalizeColumns @ SumOverFacesTr[mesh, FaceNormalsTr[mesh, Xt]],
+     VertexNormals[mesh] := Transpose @ VertexNormalsTr[mesh],
+     VertexNormals[mesh, Xx_] := Transpose @ VertexNormalsTr[mesh, Transpose @ Xx],
+
+     (* ------------------------------------- Neighborhoods ------------------------------------- *)
+
+     (* #NeighborhoodList *)
+     NeighborhoodList[mesh] :> With[
+       {X = VertexCoordinates[mesh],
+        E = EdgePairsTr[mesh]},
+       With[
+         {neivecs = NeighborhoodVectors[mesh],
+          neis = Part[
+            SplitBy[
+              SortBy[
+                Transpose[{Join[E[[1]], E[[2]]], Join[E[[2]], E[[1]]]}],
+                First],
+              First],
+            All, All, 2]},
+         MapThread[NeighborhoodSort3DCompiled, {X, neivecs, neis, X[[#]] & /@ neis}]]],
+     (* #NeighborhoodVectors [private] *)
+     NeighborhoodVectors[mesh] := With[
+       {Xt = VertexNormalsTr[mesh]},
+       With[
+         {x = Xt[[1]], y = Xt[[2]], z = Xt[[3]],
+          norms = Sqrt@Total[Xt^2]},
+         Transpose[
+           {(y + I*x*z/norms)/(I*x + y),
+            (I*x + y*z/norms)/(x - I*y),
+            -(x + I*y)/norms}]]],
+     (* #NeighborhoodAngles *)
+     NeighborhoodAngles[mesh] :> With[
+       {X = VertexCoordinates[mesh],
+        nei = NeighborhoodList[mesh]},
+       MapThread[NeighborhoodAnglesCompiled3D, {X, X[[#]]& /@ nei}]],
+     NeighborhoodAngles[mesh, X_] := MapThread[
+       NeighborhoodAnglesCompiled3D, 
+       {X, X[[#]]& /@ NeighborhoodList[mesh]}],
+     (* #NeighborhoodBisectors *)
+     NeighborhoodBisectors[mesh] :> With[
+       {X = VertexCoordinates[mesh],
+        nei = NeighborhoodList[mesh]},
+       MapThread[NeighborhoodBisectorsCompiled, {X, X[[#]] & /@ nei}]],
+     NeighborhoodBisectors[mesh, X_] := MapThread[
+       NeighborhoodBisectorsCompiled, 
+       {X, X[[#]]& /@ NeighborhoodList[mesh]}],
+     (* #NeighborhoodEdgeLengths *)
+     NeighborhoodEdgeLengths[mesh] :> With[
+       {X = VertexCoordinates[mesh],
+        nei = NeighborhoodList[mesh]},
+       MapThread[NeighborhoodEdgeLengthsCompiled, {X, X[[#]]& /@ nei}]],
+     NeighborhoodEdgeLengths[mesh, X_] := MapThread[
+       NeighborhoodEdgeLengthsCompiled, 
+       {X, X[[#]]& /@ NeighborhoodList[mesh]}],
+
+
+     (* ======================================= Interfaces ====================================== *)
+   
+     (* #MeshRegion *)
+     MeshRegion[mesh] :> MeshRegion[VertexCoordinates[mesh], Polygon[FaceList[mesh]]],
+     
+     (* #BoundaryMeshRegion *)
+     BoundaryMeshRegion[mesh] :> BoundaryMeshRegion[
+       VertexCoordinates[mesh],
+       Polygon[FaceList[mesh]]],
+     TriangulateMesh[mesh, opts___] := TriangulateMesh[BoundaryMeshRegion[mesh], opts],
+     HighlightMesh[mesh, opts___] := HighlightMesh[BoundaryMeshRegion[mesh], opts],
+     DimensionalMeshComponents[mesh, opts___] := DimensionalMeshComponents[
+       BoundaryMeshRegion[mesh], 
+       opts],
+     ConnectedMeshComponents[mesh, opts___] := ConnectedMeshComponents[
+       BoundaryMeshRegion[mesh], 
+       opts],
+     MeshCoordinates[mesh, opts___] := MeshCoordinates[BoundaryMeshRegion[mesh], opts],
+     MeshCells[mesh, opts___] := MeshCells[BoundaryMeshRegion[mesh], opts],
+     MeshPrimitives[mesh, opts___] := MeshPrimitives[BoundaryMeshRegion[mesh], opts],
+     MeshCellIndex[mesh, opts___] := MeshCellIndex[BoundaryMeshRegion[mesh], opts],
+     MeshCellCount[mesh, opts___] := MeshCellCount[BoundaryMeshRegion[mesh], opts],
+     RegionDimension[mesh, opts___] := RegionDimension[BoundaryMeshRegion[mesh], opts],
+     RegionEmbeddingDimension[mesh, opts___] := RegionEmbeddingDimension[
      BoundaryMeshRegion[mesh],
      opts],
-   RegionMeasure[mesh, opts___] := RegionMeasure[BoundaryMeshRegion[mesh], opts],
-   RegionNearest[mesh, opts___] := RegionNearest[BoundaryMeshRegion[mesh], opts],
-   RegionDistance[mesh, opts___] := RegionDistance[BoundaryMeshRegion[mesh], opts],
-   SignedRegionDistance[mesh, opts___] := SignedRegionDistance[BoundaryMeshRegion[mesh], opts],
-   RegionMember[mesh, opts___] := RegionMember[BoundaryMeshRegion[mesh], opts],
-   RegionBounds[mesh, opts___] := RegionBounds[BoundaryMeshRegion[mesh], opts],
-   RegionBoundary[mesh, opts___] := RegionBoundary[BoundaryMeshRegion[mesh], opts],
-   RegionCentroid[mesh, opts___] := RegionCentroid[BoundaryMeshRegion[mesh], opts],
-   Volume[mesh, opts___] := Volume[BoundaryMeshRegion[mesh], opts],
+     RegionMeasure[mesh, opts___] := RegionMeasure[BoundaryMeshRegion[mesh], opts],
+     RegionNearest[mesh, opts___] := RegionNearest[BoundaryMeshRegion[mesh], opts],
+     RegionDistance[mesh, opts___] := RegionDistance[BoundaryMeshRegion[mesh], opts],
+     SignedRegionDistance[mesh, opts___] := SignedRegionDistance[BoundaryMeshRegion[mesh], opts],
+     RegionMember[mesh, opts___] := RegionMember[BoundaryMeshRegion[mesh], opts],
+     RegionBounds[mesh, opts___] := RegionBounds[BoundaryMeshRegion[mesh], opts],
+     RegionBoundary[mesh, opts___] := RegionBoundary[BoundaryMeshRegion[mesh], opts],
+     RegionCentroid[mesh, opts___] := RegionCentroid[BoundaryMeshRegion[mesh], opts],
+     Volume[mesh, opts___] := Volume[BoundaryMeshRegion[mesh], opts],
 
-   (* #Graph *)
-   Graph[mesh] :> Graph[
-     VertexList[mesh],
-     EdgeList[mesh],
-     VertexCoordinates -> VertexCoordinates[mesh],
-     EdgeWeight -> EdgeLengths[mesh]],
-   AdjacencyMatrix[mesh, opts___]             := AdjacencyMatrix[Graph[mesh], opts],
-   BetweennessCentrality[mesh, opts___]       := BetweennessCentrality[Graph[mesh], opts],
-   ClosenessCentrality[mesh, opts___]         := ClosenessCentrality[Graph[mesh], opts],
-   DegreeCentrality[mesh, opts___]            := DegreeCentrality[Graph[mesh], opts],
-   EdgeBetweennessCentrality[mesh, opts___]   := EdgeBetweennessCentrality[Graph[mesh], opts],
-   EdgeConnectivity[mesh, opts___]            := EdgeConnectivity[Graph[mesh], opts],
-   EdgeCycleMatrix[mesh, opts___]             := EdgeCycleMatrix[Graph[mesh], opts],
-   EigenvectorCentrality[mesh, opts___]       := EigenvectorCentrality[Graph[mesh], opts],
-   EulerianGraphQ[mesh]                       := EulerianGraphQ[Graph[mesh]],
-   FindCycle[mesh, opts___]                   := FindCycle[Graph[mesh], opts],
-   FindEdgeIndendentPaths[mesh, opts___]      := FindEdgeIndendentPaths[Graph[mesh], opts],
-   FindEulerianCycle[mesh, opts___]           := FindEulerianCycle[Graph[mesh], opts],
-   FindFundamentalCycles[mesh, opts___]       := FindFundamentalCycles[Graph[mesh], opts],
-   FindHamiltonianCycle[mesh, opts___]        := FindHamiltonianCycle[Graph[mesh], opts],
-   FindMaximumFlow[mesh, opts___]             := FindMaximumFlow[Graph[mesh], opts],
-   FindMinimumCostFlow[mesh, opts___]         := FindMinimumCostFlow[Graph[mesh], opts],
-   FindMinimumFlow[mesh, opts___]             := FindMinimumFlow[Graph[mesh], opts],
-   FindPath[mesh, opts___]                    := FindPath[Graph[mesh], opts],
-   FindPostmanTour[mesh, opts___]             := FindPostmanTour[Graph[mesh], opts],
-   FindShortestPath[mesh, opts___]            := FindShortestPath[Graph[mesh], opts],
-   FindShortestTour[mesh, opts___]            := FindShortestTour[Graph[mesh], opts],
-   FindVertexIndendentPaths[mesh, opts___]    := FindVertexIndendentPaths[Graph[mesh], opts],
-   GraphAssortativity[mesh, opts___]          := GraphAssortativity[Graph[mesh], opts],
-   GraphCenter[mesh, opts___]                 := GraphCenter[Graph[mesh], opts],
-   GraphDiameter[mesh, opts___]               := GraphDiameter[Graph[mesh], opts],
-   GraphDistance[mesh, opts___]               := GraphDistance[Graph[mesh], opts],
-   GraphDistanceMatrix[mesh, opts___]         := GraphDistanceMatrix[Graph[mesh], opts],
-   GraphPeriphery[mesh, opts___]              := GraphPeriphery[Graph[mesh], opts],
-   GraphPower[mesh, opts___]                  := GraphPower[Graph[mesh], opts],
-   GraphRadius[mesh, opts___]                 := GraphRadius[Graph[mesh], opts],
-   GraphReciprocity[mesh, opts___]            := GraphReciprocity[Graph[mesh], opts],
-   GlobalClusteringCoefficient[mesh, opts___] := GlobalClusteringCoefficient[mesh, opts],
-   HamiltonianGraphQ[mesh]                    := HamiltonianGraphQ[Graph[mesh]],
-   HITSCentrality[mesh, opts___]              := HITSCentrality[Graph[mesh], opts],
-   KatzCentrality[mesh, opts___]              := KatzCentrality[Graph[mesh], opts],
-   LocalClusteringCoefficient[mesh, opts___]  := LocalClusteringCoefficient[Graph[mesh], opts],
-   MeanClusteringCoefficient[mesh, opts___]   := MeanClusteringCoefficient[Graph[mesh], opts],
-   MeanDegreeConnectivity[mesh, opts___]      := MeanDegreeConnectivity[Graph[mesh], opts],
-   MeanNeighborDegree[mesh, opts___]          := MeanNeighborDegree[Graph[mesh], opts],
-   PageRankCentrality[mesh, opts___]          := PageRankCentrality[Graph[mesh], opts],
-   RadialityCentrality[mesh, opts___]         := RadialityCentrality[Graph[mesh], opts],
-   ShortestPathFunction[mesh, opts___]        := ShortestPathFunction[Graph[mesh], opts],
-   StasusCentrality[mesh, opts___]            := StasusCentrality[Graph[mesh], opts],
-   VertexConnectivity[mesh, opts___]          := VertexConnectivity[Graph[mesh], opts],
-   VertexCorrelationSimilarity[mesh, opts___] := VertexCorrelationSimilarity[Graph[mesh], opts],
-   VertexCosineSimilarity[mesh, opts___]      := VertexCosineSimilarity[Graph[mesh], opts],
-   VertexDiceSimilarity[mesh, opts___]        := VertexDiceSimilarity[Graph[mesh], opts],
-   VertexEccentricity[mesh, opts___]          := VertexEccentricity[Graph[mesh], opts],
-   VertexInDegree[mesh, opts___]              := VertexDegree[mesh],
-   VertexJaccardSimilarity[mesh, opts___]     := VertexJaccardSimilarity[Graph[mesh], opts],
-   VertexOutDegree[mesh, opts___]             := VertexDegree[mesh],
+     (* #Graph *)
+     Graph[mesh] :> Graph[
+       VertexList[mesh],
+       EdgeList[mesh],
+       VertexCoordinates -> VertexCoordinates[mesh],
+       EdgeWeight -> EdgeLengths[mesh]],
+     AdjacencyMatrix[mesh, opts___]             := AdjacencyMatrix[Graph[mesh], opts],
+     BetweennessCentrality[mesh, opts___]       := BetweennessCentrality[Graph[mesh], opts],
+     ClosenessCentrality[mesh, opts___]         := ClosenessCentrality[Graph[mesh], opts],
+     DegreeCentrality[mesh, opts___]            := DegreeCentrality[Graph[mesh], opts],
+     EdgeBetweennessCentrality[mesh, opts___]   := EdgeBetweennessCentrality[Graph[mesh], opts],
+     EdgeConnectivity[mesh, opts___]            := EdgeConnectivity[Graph[mesh], opts],
+     EdgeCycleMatrix[mesh, opts___]             := EdgeCycleMatrix[Graph[mesh], opts],
+     EigenvectorCentrality[mesh, opts___]       := EigenvectorCentrality[Graph[mesh], opts],
+     EulerianGraphQ[mesh]                       := EulerianGraphQ[Graph[mesh]],
+     FindCycle[mesh, opts___]                   := FindCycle[Graph[mesh], opts],
+     FindEdgeIndendentPaths[mesh, opts___]      := FindEdgeIndendentPaths[Graph[mesh], opts],
+     FindEulerianCycle[mesh, opts___]           := FindEulerianCycle[Graph[mesh], opts],
+     FindFundamentalCycles[mesh, opts___]       := FindFundamentalCycles[Graph[mesh], opts],
+     FindHamiltonianCycle[mesh, opts___]        := FindHamiltonianCycle[Graph[mesh], opts],
+     FindMaximumFlow[mesh, opts___]             := FindMaximumFlow[Graph[mesh], opts],
+     FindMinimumCostFlow[mesh, opts___]         := FindMinimumCostFlow[Graph[mesh], opts],
+     FindMinimumFlow[mesh, opts___]             := FindMinimumFlow[Graph[mesh], opts],
+     FindPath[mesh, opts___]                    := FindPath[Graph[mesh], opts],
+     FindPostmanTour[mesh, opts___]             := FindPostmanTour[Graph[mesh], opts],
+     FindShortestPath[mesh, opts___]            := FindShortestPath[Graph[mesh], opts],
+     FindShortestTour[mesh, opts___]            := FindShortestTour[Graph[mesh], opts],
+     FindVertexIndendentPaths[mesh, opts___]    := FindVertexIndendentPaths[Graph[mesh], opts],
+     GraphAssortativity[mesh, opts___]          := GraphAssortativity[Graph[mesh], opts],
+     GraphCenter[mesh, opts___]                 := GraphCenter[Graph[mesh], opts],
+     GraphDiameter[mesh, opts___]               := GraphDiameter[Graph[mesh], opts],
+     GraphDistance[mesh, opts___]               := GraphDistance[Graph[mesh], opts],
+     GraphDistanceMatrix[mesh, opts___]         := GraphDistanceMatrix[Graph[mesh], opts],
+     GraphPeriphery[mesh, opts___]              := GraphPeriphery[Graph[mesh], opts],
+     GraphPower[mesh, opts___]                  := GraphPower[Graph[mesh], opts],
+     GraphRadius[mesh, opts___]                 := GraphRadius[Graph[mesh], opts],
+     GraphReciprocity[mesh, opts___]            := GraphReciprocity[Graph[mesh], opts],
+     GlobalClusteringCoefficient[mesh, opts___] := GlobalClusteringCoefficient[mesh, opts],
+     HamiltonianGraphQ[mesh]                    := HamiltonianGraphQ[Graph[mesh]],
+     HITSCentrality[mesh, opts___]              := HITSCentrality[Graph[mesh], opts],
+     KatzCentrality[mesh, opts___]              := KatzCentrality[Graph[mesh], opts],
+     LocalClusteringCoefficient[mesh, opts___]  := LocalClusteringCoefficient[Graph[mesh], opts],
+     MeanClusteringCoefficient[mesh, opts___]   := MeanClusteringCoefficient[Graph[mesh], opts],
+     MeanDegreeConnectivity[mesh, opts___]      := MeanDegreeConnectivity[Graph[mesh], opts],
+     MeanNeighborDegree[mesh, opts___]          := MeanNeighborDegree[Graph[mesh], opts],
+     PageRankCentrality[mesh, opts___]          := PageRankCentrality[Graph[mesh], opts],
+     RadialityCentrality[mesh, opts___]         := RadialityCentrality[Graph[mesh], opts],
+     ShortestPathFunction[mesh, opts___]        := ShortestPathFunction[Graph[mesh], opts],
+     StasusCentrality[mesh, opts___]            := StasusCentrality[Graph[mesh], opts],
+     VertexConnectivity[mesh, opts___]          := VertexConnectivity[Graph[mesh], opts],
+     VertexCorrelationSimilarity[mesh, opts___] := VertexCorrelationSimilarity[Graph[mesh], opts],
+     VertexCosineSimilarity[mesh, opts___]      := VertexCosineSimilarity[Graph[mesh], opts],
+     VertexDiceSimilarity[mesh, opts___]        := VertexDiceSimilarity[Graph[mesh], opts],
+     VertexEccentricity[mesh, opts___]          := VertexEccentricity[Graph[mesh], opts],
+     VertexInDegree[mesh, opts___]              := VertexDegree[mesh],
+     VertexJaccardSimilarity[mesh, opts___]     := VertexJaccardSimilarity[Graph[mesh], opts],
+     VertexOutDegree[mesh, opts___]             := VertexDegree[mesh]}],
 
-   (* #CorticalMeshQ *)
-   CorticalMeshQ[mesh] -> Which[
-     !ArrayQ[VertexCoordinates[mesh], 2, NumericQ], Message[
-       CorticalMesh::badarg,
-       "VertexCoordinates must be a 2D numeric array"],
-     !MatchQ[Dimensions[VertexCoordinates[mesh]], {_, 2|3}], Message[
-       CorticalMesh::badarg,
-       "VertexCoordinates must contain 2D or 3D points"],
-     !ArrayQ[FaceList[mesh], 2, IntegerQ], Message[
-       CorticalMesh::badarg, 
-       "FaceList conatins non-integer values"],
-     Min[Flatten@FaceList[mesh]] < 1, Message[
-       CorticalMesh::badarg, 
-       "FaceList conatins values less than 1"],
-     Max[Flatten@FaceList[mesh]] > Length[VertexCoordinates[mesh]], Message[
-       CorticalMesh::badarg, 
-       "FaceList conatins values greater than the number of vertices"],
-     Count[FaceList[mesh], f_List /; Length[Union[f]] != 3, {1}] > 0, Message[
-       CorticalMesh::badarg,
-       "FaceList must contain triangles only"],
-     And[
-       Options[mesh] =!= Automatic,
-       Complement[Options[mesh][[All,1]], $CortexPlot3DOptions[[All, 1]]] != {}], Message[
-         CorticalMesh::badarg,
-         "Unrecognized option given to CorticalMesh"],
-     True, True]},
   SetSafe -> True,
   Symbol -> CorticalMesh3D];
 
@@ -1293,8 +1416,8 @@ DefineImmutable[
      {X = VertexCoordinates[map],
       FF = FaceList[map]},
      X[[#]]& /@ FF],
-   (* #FaceRelativeCoordinates *)
-   FaceRelativeCoordinates[map] :> With[
+   (* #FacePlaneCoordinates *)
+   FacePlaneCoordinates[map] :> With[
      {X = VertexCoordinates[map],
       nei = NeighborhoodList[map],
       Fn = FaceNormals[map]},
@@ -1489,7 +1612,7 @@ Protect[CorticalMesh, CorticalMeshQ, Inclusions, InitialVertexCoordinates, Initi
         InitialFaceList, InitialEdgePairs, VertexCoordinates, EdgePairs, FaceIndexArray, 
         EdgeIndexArray, FaceIndex,EdgeIndex, EdgeCoordinates, OptionalProperties, VertexProperties,
         EdgeProperties,FaceProperties, FaceAxes, FaceAngles, FaceCoordinates, FaceNormals,
-        FaceRelativeCoordinates, CornerList, EdgeLengths, NeighborhoodList, NeighborhoodAngles,
+        FacePlaneCoordinates, CornerList, EdgeLengths, NeighborhoodList, NeighborhoodAngles,
         NeighborhoodBisectors, NeighborhoodEdgeLengths, SourceImage, VertexEdgeList, VertexFaceList,
         EdgeFaceList];
 
