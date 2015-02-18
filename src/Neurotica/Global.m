@@ -25,8 +25,6 @@ ClearAll[ "Neurotica`Global`*", "Neurotica`Global`Private`*"];
 
 Curvature::usage = "Curvature is a keyword that can be used to refer to curvature values; it is automatically defined by the CorticalSurface package to include a CorticalColor function as well.";
 
-GraphicsOptions::usage = "GraphicsOptions is a keyword that is used by immutable objects such as CorticalMesh to store default options for plotting the object.";
-
 RH::usage = "RH is a keyword that represents the right hemisphere.";
 LH::usage = "LH is a keyword that represents the left hemisphere.";
 
@@ -38,7 +36,7 @@ If[!ValueQ[Radius],
 
 Begin["`Private`"];
 
-Protect[Curvature, GraphicsOptions, RH, LH, Cortex];
+Protect[Curvature, RH, LH, Cortex];
 
 End[];
 EndPackage[];
