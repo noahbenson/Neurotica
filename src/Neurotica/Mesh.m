@@ -551,13 +551,13 @@ CorticalMeshOrientForMap[mesh_?CorticalMeshQ, center_, incl_] := With[
     IdentityMatrix[3],
     RotationMatrix[{center[[1]], {1,0,0}}]]},
   Dot[
-    VertexCoordinates[mesh][[incl[[1]]]],
-    Transpose[RMain],
     If[center[[2]] === None || center[[2]] === Automatic,
       IdentityMatrix[3], 
       With[
         {orientPt = Dot[RMain, center[[2]]]},
-        Transpose[RotationMatrix[{1,0,0}, -ArcTan[orientPt[[1]], orientPt[[2]]]]]]]]];
+        RotationMatrix[{1,0,0}, -ArcTan[orientPt[[1]], orientPt[[2]]]]]],
+    RMain,
+    VertexCoordinatesTr[mesh][[All, incl[[1]]]]]];
 
 (* #CorticalMapTranslateMethod
  * Yields a translation function given the Method argument and the translated parameters: Center,
@@ -575,7 +575,7 @@ CorticalMapTranslateMethod[method_, center_, incl_, prad_] := Check[
           With[
             {X = CorticalMeshOrientForMap[mesh, center, incl]},
             With[
-              {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
+              {S = ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
                meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
               With[
                 {th = Block[{t}, 
@@ -586,27 +586,27 @@ CorticalMapTranslateMethod[method_, center_, incl_, prad_] := Check[
                          {t, #}
                          ][[1,2]]],
                      S[[2]]]]},
-                Transpose[meshRadius * Sqrt[2.0] * {2.0 / Pi * S[[1]] * Cos[th], Sin[th]}]]]]],
+                meshRadius * Sqrt[2.0] * {2.0 / Pi * S[[1]] * Cos[th], Sin[th]}]]]],
         "equirectangular" :> Function[{mesh},
           With[
             {X = CorticalMeshOrientForMap[mesh, center, incl]},
             With[
-              {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
+              {S = ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
                meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
               Transpose[meshRadius * S]]]],
         "mercator" :> Function[{mesh},
           With[
             {X = CorticalMeshOrientForMap[mesh, center, incl]},
             With[
-              {S = Transpose@ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
+              {S = ConvertCoordinates[X, Cartesian -> {Longitude, Latitude}],
                meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
               With[
                 {sinPhi = Sin[S[[2]]]},
-                Transpose[meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]]]],
+                meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]]],
         "orthographic" :> Function[{mesh},
           With[
             {X = CorticalMeshOrientForMap[mesh, center, incl]},
-            Transpose[Transpose[X][[2;;3]]]]],
+            X[[2;;3]]]],
         "graph" :> Function[{mesh},
           GraphEmbedding[
             Graph[
@@ -615,14 +615,13 @@ CorticalMapTranslateMethod[method_, center_, incl_, prad_] := Check[
               EdgeWeight -> Part[EdgeLengths[mesh], incl[[2]]],
               GraphLayout -> {"SpringElectricalEmbedding", "EdgeWeighted" -> True}]]],
         _ :> Message[CorticalMap::badarg, "Could not recognize projection type"]}],
-     RMtxTr = Transpose@RotationMatrix[{center[[1]], {1,0,0}}]},
+     RMtx = RotationMatrix[{center[[1]], {1,0,0}}]},
     With[
       {orientFn = If[center[[2]] === Automatic,
-         Function[
-           # . Transpose[RotationMatrix[{First@Eigenvectors[Covariance[#],1], {1,0}}]]],
+         Function[RotationMatrix[{First@Eigenvectors[Covariance[Transpose@#],1], {1,0}}] . #],
          With[
-           {orientRMtxTr = RotationMatrix[{projFn[{center[[2]]} . RMtxTr][[1]], {1,0}}]},
-           Function[# . orientRMtxTr]]]},
+           {orientRMtx = RotationMatrix[{projFn[RMtx . center[[2]]][[1]], {1,0}}]},
+           Function[orientRMtx . #]]]},
       Function[orientFn @ projFn[#]]]],
   $Failed];
 Protect[CorticalMapTranslateMethod];
@@ -1328,7 +1327,9 @@ DefineImmutable[
 
      (* Now we have the actual vertex/face/edge data *)
      VertexList[map] -> Part[VertexList[SourceMesh[map]], Inclusions[map][[1]]],
-     VertexCoordinatesTr[map] -> (TransformationFunction[map])[SourceMesh[map]],
+     VertexCoordinatesTr[map] -> With[
+       {f = TransformationFunction[map]},
+       f[SourceMesh[map]]],
      FaceListTr[map] -> Part[FaceListTr[SourceMesh[map]], All, Inclusions[map][[3]]],
      EdgePairsTr[map] -> Part[EdgePairsTr[SourceMesh[map]], All, Inclusions[map][[2]]],
      
