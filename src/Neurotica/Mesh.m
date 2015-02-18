@@ -29,10 +29,11 @@ Unprotect["Neurotica`Mesh`*", "Neurotica`Mesh`Private`*"];
 ClearAll[ "Neurotica`Mesh`*", "Neurotica`Mesh`Private`*"];
 
 CorticalMesh::usage = "CorticalMesh[vertexList, faceList] yields a CorticalMesh3D mesh form that can be used with the various CorticalMesh interface functions.
-A cortical mesh resembles both a graph object and a boundary mesh region object. They are immutable data structures defined using the DefineImmutable function found in the Neurotica`Util` namespace; accordingly, they aren't designed to be edited, but to be copied (while reusing and sharing data between copies efficiently) via the Clone function. Cortical meshes support the following queries:
+A cortical mesh resembles both a graph object and a boundary mesh region object. They are immutable data structures defined using the DefineImmutable function found in the Neurotica`Util` namespace; accordingly, they aren't designed to be edited, but to be copied (while reusing and sharing data between copies efficiently). To edit the options or data in a CorticalMesh m, call CorticalMesh[m, <option> -> <value>...]. Valid options for such a call are any option that may be passed to CorticalMesh normally, FaceList, and VertexCoordinates. Cortical meshes support the following queries:
   * Properties, PropertyValue, SetProperty, RemoveProperty: All property functions supported by Graphs are also supported by cortical meshes. It is recommended that all data attached to nodes, faces, or edges be attached using properties. Note that the Properties option is accepted by CorticalMesh (see ?Properties) and Property wrappers in the vertex and face lists are parsed as well (see ?Property).
   * VertexList, VertexCount, EdgeList, EdgeCount, EdgePairs: Most graph functions can be used with a cortical mesh as if the cortical mesh were a graph. In addition, the function EdgePairs[mesh] yields the same result as EdgeList[mesh] but with lists if neighboring vertices rather than UndirectedEdge forms.
   * VertexCoordinates[mesh] additionally yields the list of vertex coordinates for the given mesh.
+  * VertexNormals[mesh], FaceNormals[mesh] yields a list of the normal vector to each vertex or face in the mesh.
   * FaceList, FaceCount: In addition to edges and vertices, meshes also have faces that can be accessed with the FaceList and FaceCount functions.
   * EdgeLengths, EdgeWeights: EdgeLengths[mesh] and EdgeWeights[mesh] are identical; both yield the Euclidean distances between vertices in the mesh.
   * FaceAngles[mesh] yields the internal angles of each face in the same order as the vertices in FaceList[mesh].
@@ -51,7 +52,7 @@ A cortical mesh resembles both a graph object and a boundary mesh region object.
   * Graph[mesh] yields a pure graph object for the mesh.
   * Most graph functions work natively with cortical meshes; e.g., FindShortestPath, BetweennessCentrality, and GraphRadius all work with cortical meshes in the first argument slot.
   * BoundaryMeshRegion[mesh] yields a pure boundary mesh object version of the mesh.
-  * 3D Graphics: CorticalMesh[] accepts any option that can be passed to Graphics3D; these options will be used as default values when plotting the cortical mesh. The options may be accessed via Options[mesh] and may be changed (when using Clone) with Options -> {new-options}; Options -> Automatic will reset the options to the defaults accepted by Graphics3D with the following differences: Lighting -> \"Neutral\", ColorFunction -> None, ColorFunctionScaling -> False, Boxed -> False.";
+  * 3D Graphics: CorticalMesh[] accepts any option that can be passed to Graphics3D; these options will be used as default values when plotting the cortical mesh. The options may be accessed via Options[mesh] and may be changed (when cloning a mesh m via CorticalMesh[m, options...]) with Options -> {new-options}; Options -> Automatic will reset the options to the defaults accepted by Graphics3D with the following differences: Lighting -> \"Neutral\", ColorFunction -> None, ColorFunctionScaling -> False, Boxed -> False.";
 CorticalMesh::badarg = "Bad argument given to CorticalMesh constructor: `1`";
 CorticalMesh3D::usage = "CorticalMesh3D is a form used to store data for 3D surface mesh objects (see CorticalMesh).";
 CorticalMeshQ::usage = "CorticalMeshQ[mesh] yields True if and only if mesh is a CorticalMesh object and False otherwise.";
@@ -627,9 +628,14 @@ CorticalMapTranslateMethod[method_, center_, incl_, prad_] := Check[
 Protect[CorticalMapTranslateMethod];
 
 
-(***************************************************************************************************
- * Exported Functions and Immutables
- **************************************************************************************************)
+
+(**************************************************************************************************)
+(**************************************************************************************************)
+(**************** CorticalMesh, CorticalMap, and the CortexPlots are below ************************)
+(**************************************************************************************************)
+(**************************************************************************************************)
+
+
 
 (* #Mesh ******************************************************************************************)
 
