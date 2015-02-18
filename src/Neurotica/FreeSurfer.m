@@ -343,7 +343,7 @@ MGHInterpret[data_] := With[
   {frames = Transpose["Frames" /. data, {4,1,2,3}]},
   With[
     {dims = Dimensions[frames]},
-    If[MatchQ[Union[dims], {1, _}],
+    If[Count[dims, 1, {1}] == Length[dims] - 1,
       Flatten[frames],
       MRImage3D[frames, MetaInformation -> ("MetaInformation" /. data)]]]];
 ImportMGHObject[stream_InputStream, opts___] := MGHInterpret["Data" /.ImportMGHData[stream, opts]];
