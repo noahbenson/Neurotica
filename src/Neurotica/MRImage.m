@@ -62,7 +62,7 @@ Options[MRImage3D] = Join[
      (Background -> _) -> (Background -> Black)},
     {1}]];
 DefineImmutable[
-  MRImage3D[data_List, OptionsPattern[]] :> img,
+  MRImage3D[data_, OptionsPattern[]] :> img,
   {(* Retreive (or edit) the raw image data *)
    ImageData[img] = data,
    (* Retreive (or edit) the raw image options *)
