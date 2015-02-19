@@ -1204,16 +1204,16 @@ CorticalMesh[mesh_?CorticalMeshQ, args___Rule] := Check[
            Select[optsarg, (#[[1]] =!= VertexCoordinates && #[[1]] =!= FaceList)&]]},
         Clone[
           mesh,
-          Sequence @@ Flatten[
-            {If[vtx =!= VertexCoordinates, 
-               VertexCoordinatesTr -> If[Length[vtx[[2]]] == 3, vtx[[2]], Transpose[vtx[[2]]]],
-               {}],
-             If[fl =!= FaceList,
-               FaceListTr -> If[Length[fl[[2]]] == 3, fl[[2]], Transpose[fl[[2]]]],
-               {}],
-             If[Length[opts] > 0,
-               Options -> opts,
-               {}]}]]]]],
+          Sequence @@ Join[
+            If[vtx =!= VertexCoordinates, 
+              {VertexCoordinatesTr -> If[Length[vtx] == 3, vtx, Transpose[vtx]]},
+              {}],
+            If[fl =!= FaceList,
+              {FaceListTr -> If[Length[fl] == 3, fl, Transpose[fl]]},
+              {}],
+            If[Length[opts] > 0,
+              {Options -> opts},
+              {}]]]]]],
   $Failed];
 
 (* #CorticalMeshQ *)
