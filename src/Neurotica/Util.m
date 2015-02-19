@@ -83,6 +83,7 @@ ReadBinaryStructure::badinstr = "Bad instruction given to ReadBinaryStructure: `
 
 BinaryStringFix::usage = "BinaryStringFix[{c1, c2, ...}] yields the string formed from the given list of characters, truncating the string upon encountering the first null character (character code 0).";
 
+
 Begin["`Private`"];
 
 (* #$CacheDirectory *******************************************************************************)

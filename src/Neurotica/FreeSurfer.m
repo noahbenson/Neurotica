@@ -340,7 +340,8 @@ ImportMGHData[stream_InputStream, opts___] := "Data" -> With[
        ImportMGHMetaInformation[stream, "Header" -> header, opts]},
       l_List /; Position[l, $Failed] != {} -> $Failed]]];
 MGHInterpret[data_] := With[
-  {frames = Transpose["Frames" /. data, {4,1,2,3}]},
+  {frames = Transpose["Frames" /. data, {4,1,2,3}],
+   header = "Header" /. data},
   With[
     {dims = Dimensions[frames]},
     If[Count[dims, 1, {1}] == Length[dims] - 1,
