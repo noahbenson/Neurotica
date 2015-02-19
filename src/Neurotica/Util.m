@@ -73,6 +73,16 @@ MimicAssociation::badarg = "Bad argument given to MimicAssociation: `1`";
 NormalizeRows::usage = "NormalizeRows[X] yields a transformation of the matrix X in which each row of X has been normalized; this is the equivalent of (Normalize /@ X) but is significantly optimized.";
 NormalizeColumns::usage = "NormalizeColumns[X] yields a transformation of the matrix X in which each column of X has been normalized. This is equivalent to Transpose[Normalze /@ Transpose[X]], but has been significantly optimized.";
 
+ReadBinaryStructure::usage = "ReadBinaryStructure[stream, instructionsList] yields the data structure result of importing the given instructions via BinaryReadList. Instructions may take the following format:
+  * type (e.g., \"Integer32\" or \"Real64\") are read as is;
+  * {type, n} reads in a list of n of the given type (if n is 1 then a 1-element list is returned);
+  * {type, n, postprocessFn} yields postprocessFn[data] where data is the list of n of the given type;
+  * name -> spec yields the rule name -> result where result is the result of reading in the given instruction spec;
+  * {spec1, spec2...} yields a list of the given instruction specs, each read in order.";
+ReadBinaryStructure::badinstr = "Bad instruction given to ReadBinaryStructure: `1`";
+
+BinaryStringFix::usage = "BinaryStringFix[{c1, c2, ...}] yields the string formed from the given list of characters, truncating the string upon encountering the first null character (character code 0).";
+
 Begin["`Private`"];
 
 (* #$CacheDirectory *******************************************************************************)
@@ -532,6 +542,35 @@ NormalizeRows[{}] = {};
 NormalizeColumns[X_] := X / Table[#, {Length[X]}]&@Sqrt@Total[X^2];
 NormalizeColumns[{}] = {};
 Protect[NormalizeRows, NormalizeColumns];
+
+(* #BinaryStringFix *******************************************************************************)
+BinaryStringFix[clist_] := StringJoin[TakeWhile[clist, ToCharacterCode[#] != {0}&]];
+Protect[BinaryStringFix];
+
+(* #ReadBinaryStructure ***************************************************************************)
+$ReadBinaryStructureInstructionKey = {
+  type_String :> Function[BinaryRead[#, type]],
+  {type_String} :> Function[BinaryReadList[#, type, 1]],
+  {type_String, n_Integer} :> Function[BinaryReadList[#, type, n]],
+  {type_String, n_Integer, f_} :> Function[f[BinaryReadList[#, type, n]]],
+  l_List :> With[
+    {els = Replace[l, $ReadBinaryStructureInstructionKey, 1]},
+    Function[With[{stream = #}, #[stream]& /@ els]]],
+  Rule[name_, instr_] :> With[
+    {r = (instr /. $ReadBinaryStructureInstructionKey)}, 
+    Function[name -> r[#]]],
+  q_ :> Message[ReadBinaryStructure::badinstr, ToString[q]]};
+Protect[$ReadBinaryStructureInstructionKey];
+  
+ReadBinaryStructure[stream_, instructions_List] := Check[
+  With[
+    {instFns = Replace[instructions, $ReadBinaryStructureInstructionKey, {1}]},
+    Map[
+      #[stream]&,
+      instFns]],
+  $Failed];
+Protect[ReadBinaryStructure];
+
 
 End[];
 EndPackage[];
