@@ -21,7 +21,7 @@
 (**************************************************************************************************)
 BeginPackage[
   "Neurotica`NifTI`",
-  {"Neurotica`Global`","Neurotica`Util`","Neurotica`Mesh`", "Neurotica`MRImage`"}];
+  {"Neurotica`Global`","Neurotica`Util`","Neurotica`Mesh`", "Neurotica`MRImage`", "JLink`"}];
 Unprotect["Neurotica`NifTI`*", "Neurotica`NifTI`Private`*"];
 ClearAll[ "Neurotica`NifTI`*", "Neurotica`NifTI`Private`*"];
 
@@ -33,7 +33,59 @@ ImportGifTI::usage = "ImportGifTI[source, options...] is equivalent to Import[so
 ImportGifTI::badarg = "Bad argument given to ImportGifTI: `1`";
 ImportGifTI::badfmt = "Bad GifTI file format: `1`";
 
+Base64ZLibDecode::usage = "Base64ZLibDecode[string] yields the sequence of bytes (suitable for calls to FromCharacterCode and via that ImportString) corresponding to the base64-encoded zlib-zipped string. This function is intended to fill a hole in the GifTI file format, which specifies that GzipBase64 data should be in gzip format but which is actually stored in zlib stream format, which Mathematica does not support.";
+Base64ZLibEncode::usage = "Base64ZLibEncode[data] yields the Base64 string encoding of the zlib-compressed sequence of bytes given in data. See also Base64ZLibDecode.";
+
 Begin["`Private`"];
+
+(* Base64ZLipDecode and Encode require Java to be installed *)
+InstallJava[];
+
+(* #Base64ZLibDecode ******************************************************************************)
+Base64ZLibDecode[string_String] := With[
+  {x = Apply[
+     Join,
+     First @ Last @ Reap @ JavaBlock[
+       With[
+         {inflater = JavaNew[
+            "java.util.zip.InflaterInputStream",
+            JavaNew[
+              "java.io.ByteArrayInputStream",
+              ImportString[string, {"Base64","Binary"}]]],
+          ar = JavaNew["[B", 1024]},
+         While[
+           inflater@available[] != 0,
+           With[
+             {k = inflater@read[ar, 0, 1024]},
+             If[k > 0, Sow[JavaObjectToExpression[ar][[1 ;; k]]]]]]]]]},
+  (* Java bytes can be negative, but we need only positive for FromCharacterCode to work *)
+  (-Sign[x] + 1)/2 * (x + 256) + (Sign[x] + 1)/2 * x];
+Protect[Base64ZLibDecode];
+
+(* #Base64ZLibEncode ******************************************************************************)
+Base64ZLibEncode[bytes_List] := ExportString[
+  With[
+    {x = Apply[
+       Join,
+       First@Last@Reap@JavaBlock[
+         With[
+           {deflater = JavaNew[
+              "java.util.zip.DeflaterInputStream",
+              JavaNew[
+                "java.io.ByteArrayInputStream",
+                q]],
+            ar = JavaNew["[B", 1024]},
+           While[
+             deflater@available[] != 0,
+             With[
+               {k = deflater@read[ar, 0, 1024]},
+               If[k > 0,
+                 Sow[JavaObjectToExpression[ar][[1 ;; k]]]]]]]]]},
+    (* Java bytes can be negative, but we need only positive for FromCharacterCode *)
+    FromCharacterCode[ -(Sign[x] - 1)/2*(x + 256) + (Sign[x] + 1)/2*d ]],
+  "Base64"];
+Protect[Base64ZLibDecode];
+
 
 (* #NifTI File Format *****************************************************************************)
 
@@ -393,7 +445,11 @@ GifTIExtractMetaData[xml_] := With[
       Infinity]]];
 Protect[GifTIExtractMetaData];
 
-GifTIExtractData[xml_] := FirstCase[xml, XMLElement["Data", _, data_] :> data, None, Infinity];
+GifTIExtractData[xml_] := FirstCase[
+  xml,
+  XMLElement["Data", _, data_] :> If[ListQ[data], data[[1]], data],
+  None,
+  Infinity];
 Protect[GifTIExtractData];
 
 GifTIExtractDataSpace[xml_] := FirstCase[
@@ -417,7 +473,7 @@ GifTIExtractMatrixData[xml_] := FirstCase[
   Infinity];
 Protect[GifTIExtractMatrixData];
 
-GifTIExtractExtractCoordinateSystemTransformMatrix[xml_] := Replace[
+GifTIExtractCoordinateSystemTransformMatrix[xml_] := Replace[
   Cases[
     xml,
     XMLElement["CoordinateSystemTransformMatrix", _, data_] :> {
@@ -428,40 +484,65 @@ GifTIExtractExtractCoordinateSystemTransformMatrix[xml_] := Replace[
   {} -> None];
 Protect[GifTIExtractCoordinateSystemTransformMatrix];
 
-GifTIExtractDataArray[xml_] := FirstCase[
-  xml,
-  XMLElement["DataArray", attr_, data_] :> With[
-    {arrayIndexOrd = Replace[
-       "ArrayIndexingOrder" /. attr,
-       {"RowMajorOrder" -> (Fold[Partition, #1, Rest @ #2]&),
-        "ColumnMajorOrder" -> Transpose[
-            Fold[Partition, #1, Reverse @ Rest @ #2],
-            Reverse[Range[Length@#2]]],
-        _ :> Message[ImportGifTI::badfmt, "Unrecognized ArrayIndexingOrder in DataArray"]}],
-     datatype = Replace[
-       "DataType" /. attr,
-       {"NIFTI_TYPE_UINT8" -> "UnsignedInteger8",
-        "NIFTI_TYPE_INT32" -> "Integer32",
-        "NIFTI_TYPE_FLOAT32" -> "Real32",
-        _ :> Message[ImportGifTI::badfmt, "Unrecognized DataType in DataArray"]}],
-     dimensionality = ToExpression["Dimensionality" /. attr],
-     encoding = "Encoding" /. attr,
-     byteOrder = ("Endian" /. attr) /. {"BigEndian" -> 1, "LittleEndian" -> -1},
-     intent = "Intent" /. attr},
-    With[
-      {dims = Table[ToExpression[("Dim"<>ToString[k]) /. attr], {k, 0, dimensionality - 1}]},
-      Block[
-        {$ByteOrdering = byteOrder},
-        {"Data" -> With[
-           {subdata = GifTIExtractData[data]},
-           subdata],
-         "CoordinateSystemTransformMatrix" -> GifTIExtractExtractCoordinateSystemTransformMatrix[data],
-         "MetaData" -> GifTIExtractMetaData[xml],
-         MetaInformation -> attr}]]],
-  None,
-  Infinity];
+GifTIExtractDataArray[xml_] := Map[
+  #[[1,1]] -> #[[All, 2]] &,
+  GatherBy[
+    Cases[
+      xml,
+      XMLElement["DataArray", attr_, data_] :> With[
+        {arrayIndexOrd = Replace[
+           "ArrayIndexingOrder" /. attr,
+           {"RowMajorOrder" -> (Fold[Partition, #1, Rest @ #2]&),
+            "ColumnMajorOrder" -> Transpose[
+              Fold[Partition, #1, Reverse @ Rest @ #2],
+              Reverse[Range[Length@#2]]],
+            _ :> Message[ImportGifTI::badfmt, "Unrecognized ArrayIndexingOrder in DataArray"]}],
+         datatype = Replace[
+           "DataType" /. attr,
+           {"NIFTI_TYPE_UINT8" -> "UnsignedInteger8",
+            "NIFTI_TYPE_INT32" -> "Integer32",
+            "NIFTI_TYPE_FLOAT32" -> "Real32",
+            _ :> Message[ImportGifTI::badfmt, "Unrecognized DataType in DataArray"]}],
+         dimensionality = ToExpression["Dimensionality" /. attr],
+         encoding = "Encoding" /. attr,
+         byteOrder = ("Endian" /. attr) /. {"BigEndian" -> 1, "LittleEndian" -> -1},
+         intent = Replace[
+           "Intent" /. attr,
+           {"NIFTI_INTENT_GENMATRIX" -> {"Tensor", Identity},
+            "NIFTI_INTENT_LABEL" -> {"Labels", Identity},
+            "NIFTI_INTENT_NODE_INDEX" -> {"Mask", (# + 1)&},
+            "NIFTI_INTENT_POINTSET" -> {"Points", Identity},
+            "NIFTI_INTENT_RGB_VECTOR" -> {"Overlay", Map[Apply[RGBColor, #]&, #, {-2}]&},
+            "NIFTI_INTENT_RGBA_VECTOR" -> {"Overlay", Map[Apply[RGBColor, #]&, #, {-2}]&},
+            "NIFTI_INTENT_SHAPE" -> {"Shape", Identity},
+            "NIFTI_INTENT_TIME_SERIES" -> {"TimeSeries", Identity},
+            "NIFTI_INTENT_TRIANGLE" -> {"Faces", (# + 1)&},
+            "NIFTI_INTENT_VECTOR" -> {"Vectors", Identity},
+            _ -> {"Other", Identity}}]},
+        With[
+          {dims = Table[ToExpression[("Dim"<>ToString[k]) /. attr], {k, 0, dimensionality - 1}]},
+          Block[
+            {$ByteOrdering = byteOrder},
+            intent[[1]] -> With[
+              {subdata = GifTIExtractData[data]},
+              With[
+                {decoded = arrayIndexOrd[
+                   Switch[
+                     encoding,
+                     "ASCII", Flatten @ ImportString[subdata, "Table"],
+                     "Base64Binary", ImportString[data, {"Base64", datatype}],
+                     "GZipBase64Binary", ImportString[
+                       FromCharacterCode[Base64ZLibDecode[subdata]],
+                       datatype]],
+                   dims]},
+                {"Data" -> (intent[[2]])[decoded]
+                 "CoordinateSystemTransformMatrix" -> GifTIExtractCoordinateSystemTransformMatrix[data],
+                 "MetaData" -> GifTIExtractMetaData[xml],
+                 MetaInformation -> attr}]]]]],
+      Infinity],
+    First]];
 Protect[GifTIExtractDataArray];
-
+  
 GifTIExtractLabels[xml_] := SortBy[
   Cases[
     xml,
@@ -496,8 +577,55 @@ ImportGifTIData[xml_] := Check[
   $Failed];
 Protect[ImportGifTIData];
 
+GifTILabelTableToAssociation[table_List] := MimicAssociation[
+  Map[
+    Function[("Key" /. #) -> RGBColor["Red" /. #, "Green" /. #, "Blue" /. #, "Alpha" /. #]],
+    table]];
+Protect[GifTILabelTableToAssociation];
+
+GifTIConstructSurface[points_, faces_, overlays_, args___] := Module[
+  {k = 1},
+  Fold[
+    Function @ Switch[
+      Length[#2], 
+      Length[points], SetProperty[{#1, VertexList}, ("Data" <> ToString[k++]) -> #2],
+      Length[faces], SetProperty[{#1, FaceList}, ("Data" <> ToString[k++]) -> #2],
+      _, #1],
+    CorticalMesh[points, faces, args],
+    overlays]];
+Protect[GifTIConstructSurface];
+
+InterpretGifTIData[xmlData_] := Check[
+  With[
+    {label = If[# === None, Missing["KeyAbsent",#]&, GifTILabelTableToAssociation[#]]&[
+       FirstCase[xmlData, ("LabelTable" -> lbl_) :> lbl, None, Infinity]]},
+    With[
+      {dataArray = FirstCase[xmlData, ("DataArray" -> q_) :> q, $Failed, Infinity]},
+      If[Length[data] == 0, 
+        Message[ImportGifTI::badfmt, "No Data element found in GifTI"]];
+      With[
+        {points = FirstCase[dataArray, ("Points" -> q_) :> q, {}],
+         faces = FirstCase[dataArray, ("Faces" -> q_) :> q, {}],
+         overlays = FirstCase[dataArray, ("Overlays" -> q_) :> q, {}],
+         masks = FirstCase[dataArray, ("Masks" -> q_) :> q, {}],
+         labels = FirstCase[dataArray, ("Labels" -> q_) :> q, {}]},
+        Which[
+          (* one surface... *)
+          Length[points] == 1 && Length[faces] == 1, GifTIConstructSurface[
+            "Data" /. points[[1]], 
+            "Data" /. faces[[1]], 
+            Join[
+              ("Data" /. #)& /@ overlays,
+              (Normal @ SparseArray["Data" /. #, {Length[points[[1]]]}])& /@ masks,
+              label[[#]]& /@ labels]
+            MetaInformation -> {"GifTIData" -> q}],
+          (* Otherwuse, we don't have a clear interpretation, so just yield the data *)
+          True, xmlData]]]],
+  $Failed];
+Protect[InterpretGifTIData];
+
 ImportGifTI[filename_, opts___Rule] := Check[
-  ImportGifTIData[Import[filename, "XML", opts]],
+  InterpretGifTIData[ImportGifTIData[Import[filename, "XML", opts]]],
   $Failed];
 Protect[ImportGifTI];
 
