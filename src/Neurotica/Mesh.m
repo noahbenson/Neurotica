@@ -38,6 +38,7 @@ A cortical mesh resembles both a graph object and a boundary mesh region object.
   * EdgeLengths, EdgeWeights: EdgeLengths[mesh] and EdgeWeights[mesh] are identical; both yield the Euclidean distances between vertices in the mesh.
   * FaceAngles[mesh] yields the internal angles of each face in the same order as the vertices in FaceList[mesh].
   * FaceNormals[mesh] yields a list of one vector for each face in the mesh such that the vertex is orthogonal to the face.
+  * FaceBisectors[mesh] yields a list of the bisecting vectors of each of the corners of each face in the mesh.
   * FaceAxes[mesh] yields a list of orthogonal 2D axes that can be used to project each face into two dimensions, one pair for each face.
   * FaceCoordinates[mesh] yields a list of the faces but with the 3D mesh coordinates in the place of the vertex indices.
   * FaceRelativeCoordinates[mesh] yields a list of coordinates relative to the FaceAxes[mesh], such that each face has been flattened into the 2D plane it defines.
@@ -89,6 +90,8 @@ CalculateFaceAxesTr::usage = "CalculateFaceAxesTr[Ft, Xt] is a compiled function
 CalculateFaceAxes::usage = "CalculateFaceAxes[F, X] is a compiled function that yields a list of the axes for each face given in the face list F using the given coordinate list X. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
 CalculateFacePlaneCoordinatesTr::usage = "CalculateFacePlaneCoordinatesTr[Ft, Xt, At] is a compiled function that yields a list of the {x,y} 2D coordinates for each point of each face given in the transposed face list Ft using the given transposed coordinate list Xt. The result of this calculation is equivalent to Transpose[q, {3,2,1}] where q is the result of the non-transposed version of the function. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
 CalculateFacePlaneCoordinates::usage = "CalculateFacePlaneCoordinates[F, X, A] is a compiled function that yields a list of the {x,y} 2D coordinates for each point of each face given in the face list F using the given coordinate list X. This is a low-level function used by CorticalMesh and CorticalMap that should generally not be called by the user.";
+CalculateFaceBisectors::usage = "CalculateFaceBisectors[F, X] yields the bisector unit vectors for each corner of each face in the face list F given the coordinate matrix X.";
+CalculateFaceBisectorsTr::usage = "CalculateFaceBisectorsTr[Ft, Xt] yields the transposed bisector unit vectors for each corner of each face; this is the equivalent of Transpose[CalculateFaceBisectors[Transpose @ Ft, Transpose @ Xt], {3,2,1}].";
 CalculateVertexNormalsTr::usage = "CalculateVertexNormalsTr[Ft, Xt] yields the transposed normal vectors to each vertex given in the 3 by n matrix of coordinates in Xt where the triangle faces are given by columns of integer triples in Ft.";
 CalculateVertexNormals::usage = "CalculateVertexNormals[F, X] yields the normal vector to each vertex given in the 3 by n matrix of coordinates in X where the triangle faces are given by integer triples in F.";
 CorticalMeshNeighborhood::usage = "CorticalMeshNeighborhood[mesh, u0, d] yields the list of vertices in the given cortical mesh such that the edge-weighted distance from u0 to each vertex returned is less than d.";
@@ -99,6 +102,7 @@ FaceListTr::usage = "FaceListTr[s] yields a transposition of the FaceList[s] for
 FaceAngleCosinesTr::usage = "FaceAngleCosinesTr[s] yields a transposition of the FaceAngleCosines[s] for the given cortical mesh or map s.";
 FaceAnglesTr::usage = "FaceAnglesTr[s] yields a transposition of the FaceAngles[s] for the given cortical mesh or map s.";
 FaceNormalsTr::usage = "FaceNormalsTr[s] yields a transposition of the FaceNormals[s] for the given cortical mesh or map s such that FaceNormalsTr[s] == Transpose[FaceNormals[s], {3,2,1}].";
+FaceBisectorsTr::usage = "FaceBisectorsTr[s] yields the transpose of the list of the vectors which bisect each of the corners of the faces in s.";
 FaceAxesTr::usage = "FaceAxesTr[s] yields a transposition of the FaceAxes[s] for the given cortical mesh or map s such that FaceAxesTr[s] == Transpose[FaceAxes[s], {3,2,1}].";
 FaceCoordinatesTr::usage = "FaceCoordinatesTr[s] yields a transposition of the FaceCoordinates[s] for the given cortical mesh or map s such that FaceCoordinatesTr[s] == Transpose[FaceCoordinates[s], {3,2,1}].";
 FacePlaneCoordinatesTr::usage = "FacePlaneCoordinatesTr[s] yields a transposition of the FacePlaneCoordinates[s] for the given cortical mesh or map s such that FacePlaneCoordinatesTr[s] == Transpose[FacePlaneCoordinates[s], {3,2,1}].";
@@ -110,6 +114,7 @@ FaceAngles::usage = "FaceAngles[s] yields a list of the angles (in radians) of e
 FaceIndex::usage = "FaceIndex[s] yields a list of the indices into FaceList[s] such that the i'th element in FaceIndex[s] is the list of indices at which the i'th vertex in VertexCoordinates[s] appears in FaceList[s].";
 FaceNormals::usage = "FaceNormals[s] yields a list of normal vectors to each trianglular face in the surface mesh s. The vector yielded for each face is orthogonal to the plane of the face.";
 FaceAxes::usage = "FaceAxe[s] yields a list of the orthogonal axes to each of the faces in the surface mesh s.";
+FaceBisectors::usage = "FaceBisectors[s] yields a list of the vectors which bisect each of the corners of the faces in s.";
 FaceCoordinates::usage = "FaceCoordinates[s] yeilds a list of faces in which the coordinates insted of the vertex indices for each face are given.";
 FacePlaneCoordinates::usage = "FacePlaneCoordinates[s] yeilds a list of coordinates, one for each face in the surface mesh s, that has been normalized to two dimensions.";
 
@@ -117,7 +122,9 @@ EdgePairsTr::usage = "EdgePairsTr[s] yields a transposition of EdgePairs[s] for 
 EdgeCoordinatesTr::usage = "EdgeCoordinatesTr[s] yields a transposition of EdgeCoordinates[s] for the given cortical mesh or map s.";
 
 EdgePairs::usage = "EdgePairs[s] yields a list of the undirected edges between vertices in the surface mesh s; unlike the EdgeList function, this function yields the edges as lists instead of undirected edges.";
-EdgeLengths::usage = "EdgeLengths[s] yields a list of the lengths (Euclidean norm) of each edge in the EdgeList[s] where s may be a surface mesh object or projection.";
+EdgeLengths::usage = "EdgeLengths[s] yields a list of the lengths (Euclidean norm) of each edge in the EdgeList[s] where s may be a surface mesh object or projection.
+EdgeLengths[s, X] yields a list of the lengths of the edges if the given mesh s had the coordinates given in the list X.";
+EdgeLengthsTr::usage = "EdgeLengthsTr[s, Xt] is equivalent to EdgeLengths[s, Transpose[Xt]].";
 EdgeCoordinates::usage = "EdgeCoordinates[s] yields a list identical to EdgePairs[s] except that the vertex ids in the list have been replaced with the coordinates of each vertex.";
 
 VertexFaceMatrix::usage = "VertexFaceMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if vertex j is the k'th part of face i and 0 if not (where m is the number of faces in the mesh M).";
@@ -128,6 +135,8 @@ SumOverFacesTr::usage = "SumOverFacesTr[M, Q] yields the 3 x n result of summing
 SumOverEdgesTr::usage = "SumOverEdgesTr[M, Q] yields the 3 x n result of summing over the edges given in the matrix Q whose first dimension must be equal to 2 and whose last dimension must be equal to the number of edges in cortical mesh or map M.";
 SumOverFaces::usage = "SumOverFaces[M, Q] yields the result of summing over the faces given in the matrix Q whose last dimension must be equal to 3 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
 SumOverEdges::usage = "SumOverEdges[M, Q] yields the result of summing over the edges given in the matrix Q whose last dimension must be equal to 2 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
+SumOverEdgesDirected::usage = "SumOverEdgesDirected[M, Q] yields the equivalent of SumOverEdges[M, Q] except that the values in Q are subtracted from the second element of each edge instead of added to it.";
+SumOverEdgesDirectedTr::usage = "SumOverEdgesDirectedTr[M, Q] yields the equivalent of SumOverEdgesTr[M, Q] except that the values in Q are subtracted from the second element of each edge instead of added to it..";
 
 NeighborhoodList::usage = "NeighborhoodList[s] yields a list of length N (where N is the number of vertices in s) of the neighboring vertices of each vertex; each entry k of the list is a list of the integer id's of the neighbors of the kth vertex. The neighbor id's are sorted such that they are listed in a counter-clockwise order around vertex k starting from the x-axis. The argument s may be either a map or a surface.";
 NeighborhoodAngles::usage = "NeighborhoodAngles[mesh] yields a list of the angles between the nodes in the NeighborhoodList; these angles are in the same order as the nodes in NeighborhoodList such that the first angle in a neighborhood is between the first vertex in the neighborhood, the central vertex, and second vertex in the neighborhood and the last angle in the neighborhood angles list is the angle between the first vertex in the neighborhood list, the center vertex, and the last vertex in the neighborhood list.
@@ -345,6 +354,28 @@ CalculateFacePlaneCoordinates[F_List, X_List, A_List] := CalculateFacePlaneCoord
   Transpose @ X,
   Transpose[A, {3,2,1}]];
 Protect[CalculateFacePlaneCoordinates, CalculateFacePlaneCoordinatesTr];
+
+(* #CalculateFaceBisectorsTr *)
+CalculateFaceBisectorsTr = Compile[
+  {{Ft, _Integer, 2}, {Xt, _Real, 2}},
+  With[
+    {sides = {
+       Xt[[Ft[[2]]]] - Xt[[Ft[[1]]]],
+       Xt[[Ft[[3]]]] - Xt[[Ft[[2]]]],
+       Xt[[Ft[[1]]]] - Xt[[Ft[[3]]]]}},
+    With[
+      {norms = Sqrt @ Map[Total[#^2]&, sides]},
+      With[
+        {U = MapThread[(#1 / Table[#2, {Length@#1}])&, {sides, norms}]},
+        With[
+          {sums = {U[[1]] - U[[3]], U[[2]] - U[[1]], U[[3]] - U[[2]]}},
+          sums / Table[#, {Length@Xt}]& /@ Sqrt[Total /@ sums^2]]]]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+  Parallelization -> True];
+CalculateFaceBisectors[F_List, X_List] := Transpose @ CalculateFaceBisectorsTr[
+  Transpose @ F,
+  Transpose @ X];
+Protect[CalculateFaceBisectorsTr, CalculateFaceBisectors];
 
 (* #ParseMeshProperties *)
 ParseMeshProperties[X_, other_] := With[
@@ -931,6 +962,12 @@ DefineImmutable[
      SumOverEdges[mesh, data_] := Dot[
        Transpose @ Join[data, data],
        SumOverEdgesMatrix[mesh]],
+     SumOverEdgesDirectedTr[mesh, datat_] := Dot[
+       MapThread[Join, {datat, -datat}],
+       SumOverEdgesMatrix[mesh]],
+     SumOverEdgesDirected[mesh, data_] := Dot[
+       Transpose @ Join[data, -data],
+       SumOverEdgesMatrix[mesh]],
      SumOverEdgeVerticesTr[mesh, datat_] := Dot[Join @@ datat, SumOverEdgesMatrix[mesh]],
      SumOverEdgeVertices[mesh, data_] := Dot[Join @@ Transpose[data], SumOverEdgesMatrix[mesh]],
 
@@ -966,6 +1003,12 @@ DefineImmutable[
      FaceAxesTr[mesh, Xt_] := CalculateFaceAxesTr[FaceListTr[mesh], Xt],
      FaceAxes[mesh, Xx_] := Transpose @ CalculateFaceAxesTr[FaceListTr[mesh], Transpose @ Xx],
 
+     (* #FaceBisectors *)
+     FaceBisectorsTr[mesh] :> CalculateFaceBisectorsTr[FaceListTr[mesh], VertexCoordinatesTr[mesh]],
+     FaceBisectors[mesh] := Transpose @ FaceBisectorsTr[mesh],
+     FaceBisectorsTr[mesh, X_] := CalculateFaceBisectorsTr[FaceListTr[mesh], X],
+     FaceBisectors[mesh, X_] := Transpose @ FaceBisectorsTr[mesh, X],
+
      (* #FaceCoordinates *)
      FaceCoordinatesTr[mesh] :> With[
        {Xt = VertexCoordinatesTr[mesh],
@@ -998,6 +1041,13 @@ DefineImmutable[
      EdgeLengths[mesh] :> With[
        {EL = EdgePairsTr[mesh],
         Xt = VertexCoordinatesTr[mesh]},
+       Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
+     EdgeLengths[mesh, X_] := With[
+       {EL = EdgePairsTr[mesh],
+        Xt = Transpose @ X},
+       Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
+     EdgeLengthsTr[mesh, Xt_] := With[
+       {EL = EdgePairsTr[mesh]},
        Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
      EdgeWeight[mesh] := EdgeLengths[mesh],
      EdgeWeight[mesh, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
@@ -1519,6 +1569,12 @@ DefineImmutable[
      FaceAxes[map] := Transpose @ FaceAxesTr[map],
      FaceAxesTr[map, Xt_] := CalculateFaceAxesTr[FaceListTr[map], Xt],
      FaceAxes[map, Xx_] := Transpose @ CalculateFaceAxesTr[FaceListTr[map], Transpose @ Xx],
+
+     (* #FaceBisectors *)
+     FaceBisectorsTr[map] :> CalculateFaceBisectorsTr[FaceListTr[map], VertexCoordinatesTr[map]],
+     FaceBisectors[map] := Transpose @ FaceBisectorsTr[map],
+     FaceBisectorsTr[map, X_] := CalculateFaceBisectorsTr[FaceListTr[map], X],
+     FaceBisectors[map, X_] := Transpose @ FaceBisectorsTr[map, X],
 
      (* #FaceCoordinates *)
      FaceCoordinatesTr[map] :> With[
