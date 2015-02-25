@@ -72,6 +72,8 @@ MimicAssociation::badarg = "Bad argument given to MimicAssociation: `1`";
 
 NormalizeRows::usage = "NormalizeRows[X] yields a transformation of the matrix X in which each row of X has been normalized; this is the equivalent of (Normalize /@ X) but is significantly optimized.";
 NormalizeColumns::usage = "NormalizeColumns[X] yields a transformation of the matrix X in which each column of X has been normalized. This is equivalent to Transpose[Normalze /@ Transpose[X]], but has been significantly optimized.";
+RowNorms::usage = "RowNorms[X] yields the equivalent of Norm /@ X but has been optimized for speed.";
+ColumnNorms::usage = "ColumnNorms[X] yields the equivalent of Norm /@ Transpose[X] but has been optimized for speed.";
 
 ReadBinaryStructure::usage = "ReadBinaryStructure[stream, instructionsList] yields the data structure result of importing the given instructions via BinaryReadList. Instructions may take the following format:
   * type (e.g., \"Integer32\" or \"Real64\") are read as is;
@@ -543,6 +545,16 @@ NormalizeRows[{}] = {};
 NormalizeColumns[X_] := X / Table[#, {Length[X]}]&@Sqrt@Total[X^2];
 NormalizeColumns[{}] = {};
 Protect[NormalizeRows, NormalizeColumns];
+
+(* #RowNorms **************************************************************************************)
+RowNorms[X_] := With[{tr = Transpose[X]}, Sqrt @ Total[tr^2]];
+RowNorms[{}] = {};
+Protext[RowNorms];
+
+(* #ColumnNorms ***********************************************************************************)
+ColumnNorms[Xt_] := Sqrt @ Total[Xt^2];
+ColumnNorms[{}] = {};
+Protext[ColumnNorms];
 
 (* #BinaryStringFix *******************************************************************************)
 BinaryStringFix[clist_] := StringJoin[TakeWhile[clist, ToCharacterCode[#] != {0}&]];
