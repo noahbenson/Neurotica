@@ -167,7 +167,7 @@ HarmonicEdgePotential[mesh_?CorticalMapQ] := With[
     f]];
 Protect[HarmonicEdgePotential];
 
-(* #HarmonicEdgePotential *************************************************************************)
+(* #HarmonicAnglePotential ************************************************************************)
 HarmonicAnglePotential[mesh_?CorticalMeshQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
    Ft = FaceListTr[mesh],
