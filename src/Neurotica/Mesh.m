@@ -312,7 +312,7 @@ Protect[CalculateFaceNormalsTr, CalculateFaceNormals];
 CalculateFaceAxes3DTr = Compile[
   {{Ft, _Integer, 2}, {Xt, _Real, 2}, {normals, _Real, 2}},
   With[
-    {side1s = Sqrt @ Total @ (Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]])^2},
+    {side1s = Sqrt @ Total[(Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]])^2]},
     Transpose @ {
       side1s,
       {normals[[2]] * side1s[[3]] - side1s[[2]] * normals[[3]],
@@ -323,7 +323,7 @@ CalculateFaceAxes3DTr = Compile[
 CalculateFaceAxes2DTr = Compile[
   {{Ft, _Integer, 2}, {Xt, _Real, 2}},
   With[
-    {side1s = Sqrt @ Total @ (Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]])^2},
+    {side1s = Sqrt @ Total[(Xt[[All, Ft[[2]]]] - Xt[[All, Ft[[1]]]])^2]},
     Transpose @ {side1s, {-side1s[[2]], side1s[[1]]}}],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
@@ -538,9 +538,10 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
              tr0[[1]],
              (* we have a radius requirement; find everything with a small shortest path distance *)
              With[
-               {dists = Total @ MapThread[
-                  Subtract,
-                  {Transpose@VertexCoordinates[mesh], center[[1]]}]^2},
+               {dists = Total[
+                  MapThread[
+                    Subtract,
+                    {Transpose@VertexCoordinates[mesh], center[[1]]}]^2]},
                With[
                  {id = First @ Ordering[dists, 1]},
                  Which[
@@ -1044,14 +1045,14 @@ DefineImmutable[
      EdgeLengths[mesh] :> With[
        {EL = EdgePairsTr[mesh],
         Xt = VertexCoordinatesTr[mesh]},
-       Sqrt @ Total @ (Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2],
+       Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
      EdgeLengths[mesh, X_] := With[
        {EL = EdgePairsTr[mesh],
         Xt = Transpose @ X},
-       Sqrt @ Total @ (Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2],
+       Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
      EdgeLengthsTr[mesh, Xt_] := With[
        {EL = EdgePairsTr[mesh]},
-       Sqrt @ Total @ (Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2],
+       Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
      EdgeWeight[mesh] := EdgeLengths[mesh],
      EdgeWeight[mesh, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
        EdgeLengths[mesh],
@@ -1611,7 +1612,7 @@ DefineImmutable[
      EdgeLengths[map] :> With[
        {EL = EdgePairsTr[map],
         Xt = VertexCoordinatesTr[map]},
-       Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
+       Sqrt @ Total[(Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2]],
      EdgeWeight[map] := EdgeLengths[map],
      EdgeWeight[map, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
        EdgeLengths[map],
