@@ -52,7 +52,7 @@ CalculateHarmonicAnglePotential3D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      (ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]],
+      Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient3D = ReplacePart[
@@ -90,7 +90,7 @@ CalculateHarmonicAnglePotential2D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      (ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]],
+      Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient2D = ReplacePart[
@@ -132,9 +132,9 @@ HarmonicEdgePotential[mesh_?CorticalMeshQ] := With[
    f = TemporarySymbol["edgePotential"]},
   With[
     {df = Function @ With[
-       {deltaX = #[[E[[2]]]] - #[[E[[1]]]]},
+       {dX = #[[All, E[[2]]]] - #[[All, E[[1]]]]},
        With[
-         {norms = Sqrt[Total[deltaX^2]]},
+         {norms = Sqrt[Total[dX^2]]},
          With[
            {magnitude = (norms - D0) / m},
            SumOverEdgesDirectedTr[
@@ -153,9 +153,9 @@ HarmonicEdgePotential[mesh_?CorticalMapQ] := With[
    f = TemporarySymbol["edgePotential"]},
   With[
     {df = Function @ With[
-       {deltaX = #[[E[[2]]]] - #[[E[[1]]]]},
+       {dX = #[[All, E[[2]]]] - #[[All, E[[1]]]]},
        With[
-         {norms = Sqrt[Total[deltaX^2]]},
+         {norms = Sqrt[Total[dX^2]]},
          With[
            {magnitude = (norms - D0) / m},
            SumOverEdgesDirectedTr[dX / {norms, norms} * {magnitude, magnitude}]]]]},
