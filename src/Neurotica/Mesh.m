@@ -263,8 +263,11 @@ Protect[CalculateVertexNormalsTr, CalculateVertexNormals];
 CalculateFaceAngleCosinesTr = Compile[
   {{Ft, _Integer, 2}, {Xtr, _Real, 2}},
   With[
-    {sides = Partition[#, Length@First@Ft]& /@ NormalizeColumns[
-       Xtr[[All, Join[Ft[[2]], Ft[[3]], Ft[[1]]]]] - Xtr[[All, Join[Ft[[1]], Ft[[2]], Ft[[3]]]]]]},
+    {sides = Transpose @ Map[
+       Partition[#, Length@First@Ft]&,
+       NormalizeColumns @ Subtract[
+         Xtr[[All, Join[Ft[[2]], Ft[[3]], Ft[[1]]]]],
+         Xtr[[All, Join[Ft[[1]], Ft[[2]], Ft[[3]]]]]]]},
     {Total[sides[[1]] * -sides[[3]]],
      Total[sides[[2]] * -sides[[1]]],
      Total[sides[[3]] * -sides[[2]]]}],
