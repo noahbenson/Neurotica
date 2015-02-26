@@ -1044,14 +1044,14 @@ DefineImmutable[
      EdgeLengths[mesh] :> With[
        {EL = EdgePairsTr[mesh],
         Xt = VertexCoordinatesTr[mesh]},
-       Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
+       Sqrt @ Total @ (Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2],
      EdgeLengths[mesh, X_] := With[
        {EL = EdgePairsTr[mesh],
         Xt = Transpose @ X},
-       Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
+       Sqrt @ Total @ (Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2],
      EdgeLengthsTr[mesh, Xt_] := With[
        {EL = EdgePairsTr[mesh]},
-       Sqrt @ Total @ (Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2],
+       Sqrt @ Total @ (Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2],
      EdgeWeight[mesh] := EdgeLengths[mesh],
      EdgeWeight[mesh, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
        EdgeLengths[mesh],
