@@ -184,12 +184,12 @@ HarmonicAnglePotential[mesh_?CorticalMeshQ] := With[
             CalculateHarmonicAngleGradient3D,
             Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
           {i, 0, 2}]},
-        Join @@ If[Length[Xarg] == 3, Transpose @ grad, grad]]]];
+        Join @@ If[Length[Xarg] == 3, Transpose @ grad, grad] / n]]];
   f[Xarg_List] := With[
     {Xt = If[Length[Xarg] == 3, Xarg, Transpose @ Xarg]},
     With[
       {corners0 = Xt[[All, #]]& /@ Ft},
-      0.5 / m * Sum[
+      0.5 / n * Sum[
         Apply[
           CalculateHarmonicAnglePotential3D,
           Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
@@ -211,12 +211,12 @@ HarmonicAnglePotential[mesh_?CorticalMapQ] := With[
             CalculateHarmonicAngleGradient2D,
             Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
           {i, 0, 2}]},
-        Join @@ If[Length[Xarg] == 2, Transpose @ grad, grad]]]];
+        Join @@ If[Length[Xarg] == 2, Transpose @ grad, grad] / n]]];
   f[Xarg_List] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
     With[
       {corners0 = Xt[[All, #]]& /@ Ft},
-      0.5 / m * Sum[
+      0.5 / n * Sum[
         Apply[
           CalculateHarmonicAnglePotential2D,
           Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
