@@ -1309,7 +1309,7 @@ Options[CorticalMap] = Join[
   $CortexPlotOptions,
   {MetaInformation -> {},
    Properties -> None,
-   Method -> "Equirectangular",
+   Method -> "Orthographic",
    Center -> Automatic,
    Exclusions -> Automatic,
    Radius -> Full}];
