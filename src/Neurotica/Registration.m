@@ -173,7 +173,7 @@ CalculateCosineAngleGradient3D = ReplacePart[
      {x2, _Real, 1}, {y2, _Real, 1}, {z2, _Real, 1},
      {cos0, _Real, 1}},
     Evaluate @ Block[
-      {x0, y0, z0, x1, y1, z1, x2, y2, z2, th0},
+      {x0, y0, z0, x1, y1, z1, x2, y2, z2, cos0},
       With[
         {grad = Grad[
            Simplify[
@@ -210,7 +210,7 @@ CalculateCosineAngleGradient2D = ReplacePart[
      {x2, _Real, 1}, {y2, _Real, 1},
      {cos0, _Real, 1}},
     Evaluate @ Block[
-      {x0, y0, x1, y1, x2, y2, th0},
+      {x0, y0, x1, y1, x2, y2, cos0},
       With[
         {grad = Grad[
            Simplify[
