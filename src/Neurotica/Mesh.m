@@ -574,7 +574,7 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
                      Times,
                      {NormalizeColumns @ Part[VertexCoordinatesTr[mesh], All, incl0[[1]]],
                       Normalize @ center[[1]]}]],
-                  1],
+                  -1],
                (* we have a radius requirement; find everything with a small shortest path dist *)
                True, Intersection[
                  incl0[[1]],
@@ -588,16 +588,18 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
                      1],
                    prad]]]]]},
         With[
-        {Vs = incl[[1]],
-         Es = Intersection[
-           incl[[2]],
-           Union @@ VertexEdgeList[mesh][[incl[[1]]]]],
-         Fs = Intersection[
-           incl[[3]],
-           Union @@ Join[
-             VertexFaceList[mesh][[incl[[1]]]],
-             EdgeFaceList[mesh][[incl[[2]]]]]]},
-          {Vs, Es, Fs}]]]],
+          {Vs = incl[[1]],
+           Es = Intersection[
+             incl[[2]],
+             Pick @@ Append[
+               Transpose@Tally[Join @@ Part[VertexEdgeList[mesh], incl[[1]]]],
+               2]]},
+          With[
+            {Fs = Intersection[
+               incl[[3]],
+               Pick @@ Append[Transpose@Tally[Join @@ Part[VertexFaceList[mesh], Vs]], 3],
+               Pick @@ Append[Transpose@Tally[Join @@ Part[EdgeFaceList[mesh], Es]], 3]]},
+            {Vs, Es, Fs}]]]]],
   {$Failed, $Failed, $Failed}];
 Protect[CorticalMapTranslateExclusions];
 
@@ -1025,7 +1027,7 @@ DefineImmutable[
      (* #FaceCoordinates *)
      FaceCoordinatesTr[mesh] :> With[
        {Xt = VertexCoordinatesTr[mesh],
-        Ft = FaceListTr[mesh]},
+        Ft = VertexIndex[mesh, FaceListTr[mesh]]},
        Transpose @ {Xt[[All, Ft[[1]]]], Xt[[All, Ft[[2]]]], Xt[[All, Ft[[3]]]]}],
      FaceCoordinates[mesh] := Transpose[FaceCoordinatesTr[mesh], {3,2,1}],
 
@@ -1046,9 +1048,9 @@ DefineImmutable[
      (* #EdgeCoordinates *)
      EdgeCoordinatesTr[mesh] :> With[
        {Xt = VertexCoordinatesTr[mesh],
-        EL = EdgePairsTr[mesh]},
+        EL = VertexIndex[mesh, EdgePairsTr[mesh]]},
        Transpose @ {Xt[[All, EL[[1]]]], Xt[[All, EL[[2]]]]}],
-     EdgeCoordinates[mesh] := Transpose @ EdgeCoordinates[mesh],
+     EdgeCoordinates[mesh] := Transpose[EdgeCoordinatesTr[mesh], {3,2,1}],
      
      (* #EdgeLengths *)
      EdgeLengths[mesh] :> With[
@@ -1397,7 +1399,7 @@ DefineImmutable[
 
      (* Now we have the actual vertex/face/edge data *)
      VertexList[map] -> Part[VertexList[SourceMesh[map]], Inclusions[map][[1]]],
-     VertexCoordinatesTr[map] -> With[
+     VertexCoordinatesTr[map] = With[
        {f = TransformationFunction[map]},
        f[VertexCoordinatesTr[SourceMesh[map]][[All, Inclusions[map][[1]]]]]],
      FaceListTr[map] -> Part[FaceListTr[SourceMesh[map]], All, Inclusions[map][[3]]],
@@ -1596,7 +1598,7 @@ DefineImmutable[
      (* #FaceCoordinates *)
      FaceCoordinatesTr[map] :> With[
        {Xt = VertexCoordinatesTr[map],
-        Ft = FaceListTr[map]},
+        Ft = VertedIndex[map, FaceListTr[map]]},
        Transpose @ {Xt[[All, Ft[[1]]]], Xt[[All, Ft[[2]]]], Xt[[All, Ft[[3]]]]}],
      FaceCoordinates[map] := Transpose[FaceCoordinatesTr[map], {3,2,1}],
 
@@ -1619,7 +1621,7 @@ DefineImmutable[
        {Xt = VertexCoordinatesTr[map],
         EL = VertexIndex[map, EdgePairsTr[map]]},
        Transpose @ {Xt[[All, EL[[1]]]], Xt[[All, EL[[2]]]]}],
-     EdgeCoordinates[map] := Transpose @ EdgeCoordinates[map],
+     EdgeCoordinates[map] := Transpose[EdgeCoordinatesTr[map], {3,2,1}],
      
      (* #EdgeLengths *)
      EdgeLengths[map] :> With[
@@ -2307,7 +2309,8 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
              MapThread[
                efn,
                {EdgeCoordinates[mesh], EdgePairs[mesh],
-                GetProperties[EdgeList], vprop[[#]]& /@ EdgePairs[mesh]}]],
+                GetProperties[EdgeList],
+                Transpose[vprop[[#]]& /@ VertexIndex[mesh, EdgePairsTr[mesh]]]}]],
            If[vfn === None || vfn === Automatic,
              {},
              MapThread[vfn, {X, U, vprop}]]},
