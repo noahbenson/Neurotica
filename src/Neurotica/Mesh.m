@@ -449,6 +449,24 @@ CorticalMeshNeighborhood[mesh_?CorticalObjectQ, u0_Integer, d_?NumericQ] := With
     Flatten@Position[mark, 1, {1}]]];
 Protect[CorticalMeshNeighborhood, CorticalMeshNeighborhoodCompiled];
 
+(* #CorticalMeshOrientForMap
+ * Yields the coordinates of the subset of vertices subject to the map (via exclusions) rotated such
+ * that the center is at {1,0,0} and the orient point (if there is one) is in the (+x, y)
+ * half-plane.
+ *)
+CorticalMeshOrientForMap[Xt_, center_] := With[
+  {RMain = If[center[[1]] === None || center[[1]] === Automatic, 
+    IdentityMatrix[3],
+    RotationMatrix[{center[[1]], {1,0,0}}]]},
+  Dot[
+    If[center[[2]] === None || center[[2]] === Automatic,
+      IdentityMatrix[3], 
+      With[
+        {orientPt = Dot[RMain, center[[2]]]},
+        RotationMatrix[-ArcTan[orientPt[[1]], orientPt[[2]]], {1,0,0}]]],
+    RMain,
+    Xt]];
+
 (* #CorticalMapTranslateCenter
  * Yields {center, orient-point}, both of which are 3D coordinates, when given a center argument;
  * The orient-point may be Automatic instead of a 3D coordinate, indicating that the first PC of the
@@ -484,20 +502,19 @@ Protect[CorticalMapTranslateCenter];
  * that Automatic exclusions were requested.
  *)
 CorticalMapAutomaticExclusions[mesh_, method_, center_, excl_, prad_] := With[
-  {X0 = Dot[
-     VertexCoordinates[mesh],
-     Transpose[RotationMatrix[{center[[1]], {1,0,0}}]],
-     If[center[[2]] === Automatic, 
-       IdentityMatrix[3], 
-       RotationMatrix[-ArcTan @@ center[[2, 2;;3]], {1,0,0}]]]},
+  {X0t = CorticalMeshOrientForMap[VertexCoordinatesTr[mesh], center],
+   EPt = EdgePairsTr[mesh],
+   Ft = FacePairsTr[mesh]},
   Switch[
     If[StringQ[method], ToLowerCase[method], method],
-    "mollenweide"|"equirectangular"|"mercator", Select[
-      EdgePairs[mesh],
-      And[X0[[#[[1]],1]] < 0, X0[[#[[2]],1]] < 0, X0[[#[[1]],2]] * X0[[#[[2]],2]] < 0] &],
-    "orthographic", Part[
-      VertexList[mesh],
-      Select[Range[VertexCount[mesh]], X0[[#,1]] < 0&]],
+    "mollenweide"|"equirectangular"|"mercator", Pick[
+      Transpose @ EPt,
+      Plus[
+        Sign[X0t[[1, EPt[[1]]]]],
+        Sign[X0t[[1, EPt[[2]]]]],
+        Sign[X0t[[2, EPt[[1]]]] * X0t[[2, EPt[[2]]]]]],
+      -3],
+    "orthographic", Pick[VertexList[mesh], Sign[X0t[[1]]], -1],
     _, $Failed]];
 Protect[CorticalMapAutomaticExclusions];
 
@@ -507,17 +524,16 @@ Protect[CorticalMapAutomaticExclusions];
  * result will be correct; in this vein, vertices may be All.
  *)
 CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
-  Catch[
-    With[
-      {tr0 = Last@Reap[
-         Sow[0, {1,2,3}];
-         Scan[
-           Function@Which[
-             IntegerQ[#],                Sow[VertexIndex[mesh, #], 1],
-             ListQ[#] && Length[#] == 2, Sow[EdgeIndex[mesh, #], 2],
-             Head[#] === UndirectedEdge, Sow[EdgeIndex[mesh, #], 2],
-             ListQ[#] && Length[#] == 3, Sow[FaceIndex[mesh, #], 3],
-             True, Throw[{$Failed, $Failed, $Failed}]],
+  Catch @ With[
+    {excl0 = Apply[
+       Function[{vertices, edges, faces},
+         {VertexIndex[mesh, vertices],
+          EdgeIndex[mesh, ReplaceAll[edges, UndirectedEdge -> List]],
+          FaceIndex[mesh, faces]}],
+       Union[Rest[#]]& /@ GatherBy[
+         Join[
+           (* these enforce the ordering [vertices, edges, faces] in the result *)
+           {0, {0,0}, {0,0,0}},
            Which[
              ListQ[excl], Replace[
                excl, 
@@ -527,79 +543,63 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
              excl === Automatic, CorticalMapAutomaticExclusions[
                mesh, method, center, excl, prad],
              True, Throw[{$Failed,$Failed,$Failed}]]],
-         {1,2,3},
-         (Sequence @@ Union[Rest[#2]])&]},
+         Function@Which[
+           IntegerQ[#], 1,
+           Head[#] === UndirectedEdge, 2,
+           ListQ[#] && Length[#] == 2, 2,
+           ListQ[#] && Length[#] == 3, 3,
+           True, Throw[{$Failed, $Failed, $Failed}]]]]},
     With[
-      {tr = If[prad === Full || prad === All,
-         tr0,
-         ReplacePart[
-           tr0,
-           1 -> Union[
-             tr0[[1]],
-             (* we have a radius requirement; find everything with a small shortest path distance *)
-             With[
-               {dists = Total[
-                  MapThread[
-                    Subtract,
-                    {Transpose@VertexCoordinates[mesh], center[[1]]}]^2]},
-               With[
-                 {id = First @ Ordering[dists, 1]},
-                 Which[
-                   (QuantityQ[prad] || ListQ[prad]) && prad[[2]] == "AngularDegrees", Pick[
-                      Range[VertexCount[mesh]],
-                      Sign @ Subtract[
-                        Cos[prad[[1]] * Pi / 180.0],
-                        Total @ MapThread[
-                          Times,
-                          {NormalizeColumns @ VertexCoordinatesTr[mesh],
-                           Normalize @ VertexCoordinates[mesh][[id]]}]],
-                      1],
-                   (QuantityQ[prad] || ListQ[prad]) && prad[[2]] == "Radians", Pick[
-                      Range[VertexCount[mesh]],
-                      Sign @ Subtract[
-                        Cos[prad[[1]]],
-                        Total @ MapThread[
-                          Times,
-                          {NormalizeColumns @ VertexCoordinatesTr[mesh],
-                           Normalize @ VertexCoordinates[mesh][[id]]}]],
-                      1],
-                   True, CorticalMeshNeighborhood[mesh, id, prad]]]]]]]},
+      {incl0 = MapThread[
+         Complement,
+         {{Range[VertexCount[mesh]], Range[EdgeCount[mesh]], Range[FaceCount[mesh]]},
+          excl0}]},
       With[
-        {Vs = Complement[Range[VertexCount[mesh]], tr[[1]]]},
+        {incl = If[prad === Full || prad === All,
+           incl0,
+           ReplacePart[
+             incl0,
+             1 -> If[QuantityQ[prad] || ListQ[prad],
+               (* we have an angular radius requirement; just use distances *)
+               Pick[
+                 incl0[[1]],
+                 Sign @ Subtract[
+                   Which[
+                     prad[[2]] == "AngularDegrees", Cos[prad[[1]] * Pi / 180.0],
+                     prad[[2]] == "Radians", Cos[prad[[1]]],
+                     True, Message[
+                       CorticalMap::badarg,
+                       "Radius quantities must be in degrees or radians"]],
+                   Total @ MapThread[
+                     Times,
+                     {NormalizeColumns @ Part[VertexCoordinatesTr[mesh], All, incl0[[1]]],
+                      Normalize @ center[[1]]}]],
+                  1],
+               (* we have a radius requirement; find everything with a small shortest path dist *)
+               True, Intersection[
+                 incl0[[1]],
+                 CorticalMeshNeighborhood[
+                   mesh,
+                   First @ Ordering[
+                     Total[
+                       MapThread[
+                         Subtract,
+                         {Transpose@VertexCoordinates[mesh], center[[1]]}]^2],
+                     1],
+                   prad]]]]]},
         With[
-          {Es = Complement[
-             Range[EdgeCount[mesh]], 
-             tr[[2]],
-             VertexEdgeList[mesh][[tr[[1]]]]]},
-          With[
-            {Fs = Complement[
-               Range[FaceCount[mesh]],
-               tr[[3]],
-               Join @@ (VertexFaceList[mesh][[tr[[1]]]]),
-               Join @@ (EdgeFaceList[mesh][[tr[[2]]]])]},
-            {If[Length[Vs] == VertexCount[mesh], All, Vs],
-             If[Length[Es] == EdgeCount[mesh], All, Es],
-             If[Length[Fs] == FaceCount[mesh], All, Fs]}]]]]]],
+        {Vs = incl[[1]],
+         Es = Intersection[
+           incl[[2]],
+           Union @@ VertexEdgeList[mesh][[incl[[1]]]]],
+         Fs = Intersection[
+           incl[[3]],
+           Union @@ Join[
+             VertexFaceList[mesh][[incl[[1]]]],
+             EdgeFaceList[mesh][[incl[[2]]]]]]},
+          {Vs, Es, Fs}]]]],
   {$Failed, $Failed, $Failed}];
 Protect[CorticalMapTranslateExclusions];
-
-(* #CorticalMeshOrientForMap
- * Yields the coordinates of the subset of vertices subject to the map (via exclusions) rotated such
- * that the center is at {1,0,0} and the orient point (if there is one) is in the (+x, y)
- * half-plane.
- *)
-CorticalMeshOrientForMap[Xt_, center_] := With[
-  {RMain = If[center[[1]] === None || center[[1]] === Automatic, 
-    IdentityMatrix[3],
-    RotationMatrix[{center[[1]], {1,0,0}}]]},
-  Dot[
-    If[center[[2]] === None || center[[2]] === Automatic,
-      IdentityMatrix[3], 
-      With[
-        {orientPt = Dot[RMain, center[[2]]]},
-        RotationMatrix[-ArcTan[orientPt[[1]], orientPt[[2]]], {1,0,0}]]],
-    RMain,
-    Xt]];
 
 (* #CorticalMapTranslateMethod
  * Yields a translation function given the Method argument and the translated parameters: Center,
@@ -923,7 +923,7 @@ DefineImmutable[
      EdgeIndex[mesh, (List|UndirectedEdge)[a_Integer, b_Integer]] := With[
        {id = EdgeIndexArray[mesh][[a,b]]},
        If[id == 0, $Failed, id]],     
-     FaceIndex[mesh, list_List] := With[
+     EdgeIndex[mesh, list_List] := With[
        {id = EdgeIndexArray[mesh]},
        ReplaceAll[
          Map[Extract[id, #]&, list, {-2}],
@@ -1419,10 +1419,10 @@ DefineImmutable[
      VertexCount[map] -> Length @ VertexList[map],
      VertexCount[map, patt_] := Count[VertexList[map], patt, {1}],
      (* #EdgeCount *)
-     EdgeCount[map] -> Length[EdgePairs[map]],
+     EdgeCount[map] -> Length[EdgePairsTr[map][[1]]],
      EdgeCount[map, patt_] := Count[EdgePairs[map], patt, {1}],
      (* #FaceCount *)
-     FaceCount[map] -> Length[FaceList[map]],
+     FaceCount[map] -> Length[FaceListTr[map][[1]]],
      FaceCount[map, patt_] := Count[FaceList[map], patt, {1}],
 
      (* #CorticalMapQ *)
@@ -1468,8 +1468,8 @@ DefineImmutable[
        SparseArray[Transpose[MapThread[Join, {Et, Reverse[Et]}]] -> Join[RE, RE]]],
      EdgeIndex[map, (List|UndirectedEdge)[a_Integer, b_Integer]] := With[
        {id = EdgeIndexArray[map][[a,b]]},
-       If[id == 0, $Failed, id]],     
-     FaceIndex[map, list_List] := With[
+       If[id == 0, $Failed, id]],
+     EdgeIndex[map, list_List] := With[
        {id = EdgeIndexArray[map]},
        ReplaceAll[
          Map[Extract[id, #]&, list, {-2}],
@@ -1477,7 +1477,10 @@ DefineImmutable[
      (* #VertexIndexArray [private] and #VertexIndex [public] *)
      VertexIndexArray[map] :> If[VertexList[map] == Range[VertexCount[map]],
        VertexList[map],
-       Normal @ SparseArray[VertexList[map] -> Range[VertexCount[map]]]],
+       Normal @ SparseArray[
+         VertexList[map] -> Range[VertexCount[map]],
+         Max[VertexList[SourceMesh[map]]],
+         0]],
      VertexIndex[map, i_Integer] := With[
        {id = If[i > Length[VertexIndexArray[map]], 0, VertexIndexArray[map][[i]]]},
        If[id == 0, $Failed, id]],
@@ -1614,15 +1617,15 @@ DefineImmutable[
      (* #EdgeCoordinates *)
      EdgeCoordinatesTr[map] :> With[
        {Xt = VertexCoordinatesTr[map],
-        EL = EdgePairsTr[map]},
+        EL = VertexIndex[map, EdgePairsTr[map]]},
        Transpose @ {Xt[[All, EL[[1]]]], Xt[[All, EL[[2]]]]}],
      EdgeCoordinates[map] := Transpose @ EdgeCoordinates[map],
      
      (* #EdgeLengths *)
      EdgeLengths[map] :> With[
-       {EL = EdgePairsTr[map],
+       {EL = VertexIndex[map, EdgePairsTr[map]],
         Xt = VertexCoordinatesTr[map]},
-       Sqrt @ Total[(Xt[[All, El[[1]]]] - Xt[[All, El[[2]]]])^2]],
+       Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
      EdgeWeight[map] := EdgeLengths[map],
      EdgeWeight[map, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
        EdgeLengths[map],
@@ -2291,12 +2294,14 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
       Graphics[
         GraphicsComplex[
           VertexCoordinates[mesh],
-          {If[ffn =!= Automatic,
-             {EdgeForm[], Gray, 
-              MapThread[
-                ffn,
-                {FaceCoordinates[mesh], F, GetProperties[FaceList], vprop[[#]]& /@ F}]},
-             {EdgeForm[], Gray, Polygon[F]}],
+          {Which[
+             ffn === None, {},
+             ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
+             True, {
+               EdgeForm[], Gray, 
+               MapThread[
+                 ffn,
+                 {FaceCoordinates[mesh], F, GetProperties[FaceList], vprop[[#]]& /@ F}]}],
            If[efn === None || efn === Automatic, 
              {},
              MapThread[
