@@ -1309,9 +1309,9 @@ FreeSurferSubjectMiddleSurface[sub_String, hemi:(LH|RH|RHX)] := With[
   {res = Check[
      Clone[
        FreeSurferSubjectPialSurface[sub, hemi],
-       VertexCoordinates -> 0.5 * Plus[
-         VertexCoordinates[FreeSurferSubjectPialSurface[sub,hemi]],
-         VertexCoordinates[FreeSurferSubjectWhiteSurface[sub,hemi]]]],
+       VertexCoordinatesTr -> 0.5 * Plus[
+         VertexCoordinatesTr[FreeSurferSubjectPialSurface[sub,hemi]],
+         VertexCoordinatesTr[FreeSurferSubjectWhiteSurface[sub,hemi]]]],
      $Failed]},
   If[res === $Failed, 
     res,
