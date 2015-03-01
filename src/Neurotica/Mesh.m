@@ -515,7 +515,17 @@ CorticalMapAutomaticExclusions[mesh_, method_, center_, excl_, prad_] := With[
         Sign[X0t[[2, EPt[[1]]]] * X0t[[2, EPt[[2]]]]]],
       -3],
     "orthographic", Pick[VertexList[mesh], Sign[X0t[[1]]], -1],
-    _, $Failed]];
+    "polarstretching", With[
+      {id = First @ Nearest[VertexCoordinates[mesh] -> Automatic, -center[[1]]]},
+      With[
+        {faces = VertexFaceList[mesh][[id]],
+         FX = FaceCoordinates[mesh]},
+        {Part[
+           FaceList[mesh],
+           First @ SortBy[
+             faces,
+             RegionDistance[Polygon[FX[[#]]], -center[[1]]]&]]}]],
+    _, {}]];
 Protect[CorticalMapAutomaticExclusions];
 
 (* #CorticalMapTranslateExclusions
@@ -642,6 +652,13 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
               {sinPhi = Sin[S[[2]]]},
               meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]],
         "orthographic" :> Function[{X}, X[[2;;3]]],
+        "polarstretching" :> Function[{X},
+          With[
+            {polar = Transpose @ ConvertCoordinates[
+               Transpose @ X[[{2,3,1}]],
+               Cartesian -> {Longitude, SphericalPolarAngle}]},
+            Global`dbg = {X, polar};
+            {# * Cos[polar[[1]]], # * Sin[polar[[1]]]}& @ Tan[polar[[2]] / 2]]],
         "graph" :> With[
           {em = Transpose @ GraphEmbedding[
              Graph[
