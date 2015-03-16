@@ -518,6 +518,7 @@ GifTIExtractDataArray[xml_] := Map[
             "NIFTI_INTENT_TIME_SERIES" -> {"TimeSeries", Identity},
             "NIFTI_INTENT_TRIANGLE" -> {"Faces", (# + 1)&},
             "NIFTI_INTENT_VECTOR" -> {"Vectors", Identity},
+            (s_String /; StringTake[s, 12] == "NIFTI_INTENT") -> {"Overlay", Identity},
             _ -> {"Other", Identity}}]},
         With[
           {dims = Table[ToExpression[("Dim"<>ToString[k]) /. attr], {k, 0, dimensionality - 1}]},
@@ -535,7 +536,7 @@ GifTIExtractDataArray[xml_] := Map[
                        FromCharacterCode[Base64ZLibDecode[subdata]],
                        datatype]],
                    dims]},
-                {"Data" -> (intent[[2]])[decoded]
+                {"Data" -> (intent[[2]])[decoded],
                  "CoordinateSystemTransformMatrix" -> GifTIExtractCoordinateSystemTransformMatrix[data],
                  "MetaData" -> GifTIExtractMetaData[xml],
                  MetaInformation -> attr}]]]]],
@@ -601,14 +602,14 @@ InterpretGifTIData[xmlData_] := Check[
        FirstCase[xmlData, ("LabelTable" -> lbl_) :> lbl, None, Infinity]]},
     With[
       {dataArray = FirstCase[xmlData, ("DataArray" -> q_) :> q, $Failed, Infinity]},
-      If[Length[data] == 0, 
+      If[Length[dataArray] == 0, 
         Message[ImportGifTI::badfmt, "No Data element found in GifTI"]];
       With[
-        {points = FirstCase[dataArray, ("Points" -> q_) :> q, {}],
-         faces = FirstCase[dataArray, ("Faces" -> q_) :> q, {}],
-         overlays = FirstCase[dataArray, ("Overlays" -> q_) :> q, {}],
-         masks = FirstCase[dataArray, ("Masks" -> q_) :> q, {}],
-         labels = FirstCase[dataArray, ("Labels" -> q_) :> q, {}]},
+        {points = FirstCase[dataArray, ("Points" -> q_) :> q, {}, {1}],
+         faces = FirstCase[dataArray, ("Faces" -> q_) :> q, {}, {1}],
+         overlays = FirstCase[dataArray, ("Overlay" -> q_) :> q, {}, {1}],
+         masks = FirstCase[dataArray, ("Mask" -> q_) :> q, {}, {1}],
+         labels = FirstCase[dataArray, ("Labels" -> q_) :> q, {}, {1}]},
         Which[
           (* one surface... *)
           Length[points] == 1 && Length[faces] == 1, GifTIConstructSurface[
