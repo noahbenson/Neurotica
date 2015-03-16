@@ -1962,7 +1962,7 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
       (* If the property already exists, we overwrite it *)
       True, Clone[
         mesh,
-        propType -> Replace[list, (Rule|RuleDelayed)[prop, _] -> (prop -> vals), {1}]]]]];
+        propType -> Replace[allList, (Rule|RuleDelayed)[prop, _] -> (prop -> vals), {1}]]]]];
 (* for delayed rules, we handle things slightly differently *)
 SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ :> vals_] := With[
   {allList = Switch[type, 
@@ -1988,7 +1988,9 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
         prop === EdgeWeight, $Failed,
         True, Clone[mesh, propType -> Append[allList, (prop :> sym)]]],
       (* If the property already exists, we overwrite it *)
-      Clone[mesh, propType -> Replace[list, (Rule|RuleDelayed)[prop, _] -> (prop :> sym), {1}]]]]];
+      Clone[
+        mesh,
+        propType -> Replace[allList, (Rule|RuleDelayed)[prop, _] -> (prop :> sym), {1}]]]]];
 
 (* bulk property setting *)
 SetProperty[{mesh_?CorticalObjectQ,
