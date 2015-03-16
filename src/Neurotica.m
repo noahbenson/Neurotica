@@ -27,7 +27,8 @@ BeginPackage[
    "Neurotica`Mesh`",
    "Neurotica`Registration`",
    "Neurotica`MRImage`",
-   "Neurotica`FreeSurfer`"}];
+   "Neurotica`FreeSurfer`",
+   "Neurotica`Nifti`"}];
    (*"Neurotica`VisualCortex`",*)
    (*"Neurotica`MEG`",*)
 Unprotect["Neurotica`*", "Neurotica`Private`*"];
