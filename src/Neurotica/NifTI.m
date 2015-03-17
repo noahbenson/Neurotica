@@ -620,6 +620,13 @@ InterpretGifTIData[xmlData_] := Check[
               (Normal @ SparseArray["Data" /. #, {Length[points[[1]]]}])& /@ masks,
               label[[#]]& /@ labels]
             MetaInformation -> {"GifTIData" -> q}],
+          (* exactly one other data type; we want to yield just the data *)
+          Lengh[Join[points, faces, overlays, masks, labels]] == 1, First @ Which[
+            Length[points] > 0, points,
+            Length[faces] > 0, faces,
+            Length[overlays] > 0, overlays,
+            Length[masks] > 0, masks,
+            True, labels],
           (* Otherwuse, we don't have a clear interpretation, so just yield the data *)
           True, xmlData]]]],
   $Failed];
