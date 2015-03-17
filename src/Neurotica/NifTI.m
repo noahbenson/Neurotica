@@ -59,7 +59,7 @@ Base64ZLibDecode[string_String] := With[
              {k = inflater@read[ar, 0, 1024]},
              If[k > 0, Sow[JavaObjectToExpression[ar][[1 ;; k]]]]]]]]]},
   (* Java bytes can be negative, but we need only positive for FromCharacterCode to work *)
-  (-Sign[x] + 1)/2 * (x + 256) + (Sign[x] + 1)/2 * x];
+  Abs[Sign[x]]*((-Sign[x] + 1)/2 * (x + 256) + (Sign[x] + 1)/2 * x)];
 Protect[Base64ZLibDecode];
 
 (* #Base64ZLibEncode ******************************************************************************)
