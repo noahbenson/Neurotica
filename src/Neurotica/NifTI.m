@@ -637,6 +637,13 @@ ImportGifTI[filename_, opts___Rule] := Check[
   $Failed];
 Protect[ImportGifTI];
 
+(* Register the GifTI importer... *)
+ImportExport`RegisterImport[
+  "GifTI",
+  {"Data" :> ImportGifTIData,
+   ImportGifTI}];
+
+
 End[];
 EndPackage[];
 
