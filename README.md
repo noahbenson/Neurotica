@@ -19,6 +19,8 @@ provides several basic functionalities:
    and Export functions for most FreeSurfer file formats (including MGH/MGZ as
    well as surface, w, and label files) are supported, and FreeSurfer subjects
    can be queried much like data structures.
+ * **NifTI Support** - Neurotica supports NifTI-1, NifTI-2, CifTI, and GifTI
+   file format importing.
  * **Visual Cortex** - Neurotica contains a small set of functions for examining
    fMRI data specifically relating to the occipital pole.
  * **Registration** - Neurotica includes its own registration library, which
