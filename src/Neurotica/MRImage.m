@@ -83,6 +83,9 @@ DefineImmutable[
          (*"Real32",*)
          Sequence@@FilterRules[opts, Options[Image3D][[All,1]]]]]],
 
+   (* This is an MRImage... Checks of data quality should go here as well. *)
+   MRImageQ[img] -> True,
+
    (* Simple accessors for Image3D computed data *)
    ImageAspectRatio[img, opts___] := ImageAspectRatio[Image3D[img], opts],
    ImageChannels[img, opts___] := ImageChannels[Image3D[img], opts],
