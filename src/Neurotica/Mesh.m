@@ -697,8 +697,8 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
                em,
                Message[CorticalMap::badarg, "Graph embeddings do not support transforms"]]]],
          None},
-       _, Message[CorticalMap::badarg, "Could not recognize projection type"]}],
-    RMtx = RotationMatrix[{center[[1]], {1,0,0}}]},
+       _, Message[CorticalMap::badarg, "Could not recognize projection type"]],
+     RMtx = RotationMatrix[{center[[1]], {1,0,0}}]},
     With[
       {orientFn = If[center[[2]] === Automatic,
          Function[RotationMatrix[{First@Eigenvectors[Covariance[Transpose@#],1], {1,0}}] . #],
@@ -1762,15 +1762,19 @@ DefineImmutable[
 
      (* #InverseProjectVectors *)
      InverseProjectVectorsTr[map, Ut_List] := With[
-       {Xtp = InverseProjectTr[map],
-        XUtp = InverseProjectTr[map, VertexCoordinatesTr[map] + Ut],
-        norms = ColumnNorms[Ut]},
-       {norms, norms, norms} * NormalizeColumns[
-          With[
-            {Utp0 = (Utp - XUtp),
-             normals = VectorNormalsTr[mesh][[VertexList[map]]]},
-            (* #here *)
-            Utp0 - (normals * Table[#, {3}]& @ Total[Utp0 * normals])]]],
+       {sourceMesh = SourceMesh[map]},
+       With[
+         {Xtp = InverseProjectTr[map],
+          XUtp = InverseProjectTr[map, VertexCoordinatesTr[map] + Ut],
+          norms = ColumnNorms[Ut],
+          normals = Part[
+            VectorNormalsTr[sourceMesh],
+            All,
+            VertexIndex[sourceMesh, VertexList[map]]]},
+         With[
+           {Utp0 = (Utp - XUtp)},
+           {norms, norms, norms} * NormalizeColumns[
+              Utp0 - (normals * Table[#, {3}])& @ Total[Utp0 * normals]]]]],
      InverseProjectVectors[map, U_List] := Transpose @ InverseProjectVectors[map, Transpose[U]],
 
      (* ======================================= Interfaces ====================================== *)
