@@ -61,7 +61,7 @@ ExportLabel::badfmt = "ExportLabel given data not in the form of {vertexID -> {p
 $MGHHeaderSize::usage = "$MGHHeaderSize is the number of bytes in the header of an MGH file.";
 $MGHOptionalData::usage = "$MGHOptionalData is a list of the optional pieces of data that may be stored at the end of an MGH file.";
 
-$FreeSurferSubjectsDirs::usage = "$FreeSurferSubjectsDirs is a list of potential FreeSurfer subjects directories; it is obtained at runtime from the $SUBJECTS_DIR environment variable as well as by scanning common FreeSurfer paths.";
+$FreeSurferSubjectsDirectories::usage = "$FreeSurferSubjectsDirectories is a list of potential FreeSurfer subjects directories; it is obtained at runtime from the $SUBJECTS_DIR environment variable as well as by scanning common FreeSurfer paths.";
 $FreeSurferSubjects::usage = "$FreeSurferSubjects is a list of potential FreeSurfer subjects (named by their directories). If you wish to add an arbitrary subject to FreeSurfer, use AddSubject.";
 $FreeSurferHomes::usage = "$FreeSurferHomes is a list of potential home directories for FreeSurfer. Homes may be added with AddFreeSurferHome.";
 $FreeSurferColorLUT::usage = "$FreeSurferColorLUT is a dispatch table that will replace either an integer or string volume label and yield the remaining data (i.e., a list of the string or integer label, whichever was not given, and a color.";
@@ -71,8 +71,8 @@ Protect[RHX];
 
 AddFreeSurferHome::usage = "AddFreeSurferHome[dir] adds the directory dir to the FreeSurfer home structures.";
 RemoveFreeSurferHome::usage = "RemoveFreeSurferHome[dir] removes the directories matching the pattern dir from the FreeSurfer subject directories structures.";
-AddFreeSurferSubjectsDir::usage = "AddSubjectsDir[dir] adds the directory dir to the FreeSurfer home structures.";
-RemoveFreeSurferSubjectsDir::usage = "RemoveFreeSurferHome[dir] removes the directories matching the pattern dir from the FreeSurfer subject directories structures.";
+AddFreeSurferSubjectsDirectory::usage = "AddSubjectsDir[dir] adds the directory dir to the FreeSurfer home structures.";
+RemoveFreeSurferSubjectsDirectory::usage = "RemoveFreeSurferHome[dir] removes the directories matching the pattern dir from the FreeSurfer subject directories structures.";
 AddFreeSurferSubject::usage = "AddSubject[dir] adds the directory dir to the FreeSurfer subject structures.";
 RemoveFreeSurferSubject::usage = "RemoveSurbject[dir] removes the directories matching the pattern dir from the FreeSurfer subject structures.";
 
@@ -122,13 +122,14 @@ FreeSurfer::nolabel = "The FreeSurferColorLUT.txt file could not be found. This 
 FreeSurfer::notfound = "Data not found: `1`";
 Protect[FreeSurfer];
 
-
-
-$FSAverage::usage = "$FSAverage is the subject directory for the fsaverage FreeSurfer subject. If you add your freesurfer directory (or it is auto-detected), this will be automatically discovered (see AddFreeSurferHome, AddFreeSurferSubjectsDir, and AddFreeSurferSubject).";
+$FSAverage::usage = "$FSAverage is the subject directory for the fsaverage FreeSurfer subject. If you add your freesurfer directory (or it is auto-detected), this will be automatically discovered (see AddFreeSurferHome, AddFreeSurferSubjectsDirectory, and AddFreeSurferSubject).";
 FSAverageSubject::usage = "FSAverageSubject[hemi] yields the subject data for the fsaverage subject's given hemisphere hemi.";
 
-$FSAverageSym::usage = "$FSAverageSym is the subject directory for the fsaverage_sym FreeSurfer subject. If you add your freesurfer directory (or it is auto-detected), this will be automatically discovered (see AddFreeSurferHome, AddFreeSurferSubjectsDir, and AddFreeSurferSubject).";
+$FSAverageSym::usage = "$FSAverageSym is the subject directory for the fsaverage_sym FreeSurfer subject. If you add your freesurfer directory (or it is auto-detected), this will be automatically discovered (see AddFreeSurferHome, AddFreeSurferSubjectsDirectory, and AddFreeSurferSubject).";
 FSAverageSymSubject::usage = "FSAverageSymSubject yields the subject data for the fsaverage_sym subject.";
+
+FreeSurferSaveConfiguration::usage = "FreeSurferSaveConfiguration[] yields True if the FreeSurfer configuration (the FreeSurfer home directories and subject directories) are successfully saved as part of the Neurotica permanent data association.";
+FreeSurferClearConfiguration::usage = "FreeSurferClearConfiguration[] yields True if the FreeSurfer configuration (the FreeSurfer home directories and subject directories) are successfully removed from the Neurotica permanent data association.";
 
 (**************************************************************************************************)
 Begin["`Private`"];
@@ -998,7 +999,7 @@ $FreeSurferHomes = Union[
           {1}]]]]];
 Protect[$FreeSurferHomes];
 
-$FreeSurferSubjectsDirs = Union[
+$FreeSurferSubjectsDirectories = Union[
   Flatten[
     Last[
       Reap[
@@ -1008,7 +1009,7 @@ $FreeSurferSubjectsDirs = Union[
             Environment["SUBJECTS_DIR"]],
           s_String /; DirectoryQ[s] :> Sow[s],
           {1}]]]]];
-Protect[$FreeSurferSubjectsDirs];
+Protect[$FreeSurferSubjectsDirectories];
 
 $FreeSurferSubjects = Union[
   Flatten[
@@ -1017,12 +1018,12 @@ $FreeSurferSubjects = Union[
         Select[
           FileNames[# <> "/*"],
           DirectoryQ]],
-      $FreeSurferSubjectsDirs]]];
+      $FreeSurferSubjectsDirectories]]];
 Protect[$FreeSurferSubjects];
 
-UpdateSubjectsDirs[] := (
-  Unprotect[$FreeSurferSubjectsDirs];
-  $FreeSurferSubjectsDirs = First/@Gather[
+UpdateSubjectsDirectories[] := (
+  Unprotect[$FreeSurferSubjectsDirectories];
+  $FreeSurferSubjectsDirectories = First/@Gather[
     Flatten[
       Last[
         Reap[
@@ -1030,11 +1031,11 @@ UpdateSubjectsDirs[] := (
             Append[
               Join[
                 Map[(# <> "/subjects")&, $FreeSurferHomes],
-                $FreeSurferSubjectsDirs],
+                $FreeSurferSubjectsDirectories],
               Environment["SUBJECTS_DIR"]],
             s_String /; DirectoryQ[s] :> Sow[s],
             {1}]]]]];
-  Protect[$FreeSurferSubjectsDirs]);
+  Protect[$FreeSurferSubjectsDirectories]);
 UpdateSubjects[] := (
   Unprotect[$FreeSurferSubjects];
   $FreeSurferSubjects = First/@Gather[
@@ -1045,7 +1046,7 @@ UpdateSubjects[] := (
             Select[
               FileNames[# <> "/*"],
               DirectoryQ]],
-          $FreeSurferSubjectsDirs],
+          $FreeSurferSubjectsDirectories],
         $FreeSurferSubjects]]];
   Protect[$FreeSurferSubjects]);
 
@@ -1053,21 +1054,23 @@ UpdateSubjects[] := (
 AddFreeSurferHome[s_String] := (
   Unprotect[$FreeSurferHomes];
   $FreeSurferHomes = Prepend[Complement[$FreeSurferHomes, {s}], s];
-  UpdateSubjectsDirs[];
+  UpdateSubjectsDirectories[];
   UpdateSubjects[];
   Protect[$FreeSurferHomes]);
 RemoveFreeSurferHome[s_] := (
   Unprotect[$FreeSurferHomes];
   $FreeSurferHomes = Complement[$FreeSurferHomes, Cases[$FreeSurferHomes, s]];
   Protect[$FreeSurferHomes]);
-AddFreeSurferSubjectsDir[s_String] := (
-  Unprotect[$FreeSurferSubjectsDirs];
-  $FreeSurferSubjectsDirs = Prepend[Complement[$FreeSurferSubjectsDirs, {s}], s];
+AddFreeSurferSubjectsDirectory[s_String] := (
+  Unprotect[$FreeSurferSubjectsDirectories];
+  $FreeSurferSubjectsDirectories = Prepend[Complement[$FreeSurferSubjectsDirectories, {s}], s];
   UpdateSubjects[];
-  Protect[$FreeSurferSubjectsDirs]);
-RemoveFreeSurferSubjectsDir[s_] := (
-  Unprotect[$FreeSurferSubjectsDirs];
-  $FreeSurferSubjectsDirs = Complement[$FreeSurferSubjectsDirs, Select[$FreeSurferSubjectsDirs, StringMatchQ[#, s]&]];
+  Protect[$FreeSurferSubjectsDirectories]);
+RemoveFreeSurferSubjectsDirectory[s_] := (
+  Unprotect[$FreeSurferSubjectsDirectories];
+  $FreeSurferSubjectsDirectories = Complement[
+    $FreeSurferSubjectsDirectories,
+    Select[$FreeSurferSubjectsDirectories, StringMatchQ[#, s]&]];
   Unprotect[$FreeSurferSubjects];
   $FreeSurferSubjects = Select[
     $FreeSurferSubjects,
@@ -1093,10 +1096,35 @@ FreeSurferSubjectQ[s_String] := And[
 FreeSurferSubjectDirectory[s_?SurfaceQ] := If[SurfaceName[s] =!= s,
   SubjectDirectory[SurfaceName[s]],
   None];
+
+FreeSurferSaveConfiguration[] := And[
+  NeuroticaPermanentDatum[
+    "FreeSurferHomes", 
+    StringJoin[Riffle[$FreeSurferHomes, ":"]]],
+  NeuroticaPermanentDatum[
+    "FreeSurferSubjectsDirectories", 
+    StringJoin[Riffle[$FreeSurferSubjectsDirectories, ":"]]]];
+FreeSurferClearConfiguration[] := And[
+  NeuroticaPermanentDatum["FreeSurferHomes", None];
+  NeuroticaPermanentDatum["FreeSurferSubjectsDirectories", None]];
+
+(* Auto-load the configuration at startup *)
+With[
+  {homes = NeuroticaPermanentDatum["FreeSurferHomes"],
+   subdirs = NeuroticaPermanentDatum["FreeSurferSubjectsDirectories"]},
+  If[homes =!= None,
+    Scan[
+      AddFreeSurferHome,
+      Reverse @ StringSplit[homes, ":"]]];
+  If[subdirs =!= None,
+    Scan[
+      AddFreeSurferSubjectsDirectory,
+      Reverse @ StringSplit[subdirs, ":"]]]];
+
 Protect[AddFreeSurferHome, RemoveFreeSurferHome, 
-        AddFreeSurferSubjectsDir, RemoveFreeSurferSubjectsDir, 
+        AddFreeSurferSubjectsDirectory, RemoveFreeSurferSubjectsDirectory, 
         AddFreeSurferSubject, RemoveFreeSurferSubject,
-        FreeSurferSubjectQ];
+        FreeSurferSubjectQ, FreeSurferSaveConfiguration, FreeSurferClearConfiguration];
 
 
 (* Volume labels from the LUT (for use with aseg.mgz) *********************************************)

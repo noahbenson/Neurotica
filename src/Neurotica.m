@@ -37,14 +37,40 @@ ClearAll[ "Neurotica`*", "Neurotica`Private`*"];
 $NeuroticaMajorVersion::usage = "$NeuroticaMajorVersion yields the major version number of the current Neurotical library.";
 $NeuroticaMinorVersion::usage = "$NeuroticaMinorVersion yields the minor version number of the current Neurotical library.";
 $NeuroticaVersion::usage = "$NeuroticaVersion yields the Neurotica library version number. This is equivalent to {$NeuroticaMajorVersion, $NeuroticaMinorVersion}.";
+$NeuroticaVersionNumber::usage = "$NeuroticaVersionNumber yields a version number, which is guaranteed to increase monotonically with the Neurotica` package version.";
+
+$NeuroticaPath::usage = "$NeuroticaPath yields the path of the Neurotica.m primary file in the Neurotica` package.";
+
+NeuroticaReload::usage = "NeuroticaReload[] yields the Neurotica version number after forcing the re-evaluation of all Neurotica library source code. This clears all Neurotica namespace values, thus any calls to functions such as AddFreeSurferSubjectsDirectory[] must be made again.";
 
 Begin["`Private`"];
 
+(* #$NeuroticaPath ********************************************************************************)
+$NeuroticaPath = $InputFileName;
+Protect[$NeuroticaPath];
+
+(* #NeuroticaReload *******************************************************************************)
+NeuroticaReload[] := With[
+  {path = FileNameJoin[Append[Most @ FileNameSplit[$NeuroticaPath], "Neurotica"]]},
+  Get[FileNameJoin[{path, #}]]& /@ {
+    "Global.m",
+    "Util.m",
+    "Coordinates.m",
+    "Mesh.m",
+    "Registration.m",
+    "MRImage.m",
+    "FreeSurfer.m",
+    "NifTI.m"};
+  Get[$NeuroticaPath];
+  $NeuroticaVersionNumber];
+Protect[NeuroticaReload];
+
+(* #NeuroticaVersion ******************************************************************************)
 $NeuroticaMajorVersion = 0;
 $NeuroticaMinorVersion = 1;
 $NeuroticaVersion := {$NeuroticaMajorVersion, $NeuroticaMinorVersion};
-
-Protect[$NeuroticaMajorVersion, $NeuroticaMinorVersion, $NeuroticaVersion];
+$NeuroticaVersionNumber = N[$NeuroticaMajorVersion + $NeuroticaMinorVersion / 100];
+Protect[$NeuroticaMajorVersion, $NeuroticaMinorVersion, $NeuroticaVersion, $NeuroticaVersionNumber];
 
 End[];
 EndPackage[];

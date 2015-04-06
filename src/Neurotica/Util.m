@@ -85,6 +85,11 @@ ReadBinaryStructure::badinstr = "Bad instruction given to ReadBinaryStructure: `
 
 BinaryStringFix::usage = "BinaryStringFix[{c1, c2, ...}] yields the string formed from the given list of characters, truncating the string upon encountering the first null character (character code 0).";
 
+NeuroticaPermanentDatum::usage = "NeuroticaPermanentDatum[name, value] yields Null but adds the given name/value pair to the current user's Neurotica auto-initialization file. The data contained in this file are loaded at startup and must consist only of string data. The file itself is stored as a \"Table\" style file at FileNameJoin[{$UserBasePath, \".NeuroticaPermanentData.dat\"}].
+If the value given in the second argument is None, then the datum is removed from the permanent cache.
+NeuroticaPermanentDatum[name] yields the value of the permanent datum with the given name; if no such datum is found, then None is returned.";
+
+$NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
 Begin["`Private`"];
 
@@ -583,6 +588,43 @@ ReadBinaryStructure[stream_, instructions_List] := Check[
       instFns]],
   $Failed];
 Protect[ReadBinaryStructure];
+
+(* #NeuroticaPermanentDatum ***********************************************************************)
+$NeuroticaPermanentDataPath = FileNameJoin[{$UserBaseDirectory, ".NeuroticaPermanentData.dat"}];
+$NeuroticaPermanentData = If[FileExistsQ[$NeuroticaPermanentDataPath],
+  Association @ Map[
+    Function[#[[1]] -> StringJoin[Riffle[Rest[#], "\t"]]],
+    Import[$NeuroticaPermanentDataPath, "Table"]],
+  Association[]];
+Protect[$NeuroticaPermamentDataPath, $NeuroticaPermamentData];
+
+NeuroticaPermanentDataSave[] := Check[
+  (If[Length[$NeuroticaPermanentData] == 0,
+     If[FileExistsQ[$NeuroticaPermanentDataPath], DeleteFile[$NeuroticaPermanentDataPath]],
+     Export[
+       $NeuroticaPermanentDataPath,
+       Map[(List @@ #)&, Normal[$NeuroticaPermanentData]],
+       "Table"]];
+   True),
+  False];
+Protect[NeuroticaPermanentDataSave];
+
+NeuroticaPermanentDatum[name_String, value_String] := With[
+  {cur = Lookup[$NeuroticaPermanentData, name]},
+  Unprotect[$NeuroticaPermanentData];
+  $NeuroticaPermanentData[name] = value;
+  Protect[$NeuroticaPermanentData];
+  NeuroticaPermanentDataSave[]];
+NeuroticaPermanentDatum[name_String, None] := With[
+  {cur = Lookup[$NeuroticaPermanentData, name]},
+  Unprotect[$NeuroticaPermanentData];
+  KeyDropFrom[$NeuroticaPermanentData, name];
+  Protect[$NeuroticaPermanentData];
+  NeuroticaPermanentDataSave[]];
+NeuroticaPermanentDatum[name_String] := Replace[
+  $NeuroticaPermanentData[name],
+  Missing[___] -> None];
+Protect[NeuroticaPermanentDatum];
 
 
 End[];
