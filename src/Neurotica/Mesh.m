@@ -165,6 +165,18 @@ CortexPlot::usage = "CortexPlot[mesh] yields a Graphics form for the given Corti
 CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature c in a CortexPlot or CortexPlot3D; c may be a list or a single value.";
 CorticalCurvatureVertexColors::usage = "CorticalCurvatureVertexColors[m] yields the colors for each vertex in the given mesh m according to CorticalCurvatureColor[c] for the curvature c of each vertex; if there is no curvature proeprty defined, then Gray is used for each vertex.";
 
+Reproject::usage = "Reproject[map, X] yields a map identical to the given map except that it reprojects its coordinates from the alternate coordinate list for the original mesh, given by X. If X is instead a mesh with the same number of elements as the original mesh, then its coordinates are used.";
+ReporjectTr::usage = "ReprojectTr[map, Xt] is equivalent to Reproject[map, Transpose[Xt]].";
+Reproject::badarg = "Bad argument given to Reproject: `1`";
+
+InverseProject::usage = "InverseProject[map] attempts to reverse the projection of map back to the 3D space of the SourceMesh[map].
+InverseProject[map, X] performs the same projection, but using the replacement map coordinates given in X.";
+InverseProjectTr::usage = "InverseProjectTr[map] is equivalent to Transpose @ InverseProject[map].
+InverseProjectTr[map, Xt] is equivalent to Transpose @ InverseProject[map, Transpose[Xt]].";
+
+InverseProjectVectors::usage = "InverseProjectVectors[map, U] yields a list of 3D vectors, one for each vertex in the given cortical map, corresponding to the 2D vectors given in the matrix U. U is expected to have a single 2D vector for each vertex in map.";
+InverseProjectVectorsTr::usage = "InverseProjectVectorsTr[map, Ut] is equivalent to Transpose @ InverseProjectVectors[map, Transpose[Ut]].";
+
 Begin["`Private`"];
 
 (***************************************************************************************************
@@ -614,67 +626,79 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
 Protect[CorticalMapTranslateExclusions];
 
 (* #CorticalMapTranslateMethod
- * Yields a translation function given the Method argument and the translated parameters: Center,
- * vertex-exclusions, projection area, and projection radius.
+ * Yields a list of {translation function, inverse translation function} given the Method argument
+ * and the translated parameters: Center, vertex-exclusions, projection area, and projection radius.
  *)
 CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
   With[
-    {projFn = Replace[
+    {projFn = Switch[
        ToLowerCase[method],
        (* Here we actually define the functions for transformation;
           these should accept a list of vertices (already centered such that the center lies at 
           (1,0,0) and the orient point lies in the <positive X, Y> half-plane) and should return
           the 2D coordinates (while ignoring the orient point). *)
-       {"mollenweide" :> Function[{X},
-          With[
-            {S = Transpose @ ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
-             meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
-            With[
-              {th = Block[{t}, 
-                 Map[
-                   Function[
-                     FindRoot[
-                       2.0*t + Sin[2.0*t] == Pi*Sin[#],
-                       {t, #}
-                      ][[1,2]]],
-                   S[[2]]]]},
-              meshRadius * Sqrt[2.0] * {2.0 / Pi * S[[1]] * Cos[th], Sin[th]}]]],
-        "equirectangular" :> Function[{X},
-          With[
-            {S = ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
-             meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
-            Transpose[meshRadius * S]]],
-        "mercator" :> Function[{X},
-          With[
-            {S = Transpose @ ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
-             meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
-            With[
-              {sinPhi = Sin[S[[2]]]},
-              meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]],
-        "orthographic" :> Function[{X}, X[[2;;3]]],
-        "polarstretching" :> Function[{X},
-          With[
-            {polar = Transpose @ ConvertCoordinates[
-               Transpose @ X[[{2,3,1}]],
-               Cartesian -> {Longitude, SphericalPolarAngle}]},
-            Global`dbg = {X, polar};
-            {# * Cos[polar[[1]]], # * Sin[polar[[1]]]}& @ Tan[polar[[2]] / 2]]],
-        "graph" :> With[
-          {em = Transpose @ GraphEmbedding[
-             Graph[
-               Part[VertexList[mesh], incl[[1]]],
-               Part[EdgeList[mesh], incl[[2]]],
-               EdgeWeight -> Part[EdgeLengths[mesh], incl[[2]]],
-               GraphLayout -> {"SpringElectricalEmbedding", "EdgeWeighted" -> True}]],
-           idx = VertexList[mesh][[incl[[1]]]],
-           coords = VertexCoordinatesTr[mesh][[All, incl[[1]]]],
-           near = Nearest[VertexCoordinates[mesh][[incl[[1]]]] -> Automatic]},
-          Function[{Xt},
-            If[Dimensions[Xt] === {3, Length[incl[[1]]]},
-              em,
-              Message[CorticalMap::badarg, "Graph embeddings do not support transforms"]]]],
-        _ :> Message[CorticalMap::badarg, "Could not recognize projection type"]}],
-     RMtx = RotationMatrix[{center[[1]], {1,0,0}}]},
+       "mollenweide", {
+         Function[{X},
+           With[
+             {S = Transpose @ ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
+              meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
+             With[
+               {th = Block[{t}, 
+                  Map[
+                    Function[
+                      FindRoot[
+                        2.0*t + Sin[2.0*t] == Pi*Sin[#],
+                        {t, #}
+                        ][[1,2]]],
+                    S[[2]]]]},
+               meshRadius * Sqrt[2.0] * {2.0 / Pi * S[[1]] * Cos[th], Sin[th]}]]],
+         None},
+       "equirectangular", {
+         Function[{X},
+           With[
+             {S = ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
+              meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
+             Transpose[meshRadius * S]]],
+         None},
+       "mercator", {
+         Function[{X},
+           With[
+             {S = Transpose @ ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
+              meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
+             With[
+               {sinPhi = Sin[S[[2]]]},
+               meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]],
+         None},
+       "orthographic", {
+         Function[{X}, X[[2;;3]]],
+         None},
+       "polarstretching", {
+         Function[{X},
+           With[
+             {polar = Transpose @ ConvertCoordinates[
+                Transpose @ X[[{2,3,1}]],
+                Cartesian -> {Longitude, SphericalPolarAngle}]},
+             Global`dbg = {X, polar};
+             {# * Cos[polar[[1]]], # * Sin[polar[[1]]]}& @ Tan[polar[[2]] / 2]]],
+         None},
+       "graph", {
+         With[
+           {em = Transpose @ GraphEmbedding[
+              Graph[
+                Part[VertexList[mesh], incl[[1]]],
+                Part[EdgeList[mesh], incl[[2]]],
+                EdgeWeight -> Part[EdgeLengths[mesh], incl[[2]]],
+                GraphLayout -> {"SpringElectricalEmbedding", "EdgeWeighted" -> True}]],
+            idx = VertexList[mesh][[incl[[1]]]],
+            coords = VertexCoordinatesTr[mesh][[All, incl[[1]]]],
+            near = Nearest[VertexCoordinates[mesh][[incl[[1]]]] -> Automatic]},
+           Function[{Xt},
+             If[Dimensions[Xt] === {3, Length[incl[[1]]]},
+               em,
+               Message[CorticalMap::badarg, "Graph embeddings do not support transforms"]]]],
+         None},
+       _, Message[CorticalMap::badarg, "Could not recognize projection type"]}],
+    RMtx = RotationMatrix[{center[[1]], {1,0,0}}]},
     With[
       {orientFn = If[center[[2]] === Automatic,
          Function[RotationMatrix[{First@Eigenvectors[Covariance[Transpose@#],1], {1,0}}] . #],
@@ -1367,7 +1391,7 @@ DefineImmutable[
        TranslatedCenter[map],
        Exclusions /. Join[Options[map], Options[CorticalMap]],
        Radius /. Join[Options[map], Options[CorticalMap]]],
-     TransformationFunction[map] -> CorticalMapTranslateMethod[
+     TransformationFunctions[map] -> CorticalMapTranslateMethod[
        SourceMesh[map],
        Method /. Join[Options[map], Options[CorticalMap]],
        TranslatedCenter[map],
@@ -1417,7 +1441,7 @@ DefineImmutable[
      (* Now we have the actual vertex/face/edge data *)
      VertexList[map] -> Part[VertexList[SourceMesh[map]], Inclusions[map][[1]]],
      VertexCoordinatesTr[map] = With[
-       {f = TransformationFunction[map]},
+       {f = TransformationFunctions[map][[1]]},
        f[VertexCoordinatesTr[SourceMesh[map]][[All, Inclusions[map][[1]]]]]],
      FaceListTr[map] -> Part[FaceListTr[SourceMesh[map]], All, Inclusions[map][[3]]],
      EdgePairsTr[map] -> Part[EdgePairsTr[SourceMesh[map]], All, Inclusions[map][[2]]],
@@ -1695,7 +1719,59 @@ DefineImmutable[
      NeighborhoodEdgeLengths[map, X_] := MapThread[
        NeighborhoodEdgeLengthsCompiled, 
        {X, X[[#]]& /@ NeighborhoodList[map]}],
-   
+
+
+     (* ======================================= Functions ======================================= *)   
+
+     (* #Reproject *)
+     ReprojectTr[map, Xtr_List] := With[
+       {f = TransformationFunctions[map][[1]],
+        m = SourceMesh[map]},
+       If[Dimensions[Xtr] == Dimensions[VertexCoordinatesTr[m]],
+         Clone[map, VertexCoordinatesTr -> f[Xtr[[All, Inclusions[map][[1]]]]]],
+         (Message[Reproject::badarg, "Dimensions of coordinates do not match source mesh"];
+          $Failed)]],
+     Reproject[map, X_List] := ReprojectTr[map, Transpose @ X],
+     Reproject[map, mesh_?CoticalMeshQ] := If[
+       Dimensions[VertexCoordinateTr[mesh]] == Dimensions[VertexCoordinatesTr[SourceMesh[map]]],
+       Clone[map, SourceMesh -> mesh],
+       (Message[Reproject::badarg, "Dimensions of new mesh coordinates do not match source mesh"];
+        $Failed)],
+
+     (* #InverseProject *)
+     InverseProjectTr[map] := With[
+       {f = TransformationFunctions[map][[2]]},
+       If[f === None,
+         (Message[InverseProject::unin]; $Failed),
+         f[VertexCoordinatesTr[map]]]],
+     InverseProjectTr[map, XTr_List] := With[
+       {f = TransformationFunctions[map][[2]]},
+       If[f === None,
+         (Message[InverseProject::unin]; $Failed),
+         f[Xtr]]],
+     InverseProjectTr[map, m_?CorticalMapQ] := With[
+       {f = TransformationFunctions[map][[2]]},
+       If[f === None,
+         (Message[InverseProject::unin]; $Failed),
+         f[VertexCoordinatesTr[m]]]],
+     InverseProject[map] := Transpose @ InverseProjectTr[map],
+     InverseProject[map, X_List] := Transpose @ InverseProjectTr[map, Transpose[X]],
+     InverseProject[map, m_?CorticalMapQ] := Transpose @ InverseProjectTr[
+       map,
+       VertexCoordinatesTr[m]],
+
+     (* #InverseProjectVectors *)
+     InverseProjectVectorsTr[map, Ut_List] := With[
+       {Xtp = InverseProjectTr[map],
+        XUtp = InverseProjectTr[map, VertexCoordinatesTr[map] + Ut],
+        norms = ColumnNorms[Ut]},
+       {norms, norms, norms} * NormalizeColumns[
+          With[
+            {Utp0 = (Utp - XUtp),
+             normals = VectorNormalsTr[mesh][[VertexList[map]]]},
+            (* #here *)
+            Utp0 - (normals * Table[#, {3}]& @ Total[Utp0 * normals])]]],
+     InverseProjectVectors[map, U_List] := Transpose @ InverseProjectVectors[map, Transpose[U]],
 
      (* ======================================= Interfaces ====================================== *)
 
