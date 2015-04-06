@@ -68,6 +68,8 @@ the harmonic potential function f and its gradient are defined as:
   * \[Gradient]f[x] = w/k (d[x]/k)^(\[Beta] - 1)";
 HarmonicPotentialWell::badarg = "Bad argument given to HarmonicPotentialWell: `1`";
 
+MapToMeshPotential::usage = "MapToMeshPotential[map, f] yields a function equivalent to f projected onto the cortical mesh origin of the given map. A heuristic is used when necessary. Note that this may be slow for many maps, so the use of small orthographic maps is suggested.";
+
 Begin["`Private`"];
 
 (* ============================================================================================== *)
@@ -593,6 +595,10 @@ HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
     f],
   $Failed];
 Protect[HarmonicPotentialWell];
+
+(* #MapToMeshPotential ****************************************************************************)
+(* #here *)
+MapToMeshPotential[map_?CoticalMapQ, f_] := None;
 
 End[];
 EndPackage[];
