@@ -165,6 +165,18 @@ CortexPlot::usage = "CortexPlot[mesh] yields a Graphics form for the given Corti
 CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature c in a CortexPlot or CortexPlot3D; c may be a list or a single value.";
 CorticalCurvatureVertexColors::usage = "CorticalCurvatureVertexColors[m] yields the colors for each vertex in the given mesh m according to CorticalCurvatureColor[c] for the curvature c of each vertex; if there is no curvature proeprty defined, then Gray is used for each vertex.";
 
+ColorCortex::usage = "ColorCortex[forms...] yields a function that colors the cortical surface according to the given forms. Each forms is evaluated as in a CompoundExpression form in order to indicate some aspect of the coloring of the vertices in the cortical object that is being colored, based on the final value: 
+  * CorticalColorSchema: If a registered cortical color schema is given (see CorticalColorData), then it is attempted as a coloring method.
+  * RGBColor[...], Hue[...], or any form x for which ColorQ[x] yields True: assigns the given color to the vertex in question; note that opacity is interpreted and implemented with a blending operation.
+In all cases and in all forms, any occurance of Slot[name] will result in that slot being replaced with the value of the property with the given name for the vertex being colored. For example, #Curvature may be used to refer to the Curvature property. Note that #Curvature is actually Slot[\"Curvature\"] rather than Slot[Curvature]; symbol names are interpreted as strings in the property list in such cases. The slots #1 and #2 are bound to the vertex id and vertex coordinate, respectively.
+If no valid color can be found for a form, then the color RGBColor[1,1,1,0] (transparent) is used.";
+CorticalColorData::usage = "CorticalColorData[name] yields the cortical coloring instructions registered to the given name. This will always be a CorticalColorSchema object, which, among other things, serves as a function that, given a vertex id, vertex coordinate, and set of properties, yields a color.
+The form CorticalColorData[name] = schema; may be evaluated to construct a CorticalColorData object.  The schema may be a CorticalColorSchema object or any instruction that can be used to establish a cortical color schema (see CorticalColorSchema for more information).";
+CorticalColorSchema::usage = "CorticalColorSchema[...] is a form that declares a cortical color schema object. CorticalColorSchema[] may be called with the following arguments to construct a color schema object:
+CorticalColorSchema[property -> {range, colors}] indicates the vertices should be colored according to the given colors, blended over the given range of the given property.
+CorticalColorSchema[property -> function] indicates that the given function should be passed the given property value and will return a color.
+CorticalColorSchema[All -> function] indicates that the given function should accept three arguments: the vertex id, the vertex coordinate, and the vertex property list; the function must return a color or $Failed or None.";
+
 Reproject::usage = "Reproject[map, X] yields a map identical to the given map except that it reprojects its coordinates from the alternate coordinate list for the original mesh, given by X. If X is instead a mesh with the same number of elements as the original mesh, then its coordinates are used.";
 ReporjectTr::usage = "ReprojectTr[map, Xt] is equivalent to Reproject[map, Transpose[Xt]].";
 Reproject::badarg = "Bad argument given to Reproject: `1`";
@@ -2421,6 +2433,90 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
           Options[Graphics][[All,1]]]]]]];
 Protect[CortexPlot];
 
+
+(* #CorticalColorSchema ***************************************************************************)
+CorticalColorSchema[property_ -> {range_, colors_}][coord_List, id_Integer, props_List] := With[
+  {val = Replace[property, props]},
+  If[val === property || val === $Failed || val === None,
+    $Failed,
+    Blend[colors, Clip[Rescale[val, range], {0,1}]]]];
+CorticalColorSchema[property_ -> f:Except[{_, _}]][coord_List, id_Integer, props_List] := With[
+  {val = Replace[property, props]},
+  If[val === property || val === $Failed || val === None,
+    $Failed,
+    f[val]]];
+CorticalColorSchema[f:Except[_Rule]][coord_List, id_Integer, props_List] := f[id, coord, props];
+Protect[CorticalColorSchema];
+
+(* #CorticalColorData *****************************************************************************)
+CorticalColorData[unknown_] := $Failed;
+(* Some cortical color data schemas that we use... *)
+CorticalColorData[Curvature] = CorticalColorSchema[Curvature -> CorticalCurvatureColor];
+CorticalColorData["Curvature"] = CorticalColorSchema["Curvature" -> CorticalCurvatureColor];
+CorticalColorData["PolarAngle"] = CorticalColorSchema[
+  "PolarAngle" -> {
+    {-180, 180}, 
+    {Red, Darker[Yellow, 1/6], Darker[Green], Darker[Cyan, 1/6],
+     Blue,
+     Darker[Cyan, 1/6], Darker[Green], Darker[Yellow, 1/6], Red}}]; 
+CorticalColorData["PolarAngleLH"] = CorticalColorSchema[
+  "PolarAngle" -> {
+    {0, 180}, 
+    {Blue, Darker[Cyan, 1/6], Darker[Green], Darker[Yellow, 1/6], Red}}]; 
+CorticalColorData["PolarAngleRH"] = CorticalColorSchema[
+  "PolarAngle" -> {
+    {-180, 0}, 
+    {Red, Darker[Yellow, 1/6], Darker[Green], Darker[Cyan, 1/6], Blue}}]; 
+CorticalColorData["Eccentricity"] = CorticalColorSchema[
+  "Eccentricity" -> {
+    {0, 90},
+    Join[
+      {Black, Purple, Red, Yellow, Green},
+      Table[Blend[{Green, Cyan}, (u - 20.0)/20.0], {u, 25, 40, 5}],
+      Table[Blend[{Cyan, White}, (u - 40.0)/50.0], {u, 45, 90, 5}]]}];
+CorticalColorData["EccentricityReverse"] = CorticalColorSchema[
+  "EccentricityReverse" -> {
+    {0, 90},
+    Join[
+      {White, Cyan, Green, Yellow, Red},
+      Table[Blend[{Red, Purple}, (u - 20.0)/20.0], {u, 25, 40, 5}],
+      Table[Blend[{Purple, Black}, (u - 40.0)/50.0], {u, 45, 90, 5}]]}];
+
+
+(* #ColorCortex ***********************************************************************************)
+SetAttributes[ColorCortex, HoldAll];
+ColorCortex[instructions___] := With[
+  {slots = Cases[Hold[instructions], Slot[s_ /; !IntegerQ[s]] :> s, Infinity]},
+  With[
+    {syms = Table[TemporarySymbol[], {Length@slots}]},
+    ReplacePart[
+      {Hold[
+         Evaluate @ MapThread[
+           Function[{sym, slot},
+             If[StringQ[slot],
+               Hold[sym, Replace[slot, #3]],
+               Hold[sym, Replace[Replace[slot, #3], slot :> Replace[ToString[slot], #3]]]]],
+           {syms, slots}],
+         Evaluate @ With[
+           {instr = ReplaceAll[
+              Hold[instructions],
+              MapThread[
+                Function[{slot, sym}, Slot[slot] -> sym],
+                {slots, syms}]]},
+           Block[
+             {result},
+             Hold[
+               {result = CompoundExpression @@ instr},
+               Which[
+                 ColorQ[result], result,
+                 CorticalColorData[result] =!= $Failed, CorticalColorData[result][#1, #2, #3],
+                 result === $Failed || result === None, RGBColor[1,1,1,0],
+                 True, RGBColor[1,1,1,0]]]]]]},
+        {{1,1,_,0} -> Set,
+         {1,2,0} -> With,
+         {1,0} -> With,
+         0 -> Function}]]];
+Protect[ColorCortex];
 
 End[];
 EndPackage[];
