@@ -54,7 +54,8 @@ Begin["`Private`"];
 (* #MRImage3D *************************************************************************************)
 
 Options[MRImage3D] = Join[
-  {},
+  {CoordinateToVoxelMatrix -> Automatic,
+   VoxelToCoordinateMatrix -> Automatic},
   Replace[
     Options[Image3D],
     {(ColorFunction -> _) -> (ColorFunction -> "XRay"),
@@ -85,6 +86,43 @@ DefineImmutable[
 
    (* This is an MRImage... Checks of data quality should go here as well. *)
    MRImageQ[img] -> True,
+
+   (* We want to support the coordinate-to-voxel matrices, if provided *)
+   CoordinateToVoxelMatrix[img] := With[
+     {opt = Replace[
+        Replace[CoordinateToVoxelMatrix, Options[img]],
+        Automatic :> With[
+          {meta = Replace[MetaInformation, Options[img]]},
+          With[
+            {mtx = If[ListQ[meta], "VOXToRASMatrix" /. meta, "None"]},
+            If[StringQ[mtx],
+              {{1,0,0,0},{0,1,0,0},{0,0,1,0}},
+              Plus[
+                ReplacePart[
+                  If[Length[mtx] == 4, Most[mtx], mtx],
+                  {_,4} -> 0],
+                Transpose @ Append[
+                  ConstantArray[0, {3,3}],
+                  0.5 * ImageDimensions[img]]]]]]]},
+     Which[
+       opt === CoordinateToVoxelMatrix, None,
+       !ListQ[opt], $Failed,
+       !MatchQ[Dimensions[opt], {3|4, 4}], $Failed,
+       Length[opt] == 4, Most[opt],
+       True, opt]],
+   VoxelToCoordinateMatrix[img] := With[
+     {opt = Replace[VoxelToCoordinateMatrix, Options[img]]},
+     Which[
+       opt === VoxelToCoordinateMatrix, None,
+       opt === Automatic, With[
+         {c2v = CoordinateToVoxelMatrix[img]},
+         Which[
+           c2v === None, None,
+           c2v === $Failed, $Failed,
+           True, Most[Inverse[Append[c2v, {0,0,0,1}]]]]],
+       !ListQ[opt], $Failed,
+       !MatchQ[Dimensions[opt], {3|4, 4}], $Failed,
+       True, opt]],
 
    (* Simple accessors for Image3D computed data *)
    ImageAspectRatio[img, opts___] := ImageAspectRatio[Image3D[img], opts],
@@ -655,47 +693,48 @@ MeshVertexToVoxelIndex[p_List] := MeshVertexToVoxelIndex[p, {256.0, 256.0, 256.0
 Protect[MeshVertexToVoxelIndex];
 
 (* #VoxelToCoordinate *****************************************************************************)
-VoxelToCoordinate[vol_?CorticalImageQ, idx:{_?NumericQ, _?NumericQ, _?NumericQ}] := With[
+VoxelToCoordinate[vol_?MRImageQ, idx:{_?NumericQ, _?NumericQ, _?NumericQ}] := With[
   {dims = ImageDimensions[vol],
    matrix = VoxelToCoordinateMatrix[vol]},
   If[And@@MapThread[TrueQ[0 < #1 <= #2]&, {idx, dims}],
-    Dot[matrix, Append[(idx - 1.0) * (dims / (dims - 1.0)), 1.0]],
+    (*Dot[matrix, Append[(idx - 1.0) * (dims / (dims - 1.0)), 1.0]],*)
+    Dot[matrix, Append[{idx[[1]], dims[[2]] - idx[[2]] + 1, dims[[3]] - idx[[3]] + 1} - 0.5, 1.0]],
     (Message[VoxelToCoordinate::badarg, "index is not a valid voxel"];
      $Failed)]];
-VoxelToCoordinate[vol_?CorticalImageQ, idcs:{{_?NumericQ, _?NumericQ, _?NumericQ}..}] := With[
+VoxelToCoordinate[vol_?MRImageQ, idcs:{{_?NumericQ, _?NumericQ, _?NumericQ}..}] := With[
   {dims = ImageDimensions[vol],
    matrix = VoxelToCoordinateMatrix[vol]},
   Map[
     Function[
       If[And@@MapThread[TrueQ[0 < #1 <= #2]&, {#, dims}],
-        Dot[matrix, Append[(# - 1.0) * (dims / (dims - 1.0)), 1.0]],
+        (*Dot[matrix, Append[(# - 1.0) * (dims / (dims - 1.0)), 1.0]],*)
+        Dot[matrix, Append[{#[[1]], dims[[2]] - #[[2]] + 1, dims[[3]] - #[[3]] + 1} - 0.5, 1.0]],
         (Message[VoxelToCoordinate::badarg, "index is not a valid voxel"];
          $Failed)]],
     idcs]];
 Protect[VoxelToCoordinate];
 
 (* #CoordinateToVoxel *****************************************************************************)
-CoordinateToVoxel[vol_?CorticalImageQ, coord:{_?NumericQ, _?NumericQ, _?NumericQ}] := With[
+CoordinateToVoxel[vol_?MRImageQ, coord:{_?NumericQ, _?NumericQ, _?NumericQ}] := With[
   {dims = ImageDimensions[vol]},
   With[
-    {idx = Dot[CoordinateToVoxelMatrix[vol], Append[coord, 1.0]] * (dims - 1.0)/dims + 1.0},
-    If[!And@@MapThread[TrueQ[0 < #1 <= #2]&, {idx, dims}],
-      Message[CoordinateToVoxel::badarg, "coordinate is outside voxel range"]];
-    idx]];
-CoordinateToVoxel[vol_?CorticalImageQ, coords:{{_?NumericQ, _?NumericQ, _?NumericQ}..}] := With[
+    {idx0 = Dot[CoordinateToVoxelMatrix[vol], Append[coord, 1.0]] + 0.5},
+    With[
+      {idx = {idx0[[1]], dims[[2]] - idx0[[2]] + 1, dims[[3]] - idx0[[3]] + 1}},
+      If[!And@@MapThread[TrueQ[0 < #1 <= #2]&, {idx, dims}],
+        Message[CoordinateToVoxel::badarg, "coordinate is outside voxel range"]];
+      idx]]];
+CoordinateToVoxel[vol_?MRImageQ, coords:{{_?NumericQ, _?NumericQ, _?NumericQ}..}] := With[
   {dims = ImageDimensions[vol],
    matrix = CoordinateToVoxelMatrix[vol]},
-  Map[
-    Function[
-      With[
-        {coord = Dot[matrix, Append[#,1.0]] * (dims - 1.0)/dims + 1.0},
-        If[!And@@MapThread[TrueQ[0 < #1 <= #2]&, {coord, dims}],
-          Message[CoordinateToVoxel::badarg, "coordinate is outside voxel range"]];
-        coord]],
-    coords]];
+  With[
+    {cTr0 = Dot[matrix, Append[Transpose@coords, Table[1.0, {Length@coords}]]] + 0.5},
+    With[
+      {cTr = {cTr0[[1]], dims[[2]] - cTr0[[2]] + 1, dims[[3]] - cTr0[[3]] + 1}},
+      If[0 < Total[MapThread[Count[#1, x_ /; x <= 0 || x > #2] &, {cTr, dims}]],
+        (Message[CoordinateToVoxel::badarg, "coordinate is outside voxel range"]; $Failed),
+        Transpose @ cTr]]]];
 Protect[CoordinateToVoxel];
-
-(* Make a nice output function *)
 
 
 End[];
