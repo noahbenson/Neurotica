@@ -682,7 +682,7 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
                meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]],
          None},
        "orthographic", {
-         Function[{X}, X[[2;;3]]],
+         Function[{Xt}, Xt[[2;;3]]],
          None},
        "polarstretching", {
          Function[{X},
@@ -716,13 +716,28 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
          Function[RotationMatrix[{First@Eigenvectors[Covariance[Transpose@#],1], {1,0}}] . #],
          With[
            {orientRMtx = RotationMatrix[
-              {projFn[CorticalMeshOrientForMap[List /@ center[[2]], center]][[All, 1]],
+              {projFn[[1]][CorticalMeshOrientForMap[List /@ center[[2]], center]][[All, 1]],
+               {1,0}}]},
+           Function[orientRMtx . #]]],
+       unorientFn = If[center[[2]] === Automatic,
+         None,
+         With[
+           {unorientRMtx = Inverse @ RotationMatrix[
+              {projFn[[1]][CorticalMeshOrientForMap[List /@ center[[2]], center]][[All, 1]],
                {1,0}}]},
            Function[orientRMtx . #]]]},
-      Function[
-        If[Length[#] == 3,
-          orientFn @ projFn[CorticalMeshOrientForMap[#, center]],
-          Transpose @ orientFn[projFn[CorticalMeshOrientForMap[Transpose @ #, center]]]]]]],
+      {Function[
+         If[Length[#] == 3,
+           orientFn @ projFn[[1]][CorticalMeshOrientForMap[#, center]],
+           Transpose @ orientFn[projFn[[1]][CorticalMeshOrientForMap[Transpose @ #, center]]]]],
+       If[unorientFn === None || projFn[[2]] === None,
+         None,
+         Function[
+           If[Length[#] == 3,
+             CorticalMapUnorientForMesh[projFn[[2]][unorientFn @ #], center],
+             Transpose @ CorticalMapUnorientForMesh[
+               projFn[[2]][unorientFn @ Transpose @ #],
+               center]]]]}]],
   $Failed];
 Protect[CorticalMapTranslateMethod];
 
@@ -2475,7 +2490,7 @@ CorticalColorData["Eccentricity"] = CorticalColorSchema[
       Table[Blend[{Green, Cyan}, (u - 20.0)/20.0], {u, 25, 40, 5}],
       Table[Blend[{Cyan, White}, (u - 40.0)/50.0], {u, 45, 90, 5}]]}];
 CorticalColorData["EccentricityReverse"] = CorticalColorSchema[
-  "EccentricityReverse" -> {
+  "Eccentricity" -> {
     {0, 90},
     Join[
       {White, Cyan, Green, Yellow, Red},
