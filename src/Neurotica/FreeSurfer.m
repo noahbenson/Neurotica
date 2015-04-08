@@ -1296,8 +1296,8 @@ FreeSurferSubjectSimpleAnnot[sub_String /; DirectoryQ[sub], hemi:(LH|RH|RHX), la
     With[
       {hemistr = Replace[hemi, {(LH|RHX) -> "lh", RH -> "rh"}],
        dirstr = If[hemi === RHX, 
-         FileNameJoin[{sub, "xhemi", "surf"}],
-         FileNameJoin[{sub, "surf"}]]},
+         FileNameJoin[{sub, "xhemi", "label"}],
+         FileNameJoin[{sub, "label"}]]},
       Import[FileNameJoin[{dirstr, hemistr <> "." <> label}], "FreeSurferAnnotation"]],
     $Failed]},
   If[dat === $Failed, 
