@@ -1527,17 +1527,26 @@ DefineImmutable[
        "Parcellation2005"     -> {LH  :> FreeSurferSubjectParcellation2005[path, LH],
                                   RH  :> FreeSurferSubjectParcellation2005[path, RH],
                                   RHX :> FreeSurferSubjectParcellation2005[path, RHX]},
+       "V1Label"              -> {LH  :> FreeSurferSubjectV1Label[path, LH],
+                                  RH  :> FreeSurferSubjectV1Label[path, RH],
+                                  RHX :> FreeSurferSubjectV1Label[path, RHX]},
+       "BrodmannLabels"       -> {LH  :> FreeSurferSubjectBrodmannLabels[path, LH],
+                                  RH  :> FreeSurferSubjectBrodmannLabels[path, RH],
+                                  RHX :> FreeSurferSubjectBrodmannLabels[path, RHX]},
+       "BrodmannThresholds"   -> {LH  :> FreeSurferSubjectBrodmannThresholds[path, LH],
+                                  RH  :> FreeSurferSubjectBrodmannThresholds[path, RH],
+                                  RHX :> FreeSurferSubjectBrodmannThresholds[path, RHX]},
        "OccipitalPoleIndex"   -> {LH  :> FreeSurferSubjectOP[path, LH],
                                   RH  :> FreeSurferSubjectOP[path, RH],
                                   RHX :> FreeSurferSubjectOP[path, RHX]}}}],
 
    (* Now we make some accessors for this subject *)
-   Cortex[sub, name_String, hemi:(LH|RH|RHX)] := With[
+   Cortex[sub, name_, hemi:(LH|RH|RHX)] := With[
      {assoc = Association[sub]},
      With[
        {mesh = assoc[
           Replace[
-            ToLowerCase[name],
+            If[name === Automatic, "middle", ToLowerCase[name]],
             {("white"|"whitesurface"|"whitemesh") ->"WhiteSurface",
              ("mid"|"middle"|"middlesurface"|"middlemesh") ->"MiddleSurface",
              ("pial"|"pialsurface"|"pialmesh") ->"PialSurface",
@@ -1554,7 +1563,15 @@ DefineImmutable[
           "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
           "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
           "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
-          "Parcellation" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed]}]]]},
+          "Parcellation" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed],
+          "V1Label" :> Quiet@Check[assoc["V1Label"][hemi], $Failed],
+          "BrodmannLabels" :> Quiet@Check[assoc["BrodmannLabels"][hemi], $Failed]}]]],
+   (* We can also get the occipital pole in a similar way... *)
+   OccipitalPoleIndex[sub, hemi:(LH|RH|RHX)] := Check[FreeSurferSubjectOP[sub, hemi], $Failed],
+   (* We can get certain labels this way also *)
+   (* #here *)
+   LabelVertexList[sub, hemi:(LH|RH|RHX), name_] := False,
+   SubjectLabels[sub] := {}},
   SetSafe -> True,
   Symbol -> FreeSurferSubjectData];
 
