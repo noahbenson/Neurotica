@@ -256,7 +256,7 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
   Block[
     {sym},
     With[
-      {instructions0 = Hold[args],
+      {instructions0 = If[#[[1,0]] === Hold, ReplacePart[#, {1,0} -> List], #]&[Hold[args]],
        type = Unique[SymbolName[Head[pattern]]],
        box = Replace[
          OptionValue[Symbol],
