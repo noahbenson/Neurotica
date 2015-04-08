@@ -189,6 +189,12 @@ InverseProjectTr[map, Xt] is equivalent to Transpose @ InverseProject[map, Trans
 InverseProjectVectors::usage = "InverseProjectVectors[map, U] yields a list of 3D vectors, one for each vertex in the given cortical map, corresponding to the 2D vectors given in the matrix U. U is expected to have a single 2D vector for each vertex in map.";
 InverseProjectVectorsTr::usage = "InverseProjectVectorsTr[map, Ut] is equivalent to Transpose @ InverseProjectVectors[map, Transpose[Ut]].";
 
+CortexResample::usage = "CortexResample[surf1, surf2] yields a cortical equivalent to the CorticalMesh object surf2 but such that the field of the surface has been resampled from the cortical mesh object surf1.
+CortexResample[surf2 -> surf1] is equivalent to CortexResample[surf1, surf2].
+The following options may be provided:
+  * Method: a Method option may specify Nearest (default) for nearest-neighbor interpolation, Interpolation, or List interpolation, for their respective functions. In the latter two cases, A list may be given instead of the argument such that the first argument is Interpolation or LitInterpolation and the remaining elements of the list are options to pass to these functions; e.g. Method -> {Interpolation, InterpolationOrder -> 4}.
+  * Properties: a Properties argument specifies that the given property should be resampled; a list of properties may also be given, or All. If no property is given then All is the default value.";
+
 Begin["`Private`"];
 
 (***************************************************************************************************
@@ -2191,7 +2197,8 @@ RemoveProperty[mesh_?CorticalObjectQ, prop:Except[_List]] := With[
       EdgeProperties -> DeleteCases[EdgeProperties[mesh], Rule[prop, _]],
       FaceProperties -> DeleteCases[FaceProperties[mesh], Rule[prop, _]]]]];
 RemoveProperty[mesh_?CorticalObjectQ, prop:{_Rule..}] := Fold[RemoveProperty, mesh, prop];
-RemoveProperty[{mesh_?CorticalObjectQ, t:(VertexList|EdgeList|FaceList)}, prop:Except[_List]] := With[
+RemoveProperty[{mesh_?CorticalObjectQ, t:(VertexList|EdgeList|FaceList)},
+               prop:Except[_List]] := With[
   {type = Switch[t,
      VertexList, VertexProperties,
      EdgeList,   EdgeProperties,
@@ -2218,10 +2225,23 @@ RemoveProperty[{mesh_?CorticalObjectQ, obj_}, prop:Except[_List]] := With[
           type[[1]][mesh],
           (prop -> list) :> (prop -> ReplacePart[list, type[[2]] -> $Failed]),
           {1}]]]]];
-RemoveProperty[{mesh_?CorticalObjectQ, obj_}, prop_List] := Fold[
+RemoveProperty[{mesh_?CorticalObjectQ,obj:Except[VertexList|EdgeList|FaceList]}, prop_List] := Fold[
   RemoveProperty[{#1, obj}, #2]&,
   mesh,
   prop];
+RemoveProperty[{mesh_?CorticalObjectQ, t:(VertexList|EdgeList|FaceList)}] := Clone[
+  mesh,
+  Rule[
+    Switch[t,
+      VertexList, VertexProperties,
+      EdgeList,   EdgeProperties,
+      FaceList,   FaceProperties],
+    {}]];
+RemoveProperty[mesh_?CorticalObjectQ] := Clone[
+  mesh,
+  VertexProperties -> {},
+  EdgeProperties -> {},
+  FaceProperties -> {}];
 
 Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList];
 
@@ -2532,6 +2552,43 @@ ColorCortex[instructions___] := With[
          {1,0} -> With,
          0 -> Function}]]];
 Protect[ColorCortex];
+
+(* #CortexResample ********************************************************************************)
+Options[CortexResample] = {Method -> Nearest, Properties -> All, Clear -> False};
+CortexResample[a_?CorticalMeshQ, b_?CorticalMeshQ, opts:OptionsPattern[]] := Catch @ With[
+  {propNames = Select[
+     Replace[
+       OptionValue[Properties],
+       {All :> PropertyList[{b, VertexList}],
+        p:Except[_List] :> {p}}],
+     # =!= VertexCoordinates &],
+   clear = OptionValue[Clear],
+   method = OptionValue[Method]},
+  With[
+    {surf = If[clear, RemoveProperty[{a, VertexList}], a],
+     props = Map[PropertyValue[{b, VertexList}, #]&, propNames]},
+    If[VertexCoordinates[a] == VertexCoordinates[b],
+      SetProperty[
+        {surf, VertexList}, 
+        Map[(# -> PropertyValue[{b, VertexList}, #])&, PropertyList[{b, VertexList}]]],
+      Switch[
+        method,
+        Nearest, With[
+          {nearest = Nearest[VertexCoordinates[b] -> Automatic]},
+          With[
+            {idcs = Map[Function[First[nearest[#, 1]]], VertexCoordinates[a]]},
+            SetProperty[
+              {surf, VertexList},
+              MapThread[(#1 -> #2[[idcs]])&, {propNames, props}]]]],
+        _, (
+          Message[
+            SurfResample::badarg,
+            Method,
+            "Currently only Nearest method is supported by CortexResample"];
+          Throw[$Failed])]]]];
+CortexResample[Rule[a_?CorticalMeshQ, b_?CorticalMeshQ], opts:OptionsPattern[]] := CortexResample[
+  b, a, opts];
+Protect[CortexResample];
 
 End[];
 EndPackage[];
