@@ -518,26 +518,25 @@ ImportNifTIVoxels[stream_, opts___Rule] := Check[
     {header = Replace[
        "Header" /. {opts, "Header" :> ("Header" /. ImportNifTIHeader[stream, opts])},
        "Header" :> Message[ImportNifTI::badfmt, "Invalid header"]]},
-    With[
-      {offset = "VoxelOffset" /. header,
-       bitpix = "BitsPerVoxel" /. header,
-       datatype = "Datatype" /. header,
-       dims = "Dimensions" /. header},
-      SetStreamPosition[stream, Round[offset]];
+    Block[
+      {$ByteOrdering = ("ByteOrdering" /. header)},
       With[
-        {raw = BinaryReadList[
-           stream,
-           NifTIDatatypeTranslate[datatype],
-           Times @@ dims]},
-        "Voxels" -> NifTIColorTranslate[
-          datatype,
-          Map[
-            Reverse,
-            Fold[
-              Partition,
-              raw,
-              Most @ If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]],
-            {0,2}]]]]],
+        {offset = "VoxelOffset" /. header,
+         bitpix = "BitsPerVoxel" /. header,
+         datatype = "Datatype" /. header,
+         dims = "Dimensions" /. header},
+        SetStreamPosition[stream, Round[offset]];
+        With[
+          {raw = BinaryReadList[stream, datatype, Times @@ dims]},
+          "Voxels" -> NifTIColorTranslate[
+            datatype,
+            Map[
+              Reverse,
+              Fold[
+                Partition,
+                raw,
+                Most @ If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]],
+              {0,2}]]]]]],
   $Failed];
 
 ImportNifTIData[stream_, opts___Rule] := Check[
