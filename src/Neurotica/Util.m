@@ -126,7 +126,7 @@ AutoCache[name_String, body_, OptionsPattern[]] := Catch[
           Message[AutoCache::badopt, "CreateDirectory must be True, False, or Automatic"];
           Throw[$Failed])}],
      quiet = TrueQ[OptionValue[Quiet]],
-     check = TrueQ[OptionValue[check]],
+     check = TrueQ[OptionValue[Check]],
      refresh = TrueQ[OptionValue[RefreshOnChange]]},
     With[
       {dir = Replace[
@@ -152,6 +152,7 @@ AutoCache[name_String, body_, OptionsPattern[]] := Catch[
               file}]]},
         With[
           {fileDate = Which[
+             !refresh, 0,
              fileName === None, 0,
              !FileExistsQ[FileNameJoin[{dir, file}]], 0,
              True, AbsoluteTime[FileNameJoin[{dir, file}], TimeZone -> 0]],
@@ -163,8 +164,9 @@ AutoCache[name_String, body_, OptionsPattern[]] := Catch[
              0]},
           With[
             {cachedRes = Which[
-               fileDate == 0, None,
+               refresh && fileDate == 0, None,
                refresh && cellDate >= fileDate, (Message[AutoCache::expired]; None),
+               !refresh && !FileExistsQ[FileNameJoin[{dir, file}]], None,
                True, Block[{Global`data = None}, Get[fileName]; Global`data]]},
             With[
               {theRes = If[cachedRes === None || cachedRes === $Failed,
