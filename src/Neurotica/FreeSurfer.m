@@ -244,7 +244,7 @@ ImportMGHFrames[stream_InputStream, opts___] := "Frames" -> Catch[
                 Partition[
                   Partition[
                     BinaryReadList[stream, type, volsz],
-                    dims[[1]]],
+                    dims[[3]]],
                   dims[[2]]],
                 {3,2,1}],
               {nframes}]]]]]];
@@ -1251,7 +1251,23 @@ FreeSurferSubjectRibbon[sub_String, hem:LH|RH] := With[
   If[mgh === $Failed, 
     $Failed,
     Set[
-      FreeSurferSubjectRibbon[sub, hem, opt], 
+      FreeSurferSubjectRibbon[sub, hem], 
+      mgh]]];
+FreeSurferSubjectRibbon[sub_String] := With[
+  {mgh = Check[
+     Which[
+       FileExistsQ[FileNameJoin[{sub, "mri", "ribbon.mgz"}]], Import[
+         FileNameJoin[{sub, "mri", "ribbon.mgz"}],
+         {"GZip", "MGH"}],
+       FileExistsQ[FileNameJoin[{sub, "mri", "ribbon.mgh"}]], Import[
+         FileNameJoin[{sub, "mri", "ribbon.mgh"}],
+         "MGH"],
+       True, Message[FreeSurferSubjectRibbon::notfound]],
+     $Failed]},
+  If[mgh === $Failed, 
+    $Failed,
+    Set[
+      FreeSurferSubjectRibbon[sub], 
       mgh]]];
 
 (* FreeSurferSubject Surface Data *****************************************************************)
@@ -1472,7 +1488,8 @@ DefineImmutable[
                                   RHX :> FreeSurferSubjectFilledMask[path, RHX]},
        "Ribbon"               -> {LH :> FreeSurferSubjectRibbon[path, LH],
                                   RH :> FreeSurferSubjectRibbon[path, RH],
-                                  RHX :> FreeSurferSubjectRibbon[path, RHX]},
+                                  RHX :> FreeSurferSubjectRibbon[path, RHX],
+                                  Full :> FreeSurferSubjectRibbon[path]},
        "OriginalSurface"      -> {LH :> FreeSurferSubjectOriginalSurface[path, LH],
                                   RH :> FreeSurferSubjectOriginalSurface[path, RH],
                                   RHX :> FreeSurferSubjectOriginalSurface[path, RHX]},
