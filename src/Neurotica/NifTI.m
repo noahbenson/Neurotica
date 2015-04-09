@@ -530,13 +530,13 @@ ImportNifTIVoxels[stream_, opts___Rule] := Check[
           {raw = BinaryReadList[stream, datatype, Times @@ dims]},
           "Voxels" -> NifTIColorTranslate[
             datatype,
-            Map[
-              Reverse,
+            Transpose[
               Fold[
                 Partition,
                 raw,
-                Most @ If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]],
-              {0,2}]]]]]],
+                Most @ Reverse[
+                  If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]]],
+              {3,2,1}]]]]]],
   $Failed];
 
 ImportNifTIData[stream_, opts___Rule] := Check[
