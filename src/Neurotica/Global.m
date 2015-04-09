@@ -169,6 +169,7 @@ Protect[LabelBoundaryEdgeList];
 (* #LabelBoundaryVertexList ***********************************************************************)
 LabelBoundaryVertexList[sub_, hemi_, name_] := Check[
   Append[#[[1]], #[[2, -1]]]& @ LabelBoundaryEdgePairsTr[sub, hemi, name],
+  $Failed];
 Protect[LabelBoundaryVertexList];
 
 (* #LabelBoundaryVertexCoordinatesTr **************************************************************)
@@ -184,7 +185,7 @@ Protect[LabelBoundaryVertexCoordinatesTr];
 
 (* #LabelBoundaryVertexCoordinates ****************************************************************)
 LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_] := Check[
-  Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh_, hemi, name],
+  Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name],
   $Failed];
 Protect[LabelBoundaryVertexCoordinates];
 
