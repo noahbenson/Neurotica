@@ -587,7 +587,7 @@ DefineImmutable[
       $MRImageSharedMethods,
       Hold[
         (* Retreive (or edit) the raw image data *)
-        ImageData[img] = data,
+        ImageData[img] = Replace[data, Indeterminate -> 0, {-1}],
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
         
