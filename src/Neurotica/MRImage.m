@@ -735,8 +735,8 @@ DefineImmutable[
   Symbol -> MRImage];
 
 (* #MakeBoxes allows us to display the image as a 3d image *)
-MakeBoxes[img:MRImage3D[_,Except[_Rule],__], form_] := MakeBoxes[#, form]&[Image3D[img]];
-MakeBoxes[img:MRImage[_,Except[_Rule],__], form_] := MakeBoxes[#, form]&[Image[img]];
+MakeBoxes[img_MRImage3D, form_] := MakeBoxes[#, form]&[Image3D[img]];
+MakeBoxes[img_MRImage, form_] := MakeBoxes[#, form]&[Image[img]];
 
 (* We want to define the #MRImageObjectQ and related functions now... *)
 MRImageQ[x_] := False;
