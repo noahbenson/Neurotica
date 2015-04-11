@@ -296,10 +296,19 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
           (* Setup the graph of dependencies *)
           With[
             {deps = Flatten@Last@Reap[
+               (* We sort instructions into 4 groups:
+                *   Init: instructions that must be calculated at startup (a -> b or a = b)
+                *   Delay: instructions that needn't be calculated/saved (a := b)
+                *   Settable: instructions that can be changed via Clone (a = b)
+                *   Lazy: instructions that are delayed then memoized (a :> b)
+                * We also collect Edges:
+                *   An edge occurs when the RHS of an instruction references another instruction
+                *)
                Sow[None, "Edge"];
                Sow[None, "Init"];
                Sow[None, "Delay"];
                Sow[None, "Settable"];
+               Sow[None, "Lazy"];
                MapThread[
                  Function[{head, body, id},
                    If[head === SetDelayed,
@@ -308,7 +317,7 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                        {matches = Select[
                           Range[Length@patterns],
                           (heads[[#]] =!= SetDelayed && Count[body,patterns[[#]],Infinity] > 0)&]},
-                       If[head =!= RuleDelayed, Sow[id, "Init"]];
+                       If[head =!= RuleDelayed, Sow[id, "Init"], Sow[id, "Lazy"]];
                        If[head === Set, Sow[id, "Settable"]];
                        Scan[
                          Function[
@@ -317,11 +326,20 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                              Sow[DirectedEdge[#, id], "Edge"]]],
                          matches]]]],
                  {heads, bodies, Range[Length@heads]}],
-               {"Edge", "Init", "Delay", "Settable"},
+               {"Edge", "Init", "Delay", "Settable", "Lazy"},
                Rule[#1, Rest[#2]]&]},
             With[
               {delay = "Delay" /. deps,
-               members = Complement[Range[Length@heads], "Delay" /. deps]},
+               members = Complement[Range[Length@heads], "Delay" /. deps],
+               init = "Init" /. deps,
+               lazy = "Lazy" /. deps,
+               lazyIdx = Part[
+                 SortBy[
+                   Join[
+                     MapIndexed[#1 -> {2, #2[[1]]}&, "Lazy" /. deps],
+                     MapIndexed[#1 -> {1, #2[[1]]}&, "Init" /. deps]],
+                   First],
+                 All, 2]},
               (* The easiest part to setup is the delayed items; do them now *)
               Do[
                 TagSetDelayed @@ Join[
@@ -329,14 +347,18 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                   ReplacePart[Hold @@ {patterns[[id]]}, {1,1,1} -> Pattern@@{sym, Blank[box]}],
                   bodies[[id]]],
                 {id, "Delay" /. deps}];
-              (* The direct accessors are also pretty easy to create... *)
+              (* The direct accessors are also pretty easy to create... 
+                 We create these slightly differently for lazy and non-lazy members. *)
               Do[
                 TagSetDelayed @@ Join[
                   Hold[box],
                   ReplacePart[
                     Hold @@ {patterns[[members[[id]]]]}, 
                     {1,1,1} -> Pattern@@{sym, Blank[box]}],
-                  ReplacePart[Hold @@ {Hold[sym, Evaluate[id]]}, {1,0} -> Part]],
+                  ReplacePart[
+                    (* For lazy: sym[[2, k]]; for init: sym[[1, k]] *)
+                    Hold @@ {Hold[sym, Evaluate[lazyIdx[[id, 1]]], Evaluate[lazyIdx[[id, 2]]]]},
+                    {1,0} -> Part]],
                 {id, Range[Length@members]}];
               (* The constructor requires that we evaluate things in certain orders... 
                  we start by making some symols to use for each value *)
@@ -385,7 +407,12 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                     Hold[pattern],
                     With[
                       {constructorBody = ReplaceAll[
+                         (* To construct the body of the custructor:
+                          * (1) make a core: a body that sets the lazy symbols and makes the form
+                          * (2) wrap the core in layers of With[{init...}, core]
+                          *)
                          Fold[
+                           (* (2): wrap the core-so-far in the next outer layer of init vars *)
                            Function[
                              ReplacePart[
                                Hold@Evaluate@Join[
@@ -395,18 +422,35 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                                  #1],
                                {{1,1,_,0} -> Set,
                                 {1,0} -> With}]],
+                           (* (1): make a core that sets the lazy symbols and yields the form *)
                            With[
                              {idcs = Map[
                                 Position[members,#][[1,1]]&,
                                 Complement[members, Flatten[initOrder]]],
-                              formSym = Unique[]},
+                              formSym = Unique[],
+                              lazyRevIdx = Part[
+                                Map[
+                                  Rest[SortBy[#[[All, 2 ;; 3]], Last]]&,
+                                  SortBy[
+                                    GatherBy[
+                                      Join[
+                                        MapIndexed[{#1[[1]], #2[[1]], #1[[2]]}&, lazyIdx],
+                                        {{1, 0, 0}, {2, 0, 0}}],
+                                      First],
+                                    #[[1,1]]&]],
+                                All, All, 1]},
                              ReplacePart[
                                Hold@Evaluate@Join[
                                  ReplacePart[
                                    Hold@Evaluate[Hold[#1,Unique[]]& /@ syms[[idcs]]],
                                    {1,_,0} -> Set],
+                                 (* Here we make the actual form, prior to setting the symbols so
+                                    that they are easier to hold: *)
                                  With[
-                                   {form = Hold@Evaluate[box @@ syms]},
+                                   {form = Hold@Evaluate[
+                                      box @@ ReplacePart[
+                                        syms[[#]]& /@ lazyRevIdx,
+                                        {2,0} -> Hold]]},
                                    ReplacePart[
                                      Hold@Evaluate@Join[
                                        ReplacePart[
@@ -472,18 +516,17 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                                        bCur,
                                        Map[
                                          Function[
-                                           Position[members, #1][[1,1]] -> If[
+                                           lazyIdx[[ Position[members, #1][[1,1]] ]] -> If[
                                              heads[[#1]] === RuleDelayed,
                                              With[
-                                               {tmp = Unique[]},
-                                               SetAttributes[Evaluate[tmp], Temporary];
+                                               {tmp = TemporarySymbol[]},
                                                Sow[tmp -> bodies[[#1]]];
                                                tmp],
                                              ReleaseHold@ReplaceAll[
                                                bodies[[#1]],
                                                sym -> bCur]]],
                                          iids]]],
-                                   ReplacePart[b, Position[members, id][[1,1]] -> val],
+                                   ReplacePart[b, lazyIdx[[ Position[members, id][[1,1]] ]] -> val],
                                    Rest@First@Last@Reap[
                                      NestWhile[
                                        Function[{G},
@@ -512,8 +555,7 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                                 Set @@ Join[Hold[Evaluate@finalSym], Hold[harvest][[{1},1]]];
                                 finalSym]]]]],
                       $Failed]];
-                (*SetAttributes[Evaluate[box], Protected];
-                  SetAttributes[Evaluate[box], HoldAll]*)
+                SetAttributes[Evaluate[box], Protected];
                 True]]]]]]]],
   $Failed];
 
