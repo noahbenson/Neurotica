@@ -82,11 +82,18 @@ FreeSurferSubject::baddata = "FreeSurferSubject directory `1` does not seem to c
 FreeSurferSubjectQ::usage = "FreeSurferSubjectQ[directory] yields true if and only if directory is a string referring to a directory that contains a FreeSurfer subject.";
 FreeSurferSubjectData::usage = "FreeSurferSubjectData[...] is a form that represents the data of a single FreeSurfer subject, as obtained via the FreeSurferSubject function.";
 
+(* The Transforms *)
+FreeSurferSubjectLinearTransform::usage = "FreeSurferSubjectLinearTransform[sub, name] yields the linear transform written in the file with the given name in the directory sub/mri/transforms/name.xfm.";
+FreeSurferSubjectLinearTransform::nofile = "FreeSurferSubjectLinearTransform could not find transform file: `1`";
+
 (* Volume Functions *)
 FreeSurferSubjectSegments::usage = "FreeSurferSubjectSegments[sub] yields an Image3D object for subject sub whose values correspond to segments of the brain volume.";
 FreeSurferSubjectSegment::usage = "FreeSurferSubjectSegment[sub, label] yeids a list of indices at which the subject's anatomical volume is labeled with label, which may be an integer or a string, either of which must be found in the FreeSurferColorLUT.";
 FreeSurferSubjectSegment::badlbl = "Label given to FreeSurferSubjectSegment not found: `1`";
+FreeSurferSubjectBaseImage::usage = "FreeSurferSubjectBaseImage[sub, id] yields the volume for the subject sub's imported base image with the given id; these are the files in the mri/orig/ directory with names like 001.mgz. If no id is given, then 1 is assumed.";
 FreeSurferSubjectRawavg::usage = "FreeSurferSubjectRawavg[sub] yields the volume for the subject sub's brain as represented in FreeSurfer's rawavg.mgz file, which contains the volume prior to conformation by mri_convert.";
+FreeSurferSubjectOriginalBrain::usage = "FreeSurferSubjectOriginalBrain[sub] yields the volume for the subject sub's brain as represented in FreeSurfer's orig.mgz file, which contains the volume immediately after conformation by mri_convert.";
+FreeSurferSubjectNormalizedOriginalBrain::usage = "FreeSurferSubjectNormalizedOriginalBrain[sub] yields the volume for the subject sub's brain as represented in FreeSurfer's orig_nu.mgz file, which contains the volume immediately after conformation by mri_convert and normalization.";
 FreeSurferSubjectBrain::usage = "FreeSurferSubjectBrain[sub] yields the volume for the subject sub's normalized brain (after skull stripping).";
 FreeSurferSubjectWhiteMatter::usage = "FreeSurferSubjectWhiteMattter[sub] yields the volume for the subject sub's white matter.";
 FreeSurferSubjectFilledBrain::usage = "FreeSurferSubjectFilledBrain[sub] yields the volume for the subject sub's brain in which the right hemisphere white matter has values of 127 and the left hemisphere has values of 255.";
@@ -189,7 +196,7 @@ ImportMGHHeader[stream_InputStream, opts___] := "Header" -> Catch[
            Yras = If[goodRASFlag == 1, BinaryReadList[stream, "Real32", 3], {0.0, 0.0, -1.0}],
            Zras = If[goodRASFlag == 1, BinaryReadList[stream, "Real32", 3], {0.0, 1.0, 0.0}],
            Cras = If[goodRASFlag == 1, BinaryReadList[stream, "Real32", 3], {0.0, 0.0, 0.0}]},
-          {"Version" -> version,
+          {"MGHFileVersion" -> version,
            "Dimensions" -> {width, height, depth},
            "Frames" -> nframes,
            "ImageBufferType" -> type,
@@ -240,13 +247,11 @@ ImportMGHFrames[stream_InputStream, opts___] := "Frames" -> Catch[
               Throw[$Failed]]];
             SetStreamPosition[stream, $MGHHeaderSize];
             Table[
-              Transpose[
+              Partition[
                 Partition[
-                  Partition[
-                    BinaryReadList[stream, type, volsz],
-                    dims[[3]]],
-                  dims[[2]]],
-                {3,2,1}],
+                  BinaryReadList[stream, type, volsz],
+                  dims[[3]]],
+                dims[[2]]],
               {nframes}]]]]]];
 ImportMGHFooter[stream_InputStream, opts___] := "OptionalData" -> Catch[
   Block[
@@ -1185,6 +1190,20 @@ FreeSurferSubjectWhiteMatter[sub_String] := With[
      Set[
        FreeSurferSubjectWhiteMatter[sub],
        dat]]];
+FreeSurferSubjectBaseImage[sub_String, id_Integer] := With[
+  {idname = IntegerString[id, 10, 3]},
+  With[
+    {dat = Check[
+       If[FileExistsQ[FileNameJoin[{sub, "mri", "orig", idname <> ".mgh"}]],
+         Import[FileNameJoin[{sub, "mri", "orig", idname <> ".mgh"}],  "MGH"],
+         Import[FileNameJoin[{sub, "mri", "orig", idname <> ".mgz"}], {"GZIP", "MGH"}]],
+       $Failed]},
+    If[dat === $Failed, 
+      $Failed, 
+      Set[
+        FreeSurferSubjectBaseImage[sub, id],
+        dat]]]];
+FreeSurferSubjectBaseImage[sub_String] := FreeSurferSubjectBaseImage[sub, 1];
 FreeSurferSubjectRawavg[sub_String] := With[
   {dat = Check[
      If[FileExistsQ[FileNameJoin[{sub, "mri", "rawavg.mgh"}]],
@@ -1195,6 +1214,28 @@ FreeSurferSubjectRawavg[sub_String] := With[
      $Failed, 
      Set[
        FreeSurferSubjectRawavg[sub], 
+       dat]]];
+FreeSurferSubjectOriginalBrain[sub_String] := With[
+  {dat = Check[
+     If[FileExistsQ[FileNameJoin[{sub, "mri", "orig_nu.mgh"}]],
+      Import[FileNameJoin[{sub, "mri", "orig_nu.mgh"}],  "MGH"],
+      Import[FileNameJoin[{sub, "mri", "orig_nu.mgz"}], {"GZIP", "MGH"}]],
+    $Failed]},
+   If[dat === $Failed, 
+     $Failed, 
+     Set[
+       FreeSurferSubjectOriginalBrain[sub], 
+       dat]]];
+FreeSurferSubjectNormalizedOriginalBrain[sub_String] := With[
+  {dat = Check[
+     If[FileExistsQ[FileNameJoin[{sub, "mri", "T1.mgh"}]],
+      Import[FileNameJoin[{sub, "mri", "T1.mgh"}],  "MGH"],
+      Import[FileNameJoin[{sub, "mri", "T1.mgz"}], {"GZIP", "MGH"}]],
+    $Failed]},
+   If[dat === $Failed, 
+     $Failed, 
+     Set[
+       FreeSurferSubjectNormalizedOriginalBrain[sub], 
        dat]]];
 FreeSurferSubjectBrain[sub_String] := With[
   {dat = Check[
@@ -1319,6 +1360,20 @@ FreeSurferSubjectSimpleAnnot[sub_String /; DirectoryQ[sub], hemi:(LH|RH|RHX), la
   If[dat === $Failed, 
     $Failed,
     Set[FreeSurferSubjectSimpleAnnot[sub, hemi, surf], dat]]];
+
+(* FreeSurferSubjectLinearTransform ***************************************************************)
+FreeSurferSubjectLinearTransform[sub_String, name_String] := Check[
+  With[
+    {lines = Import[
+       FileNameJoin[{sub, "mri", "transforms", "talairach.xfm"}],
+       "String"]},
+    ImportString[
+      First@StringCases[
+        lines,
+        "Linear_Transform = \n" ~~ s__ ~~ ";\n" :> s],
+      "Table"]],
+  $Failed];
+Protect[FreeSurferSubjectLinearTransform];
 
 (* FreeSurferSubject specific surfaces ************************************************************)
 FreeSurferSubjectOriginalSurface[sub_String, hemi:(LH|RH|RHX)] := Check[
@@ -1478,84 +1533,88 @@ DefineImmutable[
            Map[
              If[Head[#] === Rule && ListQ[#[[2]]], #[[1]] -> Association[#[[2]]], #]&,
              dat]]]],
-     {{"Segments"             :> FreeSurferSubjectSegments[path],
-       "Rawavg"               :> FreeSurferSubjectRawavg[path],
-       "Brain"                :> FreeSurferSubjectBrain[path],
-       "WhiteMatter"          :> FreeSurferWhiteMatter[path],
-       "FilledBrain"          :> FreeSurferSubjectFilledBrain[path],
-       "FilledMask"           -> {LH :> FreeSurferSubjectFilledMask[path, LH],
-                                  RH :> FreeSurferSubjectFilledMask[path, RH],
-                                  RHX :> FreeSurferSubjectFilledMask[path, RHX]},
-       "Ribbon"               -> {LH :> FreeSurferSubjectRibbon[path, LH],
-                                  RH :> FreeSurferSubjectRibbon[path, RH],
-                                  RHX :> FreeSurferSubjectRibbon[path, RHX],
-                                  Full :> FreeSurferSubjectRibbon[path]},
-       "OriginalSurface"      -> {LH :> FreeSurferSubjectOriginalSurface[path, LH],
-                                  RH :> FreeSurferSubjectOriginalSurface[path, RH],
-                                  RHX :> FreeSurferSubjectOriginalSurface[path, RHX]},
-       "PialSurface"          -> {LH :> FreeSurferSubjectPialSurface[path, LH],
-                                  RH :> FreeSurferSubjectPialSurface[path, RH],
-                                  RHX :> FreeSurferSubjectPialSurface[path, RHX]},
-       "WhiteSurface"         -> {LH  :> FreeSurferSubjectWhiteSurface[path, LH],
-                                  RH  :> FreeSurferSubjectWhiteSurface[path, RH],
-                                  RHX :> FreeSurferSubjectWhiteSurface[path, RHX]},
-       "MiddleSurface"        -> {LH  :> FreeSurferSubjectMiddleSurface[path, LH],
-                                  RH  :> FreeSurferSubjectMiddleSurface[path, RH],
-                                  RHX :> FreeSurferSubjectMiddleSurface[path, RHX]},
-       "InflatedSurface"      -> {LH  :> FreeSurferSubjectInflatedSurface[path, LH],
-                                  RH  :> FreeSurferSubjectInflatedSurface[path, RH],
-                                  RHX :> FreeSurferSubjectInflatedSurface[path, RHX]},
-       "SphericalSurface"     -> {LH  :> FreeSurferSubjectSphereSurface[path, LH],
-                                  RH  :> FreeSurferSubjectSphereSurface[path, RH],
-                                  RHX :> FreeSurferSubjectSphereSurface[path, RHX]},
-       "RegisteredSurface"    -> {LH  :> FreeSurferSubjectRegisteredSurface[path, LH],
-                                  RH  :> FreeSurferSubjectRegisteredSurface[path, RH],
-                                  RHX :> FreeSurferSubjectRegisteredSurface[path, RHX]},
-       "SymRegisteredSurface" -> {LH  :> FreeSurferSubjectSymSurface[path, LH],
-                                  RH  :> FreeSurferSubjectSymSurface[path, RH],
-                                  RHX :> FreeSurferSubjectSymSurface[path, RHX]},
-       "Jacobian"             -> {LH  :> FreeSurferSubjectJacobian[path, LH],
-                                  RH  :> FreeSurferSubjectJacobian[path, RH],
-                                  RHX :> FreeSurferSubjectJacobian[path, RHX]},
-       "Curvature"            -> {LH  :> FreeSurferSubjectCurvature[path, LH],
-                                  RH  :> FreeSurferSubjectCurvature[path, RH],
-                                  RHX :> FreeSurferSubjectCurvature[path, RHX]},
-       "SulcalDepth"          -> {LH  :> FreeSurferSubjectSulci[path, LH],
-                                  RH  :> FreeSurferSubjectSulci[path, RH],
-                                  RHX :> FreeSurferSubjectSulci[path, RHX]},
-       "Thickness"            -> {LH  :> FreeSurferSubjectThickness[path, LH],
-                                  RH  :> FreeSurferSubjectThickness[path, RH],
-                                  RHX :> FreeSurferSubjectThickness[path, RHX]},
-       "VertexArea"           -> {LH  :> FreeSurferSubjectVertexArea[path, LH],
-                                  RH  :> FreeSurferSubjectVertexArea[path, RH],
-                                  RHX :> FreeSurferSubjectVertexArea[path, RHX]},
-       "VertexAreaPial"       -> {LH  :> FreeSurferSubjectVertexAreaPial[path, LH],
-                                  RH  :> FreeSurferSubjectVertexAreaPial[path, RH],
-                                  RHX :> FreeSurferSubjectVertexAreaPial[path, RHX]},
-       "VertexAreaWhite"      -> {LH  :> FreeSurferSubjectVertexAreaWhite[path, LH],
-                                  RH  :> FreeSurferSubjectVertexAreaWhite[path, RH],
-                                  RHX :> FreeSurferSubjectVertexAreaWhite[path, RHX]},
-       "Parcellation"         -> {LH  :> FreeSurferSubjectParcellation[path, LH],
-                                  RH  :> FreeSurferSubjectParcellation[path, RH],
-                                  RHX :> FreeSurferSubjectParcellation[path, RHX]},
-       "Parcellation2009"     -> {LH  :> FreeSurferSubjectParcellation2009[path, LH],
-                                  RH  :> FreeSurferSubjectParcellation2009[path, RH],
-                                  RHX :> FreeSurferSubjectParcellation2009[path, RHX]},
-       "Parcellation2005"     -> {LH  :> FreeSurferSubjectParcellation2005[path, LH],
-                                  RH  :> FreeSurferSubjectParcellation2005[path, RH],
+     {{"Segments"                :> FreeSurferSubjectSegments[path],
+       "BaseImage"               :> FreeSurferSubjectBaseImage[path],
+       "Rawavg"                  :> FreeSurferSubjectRawavg[path],
+       "OriginalBrain"           :> FreeSurferSubjectOriginalBrain[path],
+       "NormalizedOriginalBrain" :> FreeSurferSubjectNormalizedOriginalBrain[path],
+       "Brain"                   :> FreeSurferSubjectBrain[path],
+       "WhiteMatter"             :> FreeSurferWhiteMatter[path],
+       "FilledBrain"             :> FreeSurferSubjectFilledBrain[path],
+       "FilledMask"              -> {LH :> FreeSurferSubjectFilledMask[path, LH],
+                                     RH :> FreeSurferSubjectFilledMask[path, RH],
+                                     RHX :> FreeSurferSubjectFilledMask[path, RHX]},
+       "Ribbon"                  -> {LH :> FreeSurferSubjectRibbon[path, LH],
+                                     RH :> FreeSurferSubjectRibbon[path, RH],
+                                     RHX :> FreeSurferSubjectRibbon[path, RHX],
+                                     Full :> FreeSurferSubjectRibbon[path]},
+       "OriginalSurface"         -> {LH :> FreeSurferSubjectOriginalSurface[path, LH],
+                                     RH :> FreeSurferSubjectOriginalSurface[path, RH],
+                                     RHX :> FreeSurferSubjectOriginalSurface[path, RHX]},
+       "PialSurface"             -> {LH :> FreeSurferSubjectPialSurface[path, LH],
+                                     RH :> FreeSurferSubjectPialSurface[path, RH],
+                                     RHX :> FreeSurferSubjectPialSurface[path, RHX]},
+       "WhiteSurface"            -> {LH  :> FreeSurferSubjectWhiteSurface[path, LH],
+                                     RH  :> FreeSurferSubjectWhiteSurface[path, RH],
+                                     RHX :> FreeSurferSubjectWhiteSurface[path, RHX]},
+       "MiddleSurface"           -> {LH  :> FreeSurferSubjectMiddleSurface[path, LH],
+                                     RH  :> FreeSurferSubjectMiddleSurface[path, RH],
+                                     RHX :> FreeSurferSubjectMiddleSurface[path, RHX]},
+       "InflatedSurface"         -> {LH  :> FreeSurferSubjectInflatedSurface[path, LH],
+                                     RH  :> FreeSurferSubjectInflatedSurface[path, RH],
+                                     RHX :> FreeSurferSubjectInflatedSurface[path, RHX]},
+       "SphericalSurface"        -> {LH  :> FreeSurferSubjectSphereSurface[path, LH],
+                                     RH  :> FreeSurferSubjectSphereSurface[path, RH],
+                                     RHX :> FreeSurferSubjectSphereSurface[path, RHX]},
+       "RegisteredSurface"       -> {LH  :> FreeSurferSubjectRegisteredSurface[path, LH],
+                                     RH  :> FreeSurferSubjectRegisteredSurface[path, RH],
+                                     RHX :> FreeSurferSubjectRegisteredSurface[path, RHX]},
+       "SymRegisteredSurface"    -> {LH  :> FreeSurferSubjectSymSurface[path, LH],
+                                     RH  :> FreeSurferSubjectSymSurface[path, RH],
+                                     RHX :> FreeSurferSubjectSymSurface[path, RHX]},
+       "Jacobian"                -> {LH  :> FreeSurferSubjectJacobian[path, LH],
+                                     RH  :> FreeSurferSubjectJacobian[path, RH],
+                                     RHX :> FreeSurferSubjectJacobian[path, RHX]},
+       "Curvature"               -> {LH  :> FreeSurferSubjectCurvature[path, LH],
+                                     RH  :> FreeSurferSubjectCurvature[path, RH],
+                                     RHX :> FreeSurferSubjectCurvature[path, RHX]},
+       "SulcalDepth"             -> {LH  :> FreeSurferSubjectSulci[path, LH],
+                                     RH  :> FreeSurferSubjectSulci[path, RH],
+                                     RHX :> FreeSurferSubjectSulci[path, RHX]},
+       "Thickness"               -> {LH  :> FreeSurferSubjectThickness[path, LH],
+                                     RH  :> FreeSurferSubjectThickness[path, RH],
+                                     RHX :> FreeSurferSubjectThickness[path, RHX]},
+       "VertexArea"              -> {LH  :> FreeSurferSubjectVertexArea[path, LH],
+                                     RH  :> FreeSurferSubjectVertexArea[path, RH],
+                                     RHX :> FreeSurferSubjectVertexArea[path, RHX]},
+       "VertexAreaPial"          -> {LH  :> FreeSurferSubjectVertexAreaPial[path, LH],
+                                     RH  :> FreeSurferSubjectVertexAreaPial[path, RH],
+                                     RHX :> FreeSurferSubjectVertexAreaPial[path, RHX]},
+       "VertexAreaWhite"         -> {LH  :> FreeSurferSubjectVertexAreaWhite[path, LH],
+                                     RH  :> FreeSurferSubjectVertexAreaWhite[path, RH],
+                                     RHX :> FreeSurferSubjectVertexAreaWhite[path, RHX]},
+       "Parcellation"            -> {LH  :> FreeSurferSubjectParcellation[path, LH],
+                                     RH  :> FreeSurferSubjectParcellation[path, RH],
+                                     RHX :> FreeSurferSubjectParcellation[path, RHX]},
+       "Parcellation2009"        -> {LH  :> FreeSurferSubjectParcellation2009[path, LH],
+                                     RH  :> FreeSurferSubjectParcellation2009[path, RH],
+                                     RHX :> FreeSurferSubjectParcellation2009[path, RHX]},
+       "Parcellation2005"        -> {LH  :> FreeSurferSubjectParcellation2005[path, LH],
+                                     RH  :> FreeSurferSubjectParcellation2005[path, RH],
                                   RHX :> FreeSurferSubjectParcellation2005[path, RHX]},
-       "V1Label"              -> {LH  :> FreeSurferSubjectV1Label[path, LH],
-                                  RH  :> FreeSurferSubjectV1Label[path, RH],
-                                  RHX :> FreeSurferSubjectV1Label[path, RHX]},
-       "BrodmannLabels"       -> {LH  :> FreeSurferSubjectBrodmannLabels[path, LH],
-                                  RH  :> FreeSurferSubjectBrodmannLabels[path, RH],
-                                  RHX :> FreeSurferSubjectBrodmannLabels[path, RHX]},
-       "BrodmannThresholds"   -> {LH  :> FreeSurferSubjectBrodmannThresholds[path, LH],
-                                  RH  :> FreeSurferSubjectBrodmannThresholds[path, RH],
-                                  RHX :> FreeSurferSubjectBrodmannThresholds[path, RHX]},
-       "OccipitalPoleIndex"   -> {LH  :> FreeSurferSubjectOP[path, LH],
-                                  RH  :> FreeSurferSubjectOP[path, RH],
-                                  RHX :> FreeSurferSubjectOP[path, RHX]}}}],
+       "V1Label"                 -> {LH  :> FreeSurferSubjectV1Label[path, LH],
+                                     RH  :> FreeSurferSubjectV1Label[path, RH],
+                                     RHX :> FreeSurferSubjectV1Label[path, RHX]},
+       "BrodmannLabels"          -> {LH  :> FreeSurferSubjectBrodmannLabels[path, LH],
+                                     RH  :> FreeSurferSubjectBrodmannLabels[path, RH],
+                                     RHX :> FreeSurferSubjectBrodmannLabels[path, RHX]},
+       "BrodmannThresholds"      -> {LH  :> FreeSurferSubjectBrodmannThresholds[path, LH],
+                                     RH  :> FreeSurferSubjectBrodmannThresholds[path, RH],
+                                     RHX :> FreeSurferSubjectBrodmannThresholds[path, RHX]},
+       "OccipitalPoleIndex"      -> {LH  :> FreeSurferSubjectOP[path, LH],
+                                     RH  :> FreeSurferSubjectOP[path, RH],
+                                     RHX :> FreeSurferSubjectOP[path, RHX]},
+       "TalairachTransform"      :> FreeSurferSubjectLinearTransform[path, "talairach"]}}],
 
    (* Now we make some accessors for this subject *)
    Cortex[sub, name_, hemi:(LH|RH|RHX)] := With[
