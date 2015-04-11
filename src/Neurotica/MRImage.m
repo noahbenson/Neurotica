@@ -32,6 +32,8 @@ VoxelToCoordinate::badarg = "Bad argument given to VoxelToCoordinate: `1`";
 
 CoordinateToVoxelMatrix::usage = "CoordinateToVoxelMatrix[vol, coordinate] yields the 3 x 4 matrix that can be used to translate coordinates to voxel indices.";
 
+VOXToRASMatrix::usage = "VOXToRASMatrix[img] provides the transformation matrix that can be used with an image transformation to convert the given MRImage3D image into RAS orientation. This is extracted from the \"VOXToRASMatrix\" Option given in the MetaInformation.";
+
 CoordinateToVoxel::usage = "CoordinateToVoxel[vol, coordinate] yields a translation of the given (x,y,z) coordinate to a position in voxel space, according to the volume vol's orientation matrix.";
 CoordinateToVoxel::badarg = "Bad argument given to CoordinateToVoxel: `1`";
 
@@ -101,8 +103,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
-  ImageAlign[img, opts___] := ImageAlign[Image3D[img], opts],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageConvolve[img, opts___] := With[
     {res = Check[ImageConvolve[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -110,7 +111,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageCorrelate[img, opts___] := ImageCorrelate[Image3D[img], opts],
   ImageCorrespondingPoints[img, opts___] := ImageCorrespondingPoints[Image3D[img], opts],
   ImageCrop[img, opts___] := With[
@@ -120,7 +121,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageDeconvolve[img, opts___] := With[
     {res = Check[ImageDeconvolve[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -128,7 +129,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageDistance[img, opts___] := ImageDistance[Image3D[img], opts],
   ImageForwardTransformation[img, opts___] := With[
     {res = Check[ImageForwardTransformation[Image3D[img], opts], $Failed]},
@@ -137,7 +138,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImagePad[img, opts___] := With[
     {res = Check[ImagePad[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -145,7 +146,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImagePartition[img, opts___] := With[
     {res = Check[ImagePartition[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -153,7 +154,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImagePerspectiveTransformation[img, opts___] := With[
     {res = Check[ImagePerspectiveTransformation[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -161,7 +162,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageReflect[img, opts___] := With[
     {res = Check[ImageReflect[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -169,7 +170,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageResize[img, opts___] := With[
     {res = Check[ImageResize[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -177,7 +178,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageRotate[img, opts___] := With[
     {res = Check[ImageRotate[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -185,7 +186,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageTake[img, opts___] := With[
     {res = Check[ImageTake[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -193,15 +194,22 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageTransformation[img, opts___] := With[
-    {res = Check[ImageTransformation[Image3D[img], opts], $Failed]},
+    {res = Check[
+       ImageReflect[
+         ImageTransformation[
+           ImageReflect[Image3D[img], Front -> Back],
+           opts,
+           DataRange -> Map[{-#/2, #/2}&, ImageDimensions[img]]],
+         Front -> Back],
+       $Failed]},
     If[res === $Failed, 
       res,
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageTrim[img, opts___] := With[
     {res = Check[ImageTrim[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -209,7 +217,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   Sharpen[img, opts___] := With[
     {res = Check[Sharpen[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -217,7 +225,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
 
   (* Image Filters *)
   BandpassFilter[img, opts___] := With[
@@ -227,7 +235,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   BandstopFilter[img, opts___] := With[
     {res = Check[BandstopFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -235,7 +243,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   BilateralFilter[img, opts___] := With[
     {res = Check[BilateralFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -243,7 +251,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   CommonestFilter[img, opts___] := With[
     {res = Check[CommonestFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -251,7 +259,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   CurvatureFlowFilter[img, opts___] := With[
     {res = Check[CurvatureFlowFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -259,7 +267,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   DerivativeFilter[img, opts___] := With[
     {res = Check[DerivativeFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -267,7 +275,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   DifferentiatorFilter[img, opts___] := With[
     {res = Check[DifferentiatorFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -275,7 +283,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   EntropyFilter[img, opts___] := With[
     {res = Check[EntropyFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -283,7 +291,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   GaborFilter[img, opts___] := With[
     {res = Check[GaborFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -291,7 +299,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   GaussianFilter[img, opts___] := With[
     {res = Check[GaussianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -299,7 +307,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   GeometricMeanFilter[img, opts___] := With[
     {res = Check[GeometricMeanFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -307,7 +315,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   GradientFilter[img, opts___] := With[
     {res = Check[GradientFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -315,7 +323,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   GradientOrientedFilter[img, opts___] := With[
     {res = Check[GradientOrientedFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -323,7 +331,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   HarmonicMeanFilter[img, opts___] := With[
     {res = Check[HarmonicMeanFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -331,7 +339,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   HighpassFilter[img, opts___] := With[
     {res = Check[HighpassFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -339,7 +347,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   HilbertFilter[img, opts___] := With[
     {res = Check[HilbertFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -347,7 +355,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   KuwaharaFilter[img, opts___] := With[
     {res = Check[KuwaharaFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -355,7 +363,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   LaplacianFilter[img, opts___] := With[
     {res = Check[LaplacianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -363,7 +371,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   LaplacianGaussianFilter[img, opts___] := With[
     {res = Check[LaplacianGaussianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -371,7 +379,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   LowpassFilter[img, opts___] := With[
     {res = Check[LowpassFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -379,7 +387,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   MaxFilter[img, opts___] := With[
     {res = Check[MaxFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -387,7 +395,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   MeanFilter[img, opts___] := With[
     {res = Check[MeanFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -395,7 +403,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   MeanShiftFilter[img, opts___] := With[
     {res = Check[MeanShiftFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -403,7 +411,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   MedianFilter[img, opts___] := With[
     {res = Check[MedianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -411,7 +419,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   MinFilter[img, opts___] := With[
     {res = Check[MinFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -419,7 +427,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   PeronaMalikFilter[img, opts___] := With[
     {res = Check[PeronaMalikFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -427,7 +435,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   RangeFilter[img, opts___] := With[
     {res = Check[RangeFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -435,7 +443,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   RidgeFilter[img, opts___] := With[
     {res = Check[RidgeFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -443,7 +451,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   StandardDeviationFilter[img, opts___] := With[
     {res = Check[StandardDeviationFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -451,7 +459,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   TotalVariationFilter[img, opts___] := With[
     {res = Check[TotalVariationFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -459,7 +467,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   WienerFilter[img, opts___] := With[
     {res = Check[WienerFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -467,7 +475,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
 
   (* Morphological Operations *)
   Binarize[img, opts___] := Binarize[Image3D[img], opts],
@@ -479,7 +487,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ColorNegate[img, opts___] := ColorNegate[Image3D[img], opts],
   ComponentMeasurements[img, opts___] := ComponentMeasurements[Image3D[img], opts],
   Colorize[img, opts___] := Colorize[Image3D[img], opts],
@@ -490,7 +498,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   DeleteSmallComponents[img, opts___] := With[
     {res = Check[DeleteSmallComponents[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -498,7 +506,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   Dilation[img, opts___] := With[
     {res = Check[Dilation[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -506,7 +514,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   DistanceTranform[img, opts___] := DistanceTransgorm[Image3D[img], opts],
   Erosion[img, opts___] := With[
     {res = Check[Erosion[Image3D[img], opts], $Failed]},
@@ -515,7 +523,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   FillingTransform[img, opts___] := With[
     {res = Check[FillingTransform[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -523,7 +531,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   HighlightImage[img, opts___] := HighlightImage[Image3D[img], opts],
   HitMissTransform[img, opts___] := With[
     {res = Check[HitMissTransform[Image3D[img], opts], $Failed]},
@@ -532,7 +540,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   InverseDistanceTransform[img, opts___] := With[
     {res = Check[InverseDistanceTransform[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -540,7 +548,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   MaxDetect[img, opts___] := MaxDetect[Image3D[img], opts],
   MinDetect[img, opts___] := MinDetect[Image3D[img], opts],
   MorphologicalBinarize[img, opts___] := MorphologicalBinarize[Image3D[img], opts],
@@ -557,7 +565,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   Pruning[img, opts___] := With[
     {res = Check[Pruning[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
@@ -565,7 +573,7 @@ $MRImageSharedMethods = Hold[
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
-        MRImage3D[newdat, theOpts]]]],
+        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   SelectComponents[img, opts___] := SelectComponents[Image3D[img], opts],
   SkeletonTranform[img, opts___] := SkeletonTransgorm[Image3D[img], opts],
   Thinning[img, opts___] := Thinning[Image3D[img], opts],
@@ -580,14 +588,22 @@ Options[MRImage3D] = Join[
      (Boxed -> _) -> (Boxed -> False),
      (Background -> _) -> (Background -> Black)},
     {1}]];
+(* For redefining options of MRImage3D *)
+MRImage3D[img_Image3D, opts___Rule] := MRImage3D[
+  ImageData[img],
+  opts,
+  Evaluate[Sequence@@Options[img]]];
+MRImage3D[img_MRImage3D, opts___Rule] := Clone[
+  img,
+  Options -> Join[{opts}, Options[img]]];
 DefineImmutable[
-  MRImage3D[data_, OptionsPattern[]] :> img,
+  MRImage3D[data_List, OptionsPattern[]] :> img,
   Evaluate[
     Join[
       $MRImageSharedMethods,
       Hold[
         (* Retreive (or edit) the raw image data *)
-        ImageData[img] = Replace[data, Indeterminate -> 0, {-1}],
+        ImageData[img] = ReplaceAll[data, Indeterminate -> 0],
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
         
@@ -623,6 +639,17 @@ DefineImmutable[
                       Append[l, "SourceImage" -> img]],
                     {1}]]]],
           Image3DSlices[Image3D[img], opts]]],
+        
+        (* Get the VOX to RAS matrix... *)
+        VOXToRASMatrix[img] := With[
+          {meta = MetaInformation /. Options[img]},
+          If[meta === MetaInformation || meta == {},
+            None,
+            With[
+              {mtx = "VOXToRASMatrix" /. meta},
+              If[! ArrayQ[mtx, 2, NumericQ],
+                None,
+                mtx]]]],
         
         (* We want to support the coordinate-to-voxel matrices, if provided *)
         CoordinateToVoxelMatrix[img] := With[
@@ -672,6 +699,14 @@ Options[MRImage] = Join[
      (Boxed -> _) -> (Boxed -> False),
      (Background -> _) -> (Background -> Black)},
     {1}]];
+(* For redefining options of MRImage *)
+MRImage[img_Image, opts___Rule] := MRImage3D[
+  ImageData[img],
+  opts,
+  Evaluate[Sequence@@Options[img]]];
+MRImage[img_MRImage, opts___Rule] := Clone[
+  img,
+  Options -> Join[{opts}, Options[img]]];
 DefineImmutable[
   MRImage[data_, OptionsPattern[]] :> img,
   Evaluate[
@@ -707,7 +742,7 @@ MakeBoxes[img:MRImage[_,Except[_Rule],__], form_] := MakeBoxes[#, form]&[Image[i
 MRImageQ[x_] := False;
 MRImageSliceQ[x_] := False;
 MRImageObjectQ[img_] := Or[MRImageQ[img], MRImageSliceQ[img]];
-Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ];
+Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ, VOXToRASMatrix];
 
 (* For all of the functions below, we want to write them only once, for the 3D case, but to define
  * them twice, also for the 2D case. Their code is almost identical, however, so a hack is employed
@@ -728,7 +763,7 @@ Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ];
            With[
              {newdat = ImageData[res] * (MRImageMax[b] - MRImageMin[b]) + MRImageMin[b],
               theOpts = Options[res]},
-             MRImage3D[newdat, theOpts]]]]]];
+             MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]]]];
    Protect[ImageAlign];
 
    (* #ImageCorrespondingPoints also is a special case *)
@@ -756,7 +791,7 @@ Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ];
        With[
          {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
           theOpts = Options[res]},
-         MRImage3D[newdat, theOpts]]]];
+         MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]];
    Protect[ImageFilter];];
 
 (* #MeshVertexToVoxelIndex **********************************************************************)
