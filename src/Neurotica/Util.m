@@ -512,8 +512,9 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                                 Set @@ Join[Hold[Evaluate@finalSym], Hold[harvest][[{1},1]]];
                                 finalSym]]]]],
                       $Failed]];
-                SetAttributes[Evaluate[box], Protected];
-                SetAttributes[Evaluate[box], HoldAll]]]]]]]]],
+                (*SetAttributes[Evaluate[box], Protected];
+                  SetAttributes[Evaluate[box], HoldAll]*)
+                True]]]]]]]],
   $Failed];
 
 (* #MimicAssociation ******************************************************************************)
