@@ -247,11 +247,14 @@ ImportMGHFrames[stream_InputStream, opts___] := "Frames" -> Catch[
               Throw[$Failed]]];
             SetStreamPosition[stream, $MGHHeaderSize];
             Table[
-              Partition[
+              Map[
+                Reverse,
                 Partition[
-                  BinaryReadList[stream, type, volsz],
-                  dims[[3]]],
-                dims[[2]]],
+                  Partition[
+                    BinaryReadList[stream, type, volsz],
+                    dims[[3]]],
+                  dims[[2]]],
+                {0,1}],
               {nframes}]]]]]];
 ImportMGHFooter[stream_InputStream, opts___] := "OptionalData" -> Catch[
   Block[
@@ -422,7 +425,7 @@ ExportMGH[filename_, data_, opts___] := Block[
             BinaryWrite[fl, Flatten[Transpose["VOXToRASMatrix" /. meta][[All, 1;;3]]], "Real32"];
             BinaryWrite[fl, Table[0, {$MGHHeaderSize - StreamPosition[fl]}], "Integer8"];
             (* write frames... *)
-            BinaryWrite[fl, Flatten[Map[Transpose[#,{3,2,1}]&, dat]], outtype];
+            BinaryWrite[fl, Flatten[Map[Reverse, dat, {0,1}]], outtype];
             (* Optional data is not currently supported; zeros are written *)
             Scan[BinaryWrite[fl, 0, #[[2]]]&, $MGHOptionalData];
             True]},
