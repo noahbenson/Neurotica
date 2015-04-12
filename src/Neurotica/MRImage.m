@@ -22,26 +22,6 @@ BeginPackage["Neurotica`MRImage`", {"Neurotica`Global`", "Neurotica`Util`"}];
 Unprotect["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
 ClearAll["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
 
-MeshVertexToVoxelIndex::usage = "MeshVertexToVoxelIndex[p, voldims] gives a translation of the surface point p ({x, y, z}) to an index ({i, j, k}) such that rounding the index values will give an approximate position of the surface point in the volume with dims given in voldims. If not provided, then voldims is taken to ba {256, 256, 256}. The first argument may also be a list of points, in which case the equivalent list of indices is returned.
-Note that this method is intended to work with typically processed FreeSurfer volumes and surfaces and is not designed for other programs or for volumes that are used as input to FreeSurfer.";
-
-VoxelToCoordinateMatrix::usage = "VoxelToCoordinateMatrix[vol, coordinate] yields the 3 x 4 matrix that can be used to translate voxel indices to coordinates.";
-
-VoxelToCoordinate::usage = "VoxelToCoordinate[vol, coordinate] yields a translation of the given voxel index to an (x,y,z) coordinate, according to the volume vol's orientation matrix.";
-VoxelToCoordinate::badarg = "Bad argument given to VoxelToCoordinate: `1`";
-
-CoordinateToVoxelMatrix::usage = "CoordinateToVoxelMatrix[vol, coordinate] yields the 3 x 4 matrix that can be used to translate coordinates to voxel indices.";
-
-VOXToRASMatrix::usage = "VOXToRASMatrix[img] provides the transformation matrix that can be used with an image transformation to convert the given MRImage3D image into RAS orientation. This is extracted from the \"VOXToRASMatrix\" Option given in the MetaInformation.";
-
-CoordinateToVoxel::usage = "CoordinateToVoxel[vol, coordinate] yields a translation of the given (x,y,z) coordinate to a position in voxel space, according to the volume vol's orientation matrix.";
-CoordinateToVoxel::badarg = "Bad argument given to CoordinateToVoxel: `1`";
-
-OrientationMatrix::usage = "OrientationMatrix is an option to CortivalImage that specifies the orientation of the given volume. The matrix should be a 3 x 4 matrix or Automatic (in which case the default matrix is {{-1,0,0,0},{0,0,1,0},{0,-1,0,0}}) in which the final column is the displacement.
-OrientationMatrix[vol] yields the orientation matrix for the given cortical volume object vol.";
-
-InverseOrientationMatrix::usage = "InverseOrientationMatrix[vol] yields the inverse of the orientation matrix for the given cortical volume object vol.";
-
 MRImage3D::usage = "MRImage3D[data] yields an Image3D-like form that can be used with Image3D functions but which stores additional relevant data regarding MR images.";
 MRImage3D::badarg = "Bad argument given to MRImage3D: `1`";
 
@@ -56,8 +36,77 @@ MRImageQ::usage = "MRImageQ[img] yields True if img is a valid MRImage3D object 
 MRImageSliceQ::usage = "MRImageSliceQ[img] yields True if img is a valid MRImage object and yields False otherwise.";
 MRImageObjectQ::usage = "MRImageObjectQ[img] is equivalent to Or[MRImageQ[img], MRImageSliceQ[img]].";
 
+RightDirectionVector::usage = "RightDirectionVector[img] yields the vector that points to the right for the given MRImage3D object img or yields Indeterminate if none can be determined. RightDirectionVector is also an optional argument to MRImage3D that specifies the image's rightward direction. In both cases, the vector should assume that the basis vecotrs i, j, and k point in the direction of increasing index in the ImageData[img] matrix; i.e. i, j, and k are the vectors from the center of voxel ImageData[img][[1,1,1]] to the centers of ImageData[img][[2,1,1]], ImageData[img][[1,2,1]], and ImageData[img][[1,1,2]], respectively.";
+AnteriorDirectionVector::usage = "AnteriorDirectionVector[img] yields the vector that points to the anterior for the given MRImage3D object img or yields Indeterminate if none can be determined. AnteriorDirectionVector is also an optional argument to MRImage3D that specifies the image's forward direction (in terms of the brain). In both cases, the vector should assume that the basis vecotrs i, j, and k point in the direction of increasing index in the ImageData[img] matrix; i.e. i, j, and k are the vectors from the center of voxel ImageData[img][[1,1,1]] to the centers of ImageData[img][[2,1,1]], ImageData[img][[1,2,1]], and ImageData[img][[1,1,2]], respectively.";
+SuperiorDirectionVector::usage = "SuperiorDirectionVector[img] yields the vector that points to the superior for the given MRImage3D object img or yields Indeterminate if none can be determined. SuperiorDirectionVector is also an optional argument to MRImage3D that specifies the image's upward direction (in terms of the brain). In both cases, the vector should assume that the basis vecotrs i, j, and k point in the direction of increasing index in the ImageData[img] matrix; i.e. i, j, and k are the vectors from the center of voxel ImageData[img][[1,1,1]] to the centers of ImageData[img][[2,1,1]], ImageData[img][[1,2,1]], and ImageData[img][[1,1,2]], respectively.";
+
+VoxelDimensions::usage = "VoxelDimensions[img] yields the {i,j,k} voxel image dimensions for the given MRImage3D img or the {i,j} voxel image dimensions for the MRImage slice img. VoxelDimensions is also an argument that can be passed to both MRImage3D or MRImage to specify the size of the voxels.";
+PixelDimensions::usage = "PixelDimensions[img] is equivalent to VoxelDimensions but for MRImage slices.";
+
+VoxelIndexToCoordinateMatrix::usage = "VoxelIndexToCoordinateMatrix[img] yields a 4x4 matrix that will transform the voxel index {i,j,k,1} into the coordinate {x,y,z,1} for the given MRImage3D, img. The resulting matrix will orient the right, anterior, and superior directions in the positive x, y, and z axes respectively.
+VoxelIndexToCoordinateMatrix[img, spec] yields a transformation matrix that orients x, y, and z in the directions specified in spec, which is identical to the first argument of MRIOrient.";
+VoxelIndexToCoordinateTransform::usage = "VoxelIndexToCoordinateTransform[img] yields a TransformationFunction that will transform the voxel index {i,j,k} into the coordinate {x,y,z} for the given MRImage3D, img.
+VoxelIndexToCoordinateTransform[img, spec] yields a transformation function that orients x, y, and z in the directions specified in spec, which is identical to the first argument of MRIOrient.";
+VoxelIndexToCoordinate::usage = "VoxelIndexToCoordinate[img, {i,j,k}] yields the coordinate at which the voxel (i, j, k) is centered in the given MRImage3D, img.
+VoxelIndexToCoordinate[img, {{i0,j0,k0}, {i1,j1,k1}, ...}] yields the coordinates for all of the indices.
+VoxelIndexToCoordinate[img, coords, spec] performes the transformation but orients the positive x, y, and z axes in the directions given by spec, which is identical in format to the second argument of MRIOrient.";
+VoxelIndexToCoordinateTr::usage = "VoxelIndexToCoordinateTr[img, Q, spec] is equivalent to Transpose @ VoxelIndexToCoordinate[img, Transpose @ Q, spec].";
+VoxelIndexToCoordinate::badimg = "Given MRImage3D object does not define a full orientation";
+
+CoordinateToVoxelIndexMatrix::usage = "CoordinateToVoxelIndexMatrix[img] yields a matrix that will transform the voxel index {x,y,z,1} into the voxel coordinate {i,j,k} for the given MRImage3D, img. Note that the coordinate may not be even integer numbers; use Round to find indices. The resulting indices will assume that the x, y, and z values are specified as coordinates in which the positive x, y, and z axes are pointed in the right, anterior, and superior directions, respectively.
+CoordinateToVoxelIndexMatrix[img, spec] yields a matrix that performs the same conversion but assumes that the x, y, and z values are specified in coordinates in which the positive x, y, and z axes are pointed in the directions indicated by spec, which is identical in format to the second argument of MRIOrient.";
+CoordinateToVoxelIndexTransform::usage = "CoordinateToVoxelIndexTransform[img] yields a TransformationFunction that will transform the voxel index {x,y,z} into the voxel coordinate {i,j,k} for the given MRImage3D, img. Note that the coordinate may not be even integer numbers; use Round to find indices. The resulting indices will assume that the x, y, and z values are specified as coordinates in which the positive x, y, and z axes are pointed in the right, anterior, and superior directions, respectively.
+CoordinateToVoxelIndexTransform[img, spec] yields a transformation function that performs the same conversion but assumes that the x, y, and z values are specified in coordinates in which the positive x, y, and z axes are pointed in the directions indicated by spec, which is identical in format to the second argument of MRIOrient.";
+CoordinateToVoxelIndex::usage = "CoordinateToVoxelIndex[img, {x,y,z}] yields the voxel index (i, j, k) in the given MRImage3D, img, that corresponds to the given (x, y, z) values. Note that the coordinate may not be even integer numbers; use Round to find indices. The resulting indices will assume that the x, y, and z values are specified as coordinates in which the positive x, y, and z axes are pointed in the right, anterior, and superior directions, respectively.
+CoordinateToVoxelIndex[img, {{x0,y0,z0}, {x1,y1,z1}, ...}] yields the voxel indices for all of the coordinates.
+CoordinateToVoxelIndex[img, coords, spec] performs the same conversion but assumes that the x, y, and z values are specified in coordinates in which the positive x, y, and z axes are pointed in the directions indicated by spec, which is identical in format to the second argument of MRIOrient.";
+CoordinateToVoxelIndexTr::usage = "CoordinateToVoxelIndexTr[img, Q, spec] is equivalent to Transpose @ CoordinateToVoxelIndex[img, Transpose @ Q, spec].";
+CoordinateToVoxelIndex::badimg = "Given MRImage3D object does not define a full orientation";
+
+MRITransformation::usage = "MRITransformation[img, tx] is identical to ImageTransformation[img, tx] for MRImage3D or MRImage slice object img and transformation tx, but performs the transformation in a manner similar to how FreeSurfer and other neuroimaging software do, resulting in a slightly modified transformation than the typical Mathematica mode. Critically, this maintains orientation information through the transformation, so should be used with MRImages.";
+
+MRIOrient::usage = "MRIOrient[img, {rows, columns, slices}] yields an MRImage3D identical to the given MRImage3D, img, but with the rows, columns, and slices occurring according to the given directives. The three arguments may take the form Left/LH, Right/RH, Inferior/Bottom, Superior/Top, Posterior/Back, or Anterior/Front. Arguments may only appear once in the list and may not appear with their antonyms.
+MRIOrient[img, {rows, columns, slices}, dimensions] orients the given img as instructed and additionally centers it in an image with the number of rows, columns, and slices given in the list dimensions.
+Examples:
+  * MRIOrient[img, {Right, Anterior, Superior}] yields img in a RAS orientation.
+  * MRIOrient[img, {RH, Front, Top}, {256, 256, 256}] is equivalent to the example above except that it also centers the image in 256 x 256 x 256 voxel space.
+  * MRIOrient[img, {Left, Posterior, Superior}] yields img in a scanner orientation.
+  * MRIOrient[img, {Anterior, Superior, Back}] is invalid because Anterior and Back are antonyms.
+MRIOrient[img, {rows, columns}] orients the rows and columns of an MRImage slice as with an MRImage3D object; note that the rows and columns must correspond to axes that the given image represents; e.g., you cannot slice parallel the Saggital plane then orient the resulting image slices in left or right directions.";
+MRIOrient::badarg = "Invalid instructions given to MRIOrient: `1`";
+MRIOrientMatrix::usage = "MRIOrientMatrix[img, spec] and MRIOrientMatrix[img, spec, dims] both yield the matrix used in the transformation undertaken by MRIOrient[img, spec, dims]. Note that these yield matrices that are appropriate for use with ImageForwardTransformation or MRITransformation, but not ImageTransformation.";
+MRIOrientTransform::usage = "MRIOrientTransform[img, spec] and MRIOrientMatrix[img, spec, dims] both yield the transformation function used in the transformation undertaken by MRIOrient[img, spec, dims]. Note that these yield transform functions that are appropriate for use with ImageForwardTransformation or MRITransformation, but not ImageTransformation.";
+
+MRISlices::usage = "MRISlices[img, plane] yields a list of MRImage objects (2D MRImage slices) corresponding to the given plane. Plane may be specified in any of the following ways:
+  * \"Sagittal\" or \"Lateral\" indicate the slices parallel to the Sagittal plane, which divides left from right, ordering the slices from left to right.
+  * \"Transverse\", \"Axial\", or \"Horizontal\" indicate the slices parallel to the Horizontal plane, which divides top superior from inferior, ordering the slices from inferior to superior.
+  * \"Coronal\" or \"Frontal\" indicate the slices parallel to the Coronal plane, which divides posterior from anterior, ordering the slices from posterior to anterior.
+  * Left -> Right, Anterior -> Back, LH -> RH, Top -> Inferior, etc. may also be used to indicate that the slices should be ordered in a particular direction.
+The option MRIOrient may be specified as well; if not specified, the default value, Automatic, indicates that the orientation provided in the image should be preserved in the resulting slices; otherwise, the value must be a 2-element list which is a valid argument to the MRIOrient[] function with any of the 2D image slices.";
+MRISlices::badplane = "Could not recognized plane given to MRISlices: `1`";
+
 (**************************************************************************************************)
 Begin["`Private`"];
+
+(*  Notes:
+ *  Mathematica plots Image3D objects in an odd fashion; the real question is now x,y, and z line
+ *  up with the voxel indices i, j, k.
+ *  Assuming that, for an image with the data array d, voxel i, j, k is d[[i,j,k]], then the 
+ *  transformation between (x,y,z) and (i,j,k) is:
+ *  {x -> k, y -> -j, z -> -i}
+ *  and the reverse is:
+ *  {i -> -z, j -> -y, k -> x}
+ *  Where the negatives just indicate a direction reversal (really they should be max - <x>).
+ *)
+MMAImageToXYZTransform[img_Image3D] := Fold[
+  ImageReflect,
+  img,
+  {Top -> Bottom, Front -> Back}];
+XYZToMMAImageTransform[img_Image3D] := Fold[
+  ImageReflect,
+  img,
+  {Back -> Front, Bottom -> Top}];
+Protect[MMAImageToXYZTransform, XYZToMMAImageTransform];
 
 (* #MRImage3D *************************************************************************************)
 
@@ -196,14 +245,7 @@ $MRImageSharedMethods = Hold[
          theOpts = Options[res]},
         MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
   ImageTransformation[img, opts___] := With[
-    {res = Check[
-       ImageReflect[
-         ImageTransformation[
-           ImageReflect[Image3D[img], Front -> Back],
-           opts,
-           DataRange -> Map[{-#/2, #/2}&, ImageDimensions[img]]],
-         Front -> Back],
-       $Failed]},
+    {res = Check[ImageTransformation[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
@@ -579,9 +621,14 @@ $MRImageSharedMethods = Hold[
   Thinning[img, opts___] := Thinning[Image3D[img], opts],
   TopHatTransform[img, opts___] := TopHatTransform[Image3D[img], opts]];
 
+
+(* #MRImage3D *************************************************************************************)
 Options[MRImage3D] = Join[
-  {CoordinateToVoxelMatrix -> Automatic,
-   VoxelToCoordinateMatrix -> Automatic},
+  {RightDirectionVector -> Indeterminate,
+   AnteriorDirectionVector -> Indeterminate,
+   SuperiorDirectionVector -> Indeterminate,
+   Center -> Automatic,
+   VoxelDimensions -> {1,1,1}},
   Replace[
     Options[Image3D],
     {(ColorFunction -> _) -> (ColorFunction -> "XRay"),
@@ -592,7 +639,7 @@ Options[MRImage3D] = Join[
 MRImage3D[img_Image3D, opts___Rule] := MRImage3D[
   ImageData[img],
   opts,
-  Evaluate[Sequence@@Options[img]]];
+  Sequence@@Options[img]];
 MRImage3D[img_MRImage3D, opts___Rule] := Clone[
   img,
   Options -> Join[{opts}, Options[img]]];
@@ -603,96 +650,98 @@ DefineImmutable[
       $MRImageSharedMethods,
       Hold[
         (* Retreive (or edit) the raw image data *)
-        ImageData[img] = ReplaceAll[data, Indeterminate -> 0],
+        ImageData[img] = ReplaceAll[N[data], Indeterminate -> 0],
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
+        (* Obtain a few options specifically! *)
+        Center[img] := Replace[Center /. Options[img], Automatic :> (ImageDimensions[img]/2)],
+        RightDirectionVector[img] := (RightDirectionVector /. Options[img]),
+        AnteriorDirectionVector[img] := (AnteriorDirectionVector /. Options[img]),
+        SuperiorDirectionVector[img] := (SuperiorDirectionVector /. Options[img]),
+        VoxelDimensions[img] := (VoxelDimensions /. Options[img]),
         
+        (* Matrices and Transformations... *)
+        VoxelIndexToCoordinateMatrix[img] :> With[
+          {rv = RightDirectionVector[img],
+           av = AnteriorDirectionVector[img],
+           sv = SuperiorDirectionVector[img],
+           x0 = Center[img]},
+          If[rv === Indeterminate || av === Indeterminate || sv === Indeterminate,
+            Indeterminate,
+            Append[MapThread[Append, {{rv, av, sv}, -x0}], {0,0,0,1}]]],
+        CoordinateToVoxelIndexMatrix[img] :> With[
+          {mtx = VoxelIndexToCoordinateMatrix[img]},
+          If[mtx === Indeterminate || mtx === $Failed, mtx, Inverse[mtx]]],
+        VoxelIndexToCoordinateTransform[img] := With[
+          {mtx = VoxelIndexToCoordinateMatrix[img]},
+          If[mtx === Indeterminate || mtx === $Failed,
+            mtx,
+            AffineTransform[{mtx[[1;;3, 1;;3]], mtx[[1;;3, 4]]}]]],
+        CoordinateToVoxelIndexTransform[img] := With[
+          {mtx = CoordinateToVoxelIndexMatrix[img]},
+          If[mtx === Indeterminate || mtx === $Failed,
+            mtx,
+            AffineTransform[{mtx[[1;;3, 1;;3]], mtx[[1;;3, 4]]}]]],
+                
         (* The image as it is represented internally *)
         Image3D[img] -> With[
           {dat = ImageData[img],
            opts = Options[img]},
-          If[!ArrayQ[dat, 3|4, NumericQ], 
-            Message[MRImage3D::badarg, "ImageData must be a 3 or 4D numeric array"],
-            Image3D[
-              (dat - MRImageMin[img]) / (MRImageMax[img] - MRImageMin[img]),
-              (*"Real32",*)
-              Sequence@@FilterRules[opts, Options[Image3D][[All,1]]]]]],
+          With[
+            {rv = RightDirectionVector /. opts,
+             av = AnteriorDirectionVector /. opts,
+             sv = SuperiorDirectionVector /. opts,
+             c = Center /. opts,
+             vdims = VoxelDimensions /. opts},
+            Which[
+              !ArrayQ[dat, 3|4, NumericQ], Message[
+                MRImage3D::badarg,
+                "ImageData must be a 3 or 4D numeric array"],
+              rv =!= Indeterminate && (!ArrayQ[rv, 1, NumericQ] || Length[rv] != 3), Message[
+                MRImage3D::badarg,
+                "RightDirectionVector must be Indeterminate or a 3-element numeric vector"],
+              av =!= Indeterminate && (!ArrayQ[av, 1, NumericQ] || Length[av] != 3), Message[
+                MRImage3D::badarg,
+                "AnteriorDirectionVector must be Indeterminate or a 3-element numeric vector"],
+              sv =!= Indeterminate && (!ArrayQ[sv, 1, NumericQ] || Length[sv] != 3), Message[
+                MRImage3D::badarg,
+                "SuperiorDirectionVector must be Indeterminate or a 3-element numeric vector"],
+              c =!= Automatic && (!ArrayQ[c, 1, NumericQ] || Length[c] != 3), Message[
+                MRImage3D::badarg,
+                "Center must be Automatic or a 3-element numeric vector"],
+              !ArrayQ[vdims, 1, NumericQ] || Length[vdims] != 3, Message[
+                MRImage3D::badarg,
+                "VodelDimensions must be Indeterminate or a 3-element numeric vector"],
+              True, Image3D[
+                (dat - MRImageMin[img]) / (MRImageMax[img] - MRImageMin[img]),
+                (*"Real32",*)
+                Sequence@@FilterRules[opts, Options[Image3D][[All,1]]]]]]],
         
         (* This is an MRImage... Checks of data quality should go here as well. *)
         MRImageQ[img] -> True,
 
-        (* #todo this should eventually be fixed to give back MRImage's instead of Image's*)
+        (* This produces slices, but the preferred method is to use MRISlices[], below. *)
         Image3DSlices[img, opts___] := With[
           {max = MRImageMax[img],
            min = MRImageMin[img]},
-          Map[
+          MapIndexed[
             Function[
               MRImage[
                 ImageData[#] * (max - min) + min,
-                With[
-                  {o = If[Count[#, ("MetaInformation"|MetaInformation) -> _, {1}] == 0,
-                     Append[#, "MetaInformation" -> {}], #]&[Options[#]]},
-                  Sequence @@ Replace[
-                    o,
-                    Rule[("MetaInformation"|MetaInformation), l_] :> Rule[
-                      "MetaInformation",
-                      Append[l, "SourceImage" -> img]],
-                    {1}]]]],
-          Image3DSlices[Image3D[img], opts]]],
-        
-        (* Get the VOX to RAS matrix... *)
-        VOXToRASMatrix[img] := With[
-          {meta = MetaInformation /. Options[img]},
-          If[meta === MetaInformation || meta == {},
-            None,
-            With[
-              {mtx = "VOXToRASMatrix" /. meta},
-              If[! ArrayQ[mtx, 2, NumericQ],
-                None,
-                mtx]]]],
-        
-        (* We want to support the coordinate-to-voxel matrices, if provided *)
-        CoordinateToVoxelMatrix[img] := With[
-          {opt = Replace[
-             Replace[CoordinateToVoxelMatrix, Options[img]],
-             Automatic :> With[
-               {meta = Replace[MetaInformation, Options[img]]},
-               With[
-                 {mtx = If[ListQ[meta], "VOXToRASMatrix" /. meta, "None"]},
-                 If[StringQ[mtx],
-                   {{1,0,0,0},{0,1,0,0},{0,0,1,0}},
-                   Plus[
-                     ReplacePart[
-                       If[Length[mtx] == 4, Most[mtx], mtx],
-                       {_,4} -> 0],
-                     Transpose @ Append[
-                       ConstantArray[0, {3,3}],
-                       0.5 * ImageDimensions[img]]]]]]]},
-          Which[
-            opt === CoordinateToVoxelMatrix, None,
-            !ListQ[opt], $Failed,
-            !MatchQ[Dimensions[opt], {3|4, 4}], $Failed,
-            Length[opt] == 4, Most[opt],
-            True, opt]],
-        VoxelToCoordinateMatrix[img] := With[
-          {opt = Replace[VoxelToCoordinateMatrix, Options[img]]},
-          Which[
-            opt === VoxelToCoordinateMatrix, None,
-            opt === Automatic, With[
-              {c2v = CoordinateToVoxelMatrix[img]},
-              Which[
-                c2v === None, None,
-                c2v === $Failed, $Failed,
-                True, Most[Inverse[Append[c2v, {0,0,0,1}]]]]],
-            !ListQ[opt], $Failed,
-            !MatchQ[Dimensions[opt], {3|4, 4}], $Failed,
-            True, opt]]]]],
+                opts,
+                Sequence @@ FilterRules[
+                  Options[img],
+                  Cases[Options[MRImage][[All, 1]], Except[MRImage3D|PixelDimensions]]],
+                MRImage3D -> img,
+                PixelDimensions -> Rest[VoxelDimensions[img]]]],
+            Image3DSlices[Image3D[img], opts]]]]]],
   SetSafe ->True,
   Symbol -> MRImage3D];
 
 (* #MRImage ***************************************************************************************)
 Options[MRImage] = Join[
-  {},
+  {MRImage3D -> None,
+   PixelDimensions -> {1,1}},
   Replace[
     Options[Image],
     {(ColorFunction -> _) -> (ColorFunction -> "XRay"),
@@ -703,7 +752,7 @@ Options[MRImage] = Join[
 MRImage[img_Image, opts___Rule] := MRImage3D[
   ImageData[img],
   opts,
-  Evaluate[Sequence@@Options[img]]];
+  Sequence@@Options[img]];
 MRImage[img_MRImage, opts___Rule] := Clone[
   img,
   Options -> Join[{opts}, Options[img]]];
@@ -717,15 +766,30 @@ DefineImmutable[
         ImageData[img] = data,
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage][[All, 1]]],
+        (* The specific options... *)
+        MRImage3D[img] := With[
+          {source = MRImage3D /. Options[img]},
+          If[source === MRImage3D, None, source]],
+        PixelDimensions[img] := With[
+          {vdims = PixelDimensions /. Options[img]},
+          If[vdims === Automatic, Rest@VoxelDimensions[MRImage3D[img]], vdims]],
         
         (* The image as it is represented internally *)
         Image[img] -> With[
           {dat = ImageData[img],
            opts = Options[img]},
-          If[!ArrayQ[dat, 2|3, NumericQ], 
-            Message[MRImage::badarg, "ImageData must be a 2 or 3D numeric array"],
-            Image[
-              (dat - MRImageMin[img]) / (MRImageMax[img] - MRImageMin[img]),
+          Which[
+            !ArrayQ[dat, 2|3, NumericQ],  Message[
+              MRImage::badarg,
+              "ImageData must be a 2 or 3D numeric array"],
+            (# =!= None && !MRImageQ[#])&[MRImage3D /. opts], Message[
+               MRImage::badarg,
+               "MRImage3D option must provide an MRImage3D object or None"],
+            (!ArrayQ[#,1,NumericQ] || Length[#] != 2)&[PixelDimensions /. opts], Message[
+              MRImage::badarg,
+              "PixelDimensions must be a 2D array"],
+            True, Image[
+              (dat - MRImageMin[img]) / Replace[(MRImageMax[img] - MRImageMin[img]), 0|0. -> 1],
               (*"Real32",*)
               Sequence@@FilterRules[opts, Options[Image][[All,1]]]]]],
         
@@ -742,7 +806,225 @@ MakeBoxes[img_MRImage, form_] := MakeBoxes[#, form]&[Image[img]];
 MRImageQ[x_] := False;
 MRImageSliceQ[x_] := False;
 MRImageObjectQ[img_] := Or[MRImageQ[img], MRImageSliceQ[img]];
-Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ, VOXToRASMatrix];
+Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ];
+
+(* and some others *)
+Protect[
+  RightDirectionVector, AnteriorDirectionVector, SuperiorDirectionVector,
+  VoxelDimensions, PixelDimensions];
+
+(* #MRIORientMatrix *******************************************************************************)
+MRIOrientMatrix[img_?MRImageQ, spec:{_,_,_}, dims:{_,_,_}] := Catch @ With[
+  {mtx0 = Replace[VoxelIndexToCoordinateMatrix[img], x:(Indeterminate|$Failed) :> Throw[x]],
+   dir = Replace[
+     spec,
+     {Right|RH|Rule[LH|Left, RH|Right] :> {1,0,0},
+      Left|LH|Rule[RH|Right, LH|Left] :> {-1,0,0},
+      Anterior|Front|Rule[Posterior|Back, Anterior|Front] :> {0,1,0},
+      Posterior|Back|Rule[Anterior|Front, Posterior|Back] :> {0,-1,0},
+      Superior|Top|Rule[Inferior|Bottom, Superior|Top] :> {0,0,1},
+      Inferior|Bottom|Rule[Superior|Top, Inferior|Bottom] :> {0,0,-1},
+      x_ :> Throw[
+        Message[MRIOrient::badarg, "Unrecognized spec: " <> ToString[x]];
+        $Failed]},
+     {1}]},
+  If[Abs[Total[dir]] != {1,1,1}, Message[MRIOrient::badarg, "repeated or opposite specs given"]];
+  (* mtx0 tells us which direction right/left etc are in... get the transform and the center out *)
+  With[
+    {tx0 = mtx0[[1;;3, 1;;3]]},
+    (* We don't want to change the center; just the direction transform *)
+    Append[
+      MapThread[Append, {dir . tx0, (dims - ImageDimensions[img])/2}],
+      Last[mtx0]]]];
+MRIOrientMatrix[img_?MRImageQ, spec_] := MRIOrientMatrix[img, spec, ImageDimensions@img];
+Protect[MRIOrientMatrix];
+
+(* #MRIORientMatrix *******************************************************************************)
+MRIOrientTransform[img_?MRImageQ, spec:{_,_,_}, dims:{_,_,_}] := With[
+  {mtx = MRIOrientMatrix[img, spec, dims]},
+  If[ListQ[mtx], AffineTransform[{mtx[[1;;3, 1;;3]], mtx[[4, 1;;3]]}], mtx]];
+MRIOrientTransform[img_?MRImageQ, spec_] := MRIOrientTransform[img, spec, ImageDimensions@img];
+Protect[MRIOrientTransform];
+
+(* Here, we want to do all the coordinate transformations... *)
+
+(* #VoxelIndexToCoordinateMatrix ******************************************************************)
+VoxelIndexToCoordinateMatrix[img_?MRImageQ, spec_List] := Check[
+  With[
+    {mtx = MRIOrientMatrix[img, spec, ImageDimensions[img]]},
+    If[!ListQ[mtx],
+      mtx,
+      (* This matrix needs to be modified only in that it needs to center things at 0 *)
+      Append[
+        MapThread[Append, {mtx[[1;;3, 1;;3]], -Center[img]}],
+        {0,0,0,1}]]],
+  $Failed];
+Protect[VoxelIndexToCoordinateMatrix];
+(* #VoxelIndexToCoordinateTransform ***************************************************************)
+VoxelIndexToCoordinateTransform[img_?MRImageQ, spec_List] := Check[
+  With[
+    {mtx = VoxelIndexToCoordinateMatrix[img, spec]},
+    If[!ListQ[mtx],
+      mtx,
+      AffineTransform[{mtx[[1;;3,1;;3]], mtx[[4,1;;4]]}]]],
+  $Failed];
+Protect[VoxelIndexToCoordinateTransform];  
+
+(* #VoxelIndexToCoordinateTr **********************************************************************)
+VoxelIndexToCoordinateTr[
+  img_?MRImageQ,
+  coords_ /; ArrayQ[coords,2] && Length[coords] == 3,
+  spec:{_,_,_}
+ ] := Check[
+  With[
+    {mtx = VoxelIndexToCoordinateMatrix[img, spec]},
+    If[!ListQ[mtx], mtx, Dot[mtx, Append[coords, ConstantArray[1, Length[coords[[1]]]]]]]],
+  $Failed];
+VoxelIndexToCoordinateTr[img_?MRImageQ, coords:{_List,_List,_List}] := VoxelIndexToCoordinateTr[
+  img,
+  coords,
+  {Right, Anterior, Superior}];
+Protect[VoxelIndexToCoordinateTr];
+
+(* #VoxelIndexToCoordinate ************************************************************************)
+VoxelIndexToCoordinate[img_?MRImageQ, coords_ /; ArrayQ[coords,2], spec:{_,_,_}] := With[
+  {tmp = VoxelIndexToCoordinateTr[img, Transpose @ coords, spec]},
+  If[ListQ[tmp], Transpose @ tmp, tmp]];
+VoxelIndexToCoordinate[img_?MRImageQ, coord:{_,_,_}, spec:{_,_,_}] := With[
+  {tmp = VoxelIndexToCoordinateTr[img, List /@ coord, spec]},
+  If[ListQ[tmp], First[tmp], tmp]];
+VoxelIndexToCoordinate[img_?MRImageQ, coords_] := VoxelIndexToCoordinate[
+  img,
+  coords,
+  {Right, Anterior, Superior}];
+Protect[VoxelIndexToCoordinate];
+
+
+(* #CoordinateToVoxelIndexMatrix ******************************************************************)
+CoordinateToVoxelIndexMatrix[img_?MRImageQ, spec_List] := With[
+  {mtx = VoxelIndexToCoordinateMatrix[img, spec]},
+  If[!ListQ[mtx], mtx, Inverse[mtx]]];
+Protect[CoordinateToVoxelIndexMatrix];
+
+(* #CoordinateToVoxelIndexTransform ***************************************************************)
+CoordinateToVoxelIndexTransform[img_?MRImageQ, spec_List] := With[
+  {mtx = VoxelIndexToCoordinateTransform[img, spec]},
+  If[mtx === Indeterminate || mtx === $Failed, mtx, InverseFunction[mtx]]];
+Protect[CoordinateToVoxelIndexTransform];  
+
+(* #CoordinateToVoxelIndexTr **********************************************************************)
+CoordinateToVoxelIndexTr[
+  img_?MRImageQ,
+  coords_ /; ArrayQ[coords,2] && Length[coords] == 3,
+  spec:{_,_,_}
+ ] := Check[
+  With[
+    {mtx = CoordinateToVoxelIndexMatrix[img, spec]},
+    If[!ListQ[mtx], mtx, Dot[mtx, Append[coords, ConstantArray[1, Length[coords[[1]]]]]]]],
+  $Failed];
+CoordinateToVoxelIndexTr[img_?MRImageQ, coords:{_List,_List,_List}] := CoordinateToVoxelIndexTr[
+  img,
+  coords,
+  {Right, Anterior, Superior}];
+Protect[CoordinateToVoxelIndexTr];
+
+(* #CoordinateToVoxelIndex ************************************************************************)
+CoordinateToVoxelIndex[img_?MRImageQ, coords_ /; ArrayQ[coords,2], spec:{_,_,_}] := With[
+  {tmp = CoordinateToVoxelIndexTr[img, Transpose @ coords, spec]},
+  If[ListQ[tmp], Transpose @ tmp, tmp]];
+CoordinateToVoxelIndex[img_?MRImageQ, coord:{_,_,_}, spec:{_,_,_}] := With[
+  {tmp = CoordinateToVoxelIndexTr[img, List /@ coord, spec]},
+  If[ListQ[tmp], First[tmp], tmp]];
+CoordinateToVoxelIndex[img_?MRImageQ, coords_] := CoordinateToVoxelIndex[
+  img,
+  coords,
+  {Right, Anterior, Superior}];
+Protect[CoordinateToVoxelIndex];
+
+(* #MRITransformation *****************************************************************************)
+MRITransformation[img_?MRImageQ, tx_, opts___Rule] := Check[
+  With[
+    {res = Check[
+       ImageTransformation[
+         Image3D[img],
+         InverseFunction @ If[MatrixQ[tx],
+           Switch[Dimensions[tx],
+             {3,3}, AffineTransform[tx],
+             {3,4}, AffineTransform[{tx[[All, 1;;3]], tx[[All, 4]]}],
+             {4,4}, AffineTransform[{tx[[1;;3, 1;;3]], tx[[1;;3, 4]]}],
+             _, Message[MRITransformation::badtx]],
+           tx],
+         opts,
+         DataRange -> Map[{-#/2, #/2}&, ImageDimensions[img]]],
+       $Failed]},
+    If[res === $Failed, 
+      res,
+      With[
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
+         theOpts = Options[res],
+         (* Transformation items must be preserved... *)
+         rv = RightDirectionVector[img],
+         av = AnteriorDirectionVector[img],
+         sv = SuperiorDirectionVector[img],
+         c = Center[img]},
+        MRImage3D[
+          newdat,
+          RightDirectionVector -> If[ListQ[rv], tx[rv], rv],
+          AnteriorDirectionVector -> If[ListQ[av], tx[av], av],
+          SuperiorDirectionVector -> If[ListQ[sv], tx[sv], sv],
+          Center -> tx[c],
+          Sequence@@theOpts]]]],
+  $Failed];
+Protect[MRITransformation];
+
+(* #MRIOrient *************************************************************************************)
+MRIOrient[img_?MRImageQ, spec:{_,_,_}, dims:{_,_,_}] := Check[
+  MRITransformation[img, MRIOrientTransform[img, spec, dims]],
+  $Failed];
+MRIOrient[img_?MRImageQ, spec:{_,_,_}] := MRIOrient[img, spec, ImageDimensions[img]];
+MRIOrient[img_?MRImageQ, "RAS", dims_] := MRIOrient[img, {Right, Anterior, Superior}, dims];
+MRIOrient[img_?MRImageQ, "RAS"] := MRIOrient[img, {Right, Anterior, Superior}];
+MRIOrient[img_?MRImageQ, "LAS"|"Scanner", dims_] := MRIOrient[img, {Left, Anterior, Superior}, dims];
+MRIOrient[img_?MRImageQ, "LAS"|"Scanner"] := MRIOrient[img, {Left, Anterior, Superior}];
+Protect[MRIOrient];
+
+(* #MRISlices *************************************************************************************)
+Options[MRISlices] = {MRIOrient -> Automatic};
+MRISlices[img_?MRImageQ, plane_, OptionsPattern[]] := Check[
+  With[
+    {orient = OptionValue[MRIOrient],
+     dir = Switch[plane,
+       "Sagittal"|"Lateral", Left,
+       Right|RH|(LH|Left -> RH|Right), Left,
+       Left|LH|(RH|Right -> LH|Left), Right,
+       "Coronal"|"Frontal", Posterior,
+       Anterior|Front|(Back|Posterior -> Front|Anterior), Posterior,
+       Posterior|Back|(Front|Anterior -> Back|Posterior), Anterior,
+       "Transverse"|"Axial"|"Horizontal", Inferior,
+       Superior|Top|(Bottom|Inferior -> Top|Superior), Inferior,
+       Inferior|Bottom|(Top|Superior -> Bottom|Inferior), Superior,
+       _, Message[MRISlices::badplane, plane]]},
+    With[
+      {tx = MRIOrient[
+         img,
+         Append[
+           Which[
+             orient === Automatic, Switch[
+               dir,
+               Right, {Superior, Anterior},
+               Left, {Inferior, Anterior},
+               Superior, {Right, Anterior},
+               Inferior, {Right, Posterior},
+               Anterior, {Right, Superior},
+               Posterior, {Left, Superior}],
+             ListQ[orient] && Length[orient] == 2, orient,
+             True, Message[MRISlices::badarg, "MRIOrient argument must be a 2-element list"]],
+           dir]]},
+      Image3DSlices[tx]]],
+  $Failed];
+Protect[MRISlices];
+
+
 
 (* For all of the functions below, we want to write them only once, for the 3D case, but to define
  * them twice, also for the 2D case. Their code is almost identical, however, so a hack is employed
@@ -793,65 +1075,6 @@ Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ, VOXToRASMatrix];
           theOpts = Options[res]},
          MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]];
    Protect[ImageFilter];];
-
-(* #MeshVertexToVoxelIndex **********************************************************************)
-MeshVertexToVoxelIndex[p_List, voxdim:{_NumericQ, _NumericQ, _NumericQ}] := Which[
-  Length[p] == 0, p,
-  ListQ[First[p]], Map[MeshVertexToVoxelIndex[#, voxdim]&, p],
-  True, List[
-    0.5*voxdim[[1]] - p[[1]] + 1.0, 
-    0.5*voxdim[[2]] - p[[3]] + 1.0, 
-    0.5*voxdim[[3]] + p[[2]] + 1.0]];
-MeshVertexToVoxelIndex[p_List, vox_List /; ArrayQ[vox, 3]] := MeshVertexToVoxelIndex[
-  p,
-  Dimensions[vox]];
-MeshVertexToVoxelIndex[p_List] := MeshVertexToVoxelIndex[p, {256.0, 256.0, 256.0}];
-Protect[MeshVertexToVoxelIndex];
-
-(* #VoxelToCoordinate *****************************************************************************)
-VoxelToCoordinate[vol_?MRImageQ, idx:{_?NumericQ, _?NumericQ, _?NumericQ}] := With[
-  {dims = ImageDimensions[vol],
-   matrix = VoxelToCoordinateMatrix[vol]},
-  If[And@@MapThread[TrueQ[0 < #1 <= #2]&, {idx, dims}],
-    (*Dot[matrix, Append[(idx - 1.0) * (dims / (dims - 1.0)), 1.0]],*)
-    Dot[matrix, Append[{idx[[1]], dims[[2]] - idx[[2]] + 1, dims[[3]] - idx[[3]] + 1} - 0.5, 1.0]],
-    (Message[VoxelToCoordinate::badarg, "index is not a valid voxel"];
-     $Failed)]];
-VoxelToCoordinate[vol_?MRImageQ, idcs:{{_?NumericQ, _?NumericQ, _?NumericQ}..}] := With[
-  {dims = ImageDimensions[vol],
-   matrix = VoxelToCoordinateMatrix[vol]},
-  Map[
-    Function[
-      If[And@@MapThread[TrueQ[0 < #1 <= #2]&, {#, dims}],
-        (*Dot[matrix, Append[(# - 1.0) * (dims / (dims - 1.0)), 1.0]],*)
-        Dot[matrix, Append[{#[[1]], dims[[2]] - #[[2]] + 1, dims[[3]] - #[[3]] + 1} - 0.5, 1.0]],
-        (Message[VoxelToCoordinate::badarg, "index is not a valid voxel"];
-         $Failed)]],
-    idcs]];
-Protect[VoxelToCoordinate];
-
-(* #CoordinateToVoxel *****************************************************************************)
-CoordinateToVoxel[vol_?MRImageQ, coord:{_?NumericQ, _?NumericQ, _?NumericQ}] := With[
-  {dims = ImageDimensions[vol]},
-  With[
-    {idx0 = Dot[CoordinateToVoxelMatrix[vol], Append[coord, 1.0]] + 0.5},
-    With[
-      {idx = {idx0[[1]], dims[[2]] - idx0[[2]] + 1, dims[[3]] - idx0[[3]] + 1}},
-      If[!And@@MapThread[TrueQ[0 < #1 <= #2]&, {idx, dims}],
-        Message[CoordinateToVoxel::badarg, "coordinate is outside voxel range"]];
-      idx]]];
-CoordinateToVoxel[vol_?MRImageQ, coords:{{_?NumericQ, _?NumericQ, _?NumericQ}..}] := With[
-  {dims = ImageDimensions[vol],
-   matrix = CoordinateToVoxelMatrix[vol]},
-  With[
-    {cTr0 = Dot[matrix, Append[Transpose@coords, Table[1.0, {Length@coords}]]] + 0.5},
-    With[
-      {cTr = {cTr0[[1]], dims[[2]] - cTr0[[2]] + 1, dims[[3]] - cTr0[[3]] + 1}},
-      If[0 < Total[MapThread[Count[#1, x_ /; x <= 0 || x > #2] &, {cTr, dims}]],
-        (Message[CoordinateToVoxel::badarg, "coordinate is outside voxel range"]; $Failed),
-        Transpose @ cTr]]]];
-Protect[CoordinateToVoxel];
-
 
 End[];
 EndPackage[];
