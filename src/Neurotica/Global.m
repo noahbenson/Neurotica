@@ -28,6 +28,11 @@ Curvature::usage = "Curvature is a keyword that can be used to refer to curvatur
 RH::usage = "RH is a keyword that represents the right hemisphere.";
 LH::usage = "LH is a keyword that represents the left hemisphere.";
 
+Anterior::usage = "Anterior is a keyword that represents the forward part of the brain; it is generally a synonym for Front and is an antonym with Posterior and Back.";
+Posterior::usage = "Posterior is a keyword that represents the rear part of the brain; it is generally a synonym for Back and is an antonym with Anterior and Front.";
+Superior::usage = "Superior is a keyword that represents the upper part of the brain; it is generally a synonym for Top and is an antonym with Inferior and Bottom.";
+Inferior::usage = "Superior is a keyword that represents the lower part of the brain; it is generally a synonym for Bottom and is an antonym with Superior and Top.";
+
 Cortex::usage = "Cortex is a keyword that is used by various Neurotica functions to represent the cortical surface of a subject.";
 SubjectLabels::usage = "SubjectLabels[sub] yields a list of the labels supported by the given subject subject sub.";
 
@@ -65,7 +70,8 @@ If[!ValueQ[Radius],
 
 Begin["`Private`"];
 
-Protect[Curvature, RH, LH, OccipitalPoleIndex, LabelVertexList, SubjectLabels];
+Protect[RH, LH, Anterior, Posterior, Inferior, Superior, 
+        Curvature, OccipitalPoleIndex, LabelVertexList, SubjectLabels];
 
 (* #Cortex ****************************************************************************************)
 Cortex[sub_, hemi_] := Cortex[sub, Automatic, hemi];
