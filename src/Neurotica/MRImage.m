@@ -82,7 +82,8 @@ MRISlices::usage = "MRISlices[img, plane] yields a list of MRImage objects (2D M
   * \"Transverse\", \"Axial\", or \"Horizontal\" indicate the slices parallel to the Horizontal plane, which divides top superior from inferior, ordering the slices from inferior to superior.
   * \"Coronal\" or \"Frontal\" indicate the slices parallel to the Coronal plane, which divides posterior from anterior, ordering the slices from posterior to anterior.
   * Left -> Right, Anterior -> Back, LH -> RH, Top -> Inferior, etc. may also be used to indicate that the slices should be ordered in a particular direction.
-The option MRIOrient may be specified as well; if not specified, the default value, Automatic, indicates that the orientation provided in the image should be preserved in the resulting slices; otherwise, the value must be a 2-element list which is a valid argument to the MRIOrient[] function with any of the 2D image slices.";
+The option MRIOrient may be specified as well; if not specified, the default value, Automatic, indicates that the orientation provided in the image should be preserved in the resulting slices; otherwise, the value must be a 2-element list which is a valid argument to the MRIOrient[] function with any of the 2D image slices.
+MRISlices[img, plane, slices] is equivalent to MRISlices[img, plane][[slices]].";
 MRISlices::badplane = "Could not recognized plane given to MRISlices: `1`";
 
 (**************************************************************************************************)
@@ -114,10 +115,6 @@ Protect[MMAImageToXYZTransform, XYZToMMAImageTransform];
  * which we store in this large Hold form for use in DefineImmutable[...].
  *)
 $MRImageSharedMethods = Hold[
-  (* Access the scale factors of min and max for the data *)
-  MRImageMax[img] -> Max[ImageData[img]],
-  MRImageMin[img] -> Min[ImageData[img]],
-  
   (* Simple accessors for Image3D computed data *)
   ImageAspectRatio[img, opts___] := ImageAspectRatio[Image3D[img], opts],
   ImageChannels[img, opts___] := ImageChannels[Image3D[img], opts],
@@ -651,6 +648,9 @@ DefineImmutable[
       Hold[
         (* Retreive (or edit) the raw image data *)
         ImageData[img] = ReplaceAll[N[data], Indeterminate -> 0],
+        (* Access the scale factors of min and max for the data *)
+        MRImageMax[img] -> Max[Flatten@ImageData[img]],
+        MRImageMin[img] -> Min[Flatten@ImageData[img]],
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
         (* Obtain a few options specifically! *)
@@ -724,15 +724,14 @@ DefineImmutable[
         Image3DSlices[img, opts___] := With[
           {max = MRImageMax[img],
            min = MRImageMin[img]},
-          MapIndexed[
+          Map[
             Function[
               MRImage[
                 ImageData[#] * (max - min) + min,
-                opts,
+                MRImage3D -> img,
                 Sequence @@ FilterRules[
                   Options[img],
                   Cases[Options[MRImage][[All, 1]], Except[MRImage3D|PixelDimensions]]],
-                MRImage3D -> img,
                 PixelDimensions -> Rest[VoxelDimensions[img]]]],
             Image3DSlices[Image3D[img], opts]]]]]],
   SetSafe ->True,
@@ -766,10 +765,17 @@ DefineImmutable[
         ImageData[img] = data,
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage][[All, 1]]],
+        (* Access the scale factors of min and max for the data *)
+        MRImageMax[img] -> With[
+          {source = MRImage3D /. Options[img]},
+          If[MRImageQ[source], MRImageMax[source], Max[Flatten@ImageData[img]]]],
+        MRImageMin[img] -> With[
+          {source = MRImage3D /. Options[img]},
+          If[MRImageQ[source], MRImageMin[source], Min[Flatten@ImageData[img]]]],
         (* The specific options... *)
         MRImage3D[img] := With[
           {source = MRImage3D /. Options[img]},
-          If[source === MRImage3D, None, source]],
+          If[!MRImageQ[source], None, source]],
         PixelDimensions[img] := With[
           {vdims = PixelDimensions /. Options[img]},
           If[vdims === Automatic, Rest@VoxelDimensions[MRImage3D[img]], vdims]],
@@ -788,10 +794,12 @@ DefineImmutable[
             (!ArrayQ[#,1,NumericQ] || Length[#] != 2)&[PixelDimensions /. opts], Message[
               MRImage::badarg,
               "PixelDimensions must be a 2D array"],
-            True, Image[
-              (dat - MRImageMin[img]) / Replace[(MRImageMax[img] - MRImageMin[img]), 0|0. -> 1],
-              (*"Real32",*)
-              Sequence@@FilterRules[opts, Options[Image][[All,1]]]]]],
+            True, With[
+              {min = MRImageMin[img],
+               max = MRImageMax[img]},
+              Image[
+                (dat - min) / Replace[(max - min), 0|0. -> 1],
+                Sequence@@FilterRules[opts, Options[Image][[All,1]]]]]]],
         
         (* This is an MRImage... Checks of data quality should go here as well. *)
         MRImageSliceQ[img] -> True]]],
@@ -990,7 +998,7 @@ Protect[MRIOrient];
 
 (* #MRISlices *************************************************************************************)
 Options[MRISlices] = {MRIOrient -> Automatic};
-MRISlices[img_?MRImageQ, plane_, OptionsPattern[]] := Check[
+MRISlices[img_?MRImageQ, plane_, which_, OptionsPattern[]] := Check[
   With[
     {orient = OptionValue[MRIOrient],
      dir = Switch[plane,
@@ -1009,19 +1017,19 @@ MRISlices[img_?MRImageQ, plane_, OptionsPattern[]] := Check[
          img,
          Append[
            Which[
-             orient === Automatic, Switch[
-               dir,
-               Right, {Superior, Anterior},
-               Left, {Inferior, Anterior},
+             orient === Automatic, Switch[dir,
+               Right, {Anterior, Superior},
+               Left, {Posterior, Superior},
                Superior, {Right, Anterior},
-               Inferior, {Right, Posterior},
-               Anterior, {Right, Superior},
-               Posterior, {Left, Superior}],
+               Inferior, {Right, Anterior},
+               Anterior, {Left, Superior},
+               Posterior, {Right, Superior}],
              ListQ[orient] && Length[orient] == 2, orient,
              True, Message[MRISlices::badarg, "MRIOrient argument must be a 2-element list"]],
            dir]]},
-      Image3DSlices[tx]]],
+      Image3DSlices[tx, which]]],
   $Failed];
+MRISlices[img_?MRImageQ, plane_, opts:OptionsPattern[]] := MRISlices[img, plane, All, opts];
 Protect[MRISlices];
 
 
