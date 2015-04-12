@@ -347,12 +347,21 @@ ImportMGHData[stream_InputStream, opts___] := "Data" -> With[
       l_List /; Position[l, $Failed] != {} -> $Failed]]];
 MGHInterpret[data_] := With[
   {frames = Transpose["Frames" /. data, {4,1,2,3}],
-   header = "Header" /. data},
+   header = "MetaInformation" /. data},
   With[
-    {dims = Dimensions[frames]},
+    {dims = Dimensions[frames],
+     spacings = "Spacings" /. header,
+     mtx = "VOXToRASMatrix" /. header},
     If[Count[dims, 1, {1}] == Length[dims] - 1,
       Flatten[frames],
-      MRImage3D[frames, MetaInformation -> ("MetaInformation" /. data)]]]];
+      MRImage3D[
+        frames,
+        Center -> (mtx[[4, 1;;3]] + Dimensions[frames][[1;;3]]/2),
+        RightDirectionVector -> mtx[[1, 1;;3]],
+        AnteriorDirectionVector -> mtx[[2, 1;;3]],
+        SuperiorDirectionVector -> mtx[[3, 1;;3]],
+        VoxelDimensions -> spacings,
+        MetaInformation -> ("MetaInformation" /. data)]]]];
 ImportMGHObject[stream_InputStream, opts___] := MGHInterpret["Data" /.ImportMGHData[stream, opts]];
 ImportMGH[filename_, opts___] := Import[filename, "MGH", opts];
 Protect[ImportMGHHeader, ImportMGHFrames, ImportMGHFooter, ImportMGHMetaInformation, ImportMGHData, 
