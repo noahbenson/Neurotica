@@ -210,22 +210,32 @@ SetAttributes[VisualAreaSimplify, Listable];
 Protect[$VisualAreasData, $VisualAreasDispatch, VisualAreaData, VisualAreaName, VisualAreaSimplify];
 
 (* Retinotopic Templates **************************************************************************)
+$FSAverageSymRetinotopicTemplateAddresses = Association[
+  {Rule[
+     PolarAngle,
+     "https://cfn.upenn.edu/aguirreg/public/ES_template/mgh_files/angle-template-2.5.sym.mgh"],
+   Rule[
+     Eccentricity,
+     "https://cfn.upenn.edu/aguirreg/public/ES_template/mgh_files/eccen-template-2.5.sym.mgh"],
+   Rule[
+     VisualArea,
+     "https://cfn.upenn.edu/aguirreg/public/ES_template/mgh_files/areas-template-2.5.sym.mgh"]}];
+Protect[$FSAverageSymRetinotopicTemplateAddresses];
 FSAverageSymRetinotopy := With[
   {field = Check[
      Association @ MapThread[
-       Rule,
-       {Transpose @ Map[
+       (* #here -- why does this need to be reversed?! *)
+       Rule[#1, Reverse[#2]]&,
+       {{PolarAngle, Eccentricity, VisualArea},
+        Transpose @ MapThread[
           Function[{pa, e, a},
             Which[
               Abs[a] < 1 || Abs[a] > 3, {None, None, None},
               NumberQ[pa] && pa > 90.0, {pa, e, -Abs[a]},
               NumberQ[pa] && pa <= 90.0, {pa, e, Abs[a]},
               True, {None, None, None}]],
-          Import[fl, "MGH"]& /@ {
-            "https://cfn.upenn.edu/aguirreg/public/ES_template/mgh_files/angle-template.sym.mgh",
-            "https://cfn.upenn.edu/aguirreg/public/ES_template/mgh_files/eccen-template.sym.mgh",
-            "https://cfn.upenn.edu/aguirreg/public/ES_template/mgh_files/areas-template.sym.mgh"}],
-        {PolarAngle, Eccentricity, VisualArea}}],
+          Import[$FSAverageSymRetinotopicTemplateAddresses[#], "MGH"]& /@ {
+            PolarAngle, Eccentricity, VisualArea}]}],
      $Failed]},
   If[field === $Failed,
     $Failed,
@@ -238,17 +248,24 @@ FSAverageSymEccentricity := FSAverageSymRetinotopy[Eccentricity];
 FSAverageSymVisualArea := FSAverageSymRetinotopy[VisualArea];
 
 PredictRetinotopy[sub_, meshName_, hemi_] := Check[
-  With[
-    {sym = Cortex[sub, "Sym", hemi],
-     props = {"PolarAngle", "Eccentricity", "VisualArea"}},
+  If[sub === FSAverageSymSubject,
+    SetProperty[
+      {Cortex[sub, meshName, hemi], VertexList},
+      Map[ToString[#] -> FSAverageSymRetinotopy[#]&, Keys[FSAverageSymRetinotopy]]],
     With[
-      {resamp = CortexResample[
-         FSAverageSymRetinotopy -> sym,
-         Properties -> props]},
-      Fold[
-        SetProperty[{#1, VertexList}, #2 -> PropertyValue[{resamp, VertexList}, #2]]&,
-        Cortex[sub, meshName, hemi],
-        props]]],
+      {sym = Cortex[sub, "Sym", hemi],
+       props = {"PolarAngle", "Eccentricity", "VisualArea"},
+       fsaverageSym = SetProperty[
+         Cortex[FSAverageSymSubject, "Sphere", LH],
+         Map[ToString[#] -> FSAverageSymRetinotopy[#]&, {PolarAngle, Eccentricity, VisualArea}]]},
+      With[
+        {resamp = CortexResample[
+           fsaverageSym -> sym,
+           Properties -> props]},
+        Fold[
+          SetProperty[{#1, VertexList}, #2 -> PropertyValue[{resamp, VertexList}, #2]]&,
+          Cortex[sub, meshName, hemi],
+          props]]]],
   $Failed];
 
 Protect[

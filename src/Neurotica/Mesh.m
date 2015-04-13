@@ -195,6 +195,30 @@ The following options may be provided:
   * Method: a Method option may specify Nearest (default) for nearest-neighbor interpolation, Interpolation, or List interpolation, for their respective functions. In the latter two cases, A list may be given instead of the argument such that the first argument is Interpolation or LitInterpolation and the remaining elements of the list are options to pass to these functions; e.g. Method -> {Interpolation, InterpolationOrder -> 4}.
   * Properties: a Properties argument specifies that the given property should be resampled; a list of properties may also be given, or All. If no property is given then All is the default value.";
 
+LabelVertexCoordinates::usage = "LabelVertexCoordinates[sub, mesh, hemi, name] yields the vertex coordinates for the given subject, mesh, and hemisphere of the vertices that lie in the label with the given name.
+Note that if you are defining a new subject modality, you should define LabelVertexList[] instead of LabelVertexCoordinates.";
+LabelVertexCoordinatesTr::usage = "LabelVertexCoordinatesTr[sub, mesh, hemi, name] is equivalent to Transpose[LabelVertexCoordinates[sub, mesh, hemi, name]].
+Note that if you are defining a new subject modality, you should define LabelVertexList[] instead of LabelVertexCoordinatesTr.";
+
+LabelEdgePairsTr::usage = "LabelEdgePairsTr[sub, hemi, name] yields the equivalent of Transpose @ LabelEdgePairs[sub, hemi, name].";
+LabelEdgePairs::usage = "LabelEdgePairs[sub, hemi, name] yields a list of the edge pairs that compose the label with the given name.";
+LabelEdgeList::usage = "LabelEdgeList[sub, hemi, name] is equivalent to LabelEdgePairs[sub, hemi, name] except that it yields UndirectedEdge's instead of lists of vertex pairs.";
+
+LabelFaceListTr::usage = "LabelFaceListTr[sub, hemi, name] yields the equivalent of Transpose @ LabelFaceList[sub, hemi, name].";
+LabelFaceList::usage = "LabelFaceList[sub, hemi, name] yields the list of faces that are part of the label with the given name in the given subject and hemisphere.";
+
+LabelBoundaryVertexList::usage = "LabelBoundaryVertexList[sub, hemi, name] yields a list of the vertices, in counter-clockwise order, that are part of the boundary between the given label and the outside of the label.";
+LabelBoundaryVertexCoordinates::usage = "LabelBoundaryVertexCoordinates[sub, mesh, hemi, name] yields a list of the coordinates of the vertices, in counter-clockwise order, that appear in on the boundary of the given label in the given subject, mesh, and hemisphere.";
+LabelBoundaryVertexCoordinatesTr::usage = "LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name] is equivalent to Transpose @ LabelBoundaryVertexCoordinates[sub, mesh, hemi, name].";
+
+LabelBoundaryEdgeList::usage = "LabelBoundaryEdgeList[sub, hemi, name] yields a list of the edges that form an approximate boundary to the region with the given label name for the given subject and hemisphere.
+Note that if you are defining a new subject modality, then you only need to define the LabelVertexList function.";
+LabelBoundaryEdgePairsTr::usage = "LabelBoundaryEdgePairsTr[sub, hemi, name] yields a list equivalent to Transpose[LabelBoundaryEdgePairs[sub, hemi]].";
+LabelBoundaryEdgePairs::usage = "LabelBoundaryEdgePairs[sub, hemi, name] yields a list of the edge pairs rather than the edges themselves that are returned by LabelEdgeList.";
+
+OccipitalPole::usage = "OccipitalPole[subject, mesh, hemisphere] is usually defined by subject modalities (e.g., FreeSurferSubject[]) such that the function yields the vertex coordinate for the occipital pole in the particular mesh and hemisphere requested.
+Note that if you define a new subject modality, then defining OccipitalPoleIndex[] for the subject should be sufficient.";
+
 Begin["`Private`"];
 
 (***************************************************************************************************
@@ -2589,6 +2613,117 @@ CortexResample[a_?CorticalMeshQ, b_?CorticalMeshQ, opts:OptionsPattern[]] := Cat
 CortexResample[Rule[a_?CorticalMeshQ, b_?CorticalMeshQ], opts:OptionsPattern[]] := CortexResample[
   b, a, opts];
 Protect[CortexResample];
+
+(* #LabelVertexCoordinatesTr **********************************************************************)
+LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
+  With[
+    {cortex = Cortex[sub, mesh, hemi]},
+    Part[
+      VertexCoordinatesTr[cortex],
+      All,
+      VertexIndex[cortex, LabelVertexList[sub, hemi, name]]]],
+  $Failed];
+Protect[LabelVertexCoordinatesTr];
+
+(* #LabelVertexCoordinates ************************************************************************)
+LabelVertexCoordinates[sub_, mesh_, hemi_, name_] := Check[
+  Transpose[LabelVertexCoordinatesTr[sub, mesh, hemi, name]],
+  $Failed];
+Protect[LabelVertexCoordinates];
+
+(* #LabelEdgePairsTr ******************************************************************************)
+LabelEdgePairsTr[sub_, hemi_, name_] := Check[
+  With[
+    {U = LabelVertexList[sub, hemi, name],
+     cortex = Cortex[sub, Automatic, hemi]},
+    With[
+      {UE = VertexEdgeList[cortex][[VertexIndex[cortex, U]]],
+       Et = EdgePairsTr[cortex]},
+      Et[[All, Select[Tally[Join@@UE], Last[#] == 2&][[All, 1]]]]]],
+  $Failed];
+Protect[LabelEdgePairsTr];
+
+(* #LabelEdgePairs ********************************************************************************)
+LabelEdgePairs[sub_, hemi_, name_] := Check[
+  Transpose @ LabelEdgePairsTr[sub, hemi, name],
+  $Failed];
+Protect[LabelEdgePairs];
+
+(* #LabelEdgeList *********************************************************************************)
+LabelEdgeList[sub_, hemi_, name_] := Check[
+  Apply[UndirectedEdge, #]& /@ Transpose[LabelEdgePairsTr[sub, hemi, name]],
+  $Failed];
+Protect[LabelEdgeList];
+
+(* #LabelFaceListTr ******************************************************************************)
+LabelFaceListTr[sub_, hemi_, name_] := Check[
+  With[
+    {U = LabelVertexList[sub, hemi, name],
+     cortex = Cortex[sub, Automatic, hemi]},
+    With[
+      {UF = VertexFaceList[cortex][[VertexIndex[cortex, U]]],
+       Ft = FaceListTr[cortex]},
+      Ft[[All, Select[Tally[Join@@UF], Last[#] == 3&][[All, 1]]]]]],
+  $Failed];
+Protect[LabelFaceListTr];
+
+(* #LabelFaceList *********************************************************************************)
+LabelFaceList[sub_, hemi_, name_] := Check[
+  Transpose @ LabelFaceListTr[sub, hemi, name],
+  $Failed];
+Protect[LabelFaceList];
+
+(* #LabelBoundaryEdgePairsTr **********************************************************************)
+LabelBoundaryEdgePairsTr[sub_, hemi_, name_] := Check[
+  With[
+    {Ft = LabelFaceListTr[sub, hemi, name]},
+    With[
+      {allE = Sort /@ Transpose[{Join@@Ft, Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
+      Transpose[Select[Tally[allE], Last[#] == 1&][[All, 1]]]]],
+  $Failed];
+Protect[LabelBoundaryEdgePairsTr];
+
+(* #LabelBoundaryEdgePairs ************************************************************************)
+LabelBoundaryEdgePairs[sub_, hemi_, name_] := Check[
+  Transpose @ LabelBoundaryEdgePairsTr[sub, hemi, name],
+  $Failed];
+Protect[LabelBoundaryEdgePairs];
+
+(* #LabelBoundaryEdgeList *************************************************************************)
+LabelBoundaryEdgeList[sub_, hemi_, name_] := Check[
+  Apply[UndirectedEdge, #]& /@ Transpose[LabelBoundaryEdgePairsTr[sub, hemi, name]],
+  $Failed];
+Protect[LabelBoundaryEdgeList];
+
+(* #LabelBoundaryVertexList ***********************************************************************)
+LabelBoundaryVertexList[sub_, hemi_, name_] := Check[
+  Append[#[[1]], #[[2, -1]]]& @ LabelBoundaryEdgePairsTr[sub, hemi, name],
+  $Failed];
+Protect[LabelBoundaryVertexList];
+
+(* #LabelBoundaryVertexCoordinatesTr **************************************************************)
+LabelBoundaryVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
+  With[
+    {cortex = Cortex[sub, mesh, hemi]},
+    Part[
+      VertexCoordinatesTr[cortex],
+      All, 
+      VertexIndex[cortex, LabelBoundaryVertexList[sub, hemi, name]]]],
+  $Failed];
+Protect[LabelBoundaryVertexCoordinatesTr];
+
+(* #LabelBoundaryVertexCoordinates ****************************************************************)
+LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_] := Check[
+  Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name],
+  $Failed];
+Protect[LabelBoundaryVertexCoordinates];
+
+(* #OccipitalPole *********************************************************************************)
+OccipitalPole[sub_, mesh_, hemi_] := Check[
+  VertexCoordinatesTr[Cortex[sub, mesh, hemi]][[All, OccipitalPoleIndex[sub, hemi]]],
+  $Failed];
+OccipitalPole[sub_, hemi_] := OccipitalPole[sub, Automatic, hemi];
+Protect[OccipitalPole];
 
 End[];
 EndPackage[];

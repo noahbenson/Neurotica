@@ -124,6 +124,11 @@ FreeSurferSubjectVertexVolume::usage = "FreeSurferSubjectVertexVolume[sub, hemi]
 FreeSurferSubjectParcellation::usage = "FreeSurferSubjectParcellation[sub, hemi] yields the 2009 cortical surface parcellation for subject sub's given hemisphere.";
 FreeSurferSubjectParcellation2009::usage = "FreeSurferSubjectParcellation[sub, hemi] yields the 2009 cortical surface parcellation for subject sub's given hemisphere.";
 FreeSurferSubjectParcellation2005::usage = "FreeSurferSubjectParcellation[sub, hemi] yields the 2005 cortical surface parcellation for subject sub's given hemisphere.";
+FreeSurferSubjectBrodmannLabelList::usage = "FreeSurferSubjectBrodmannLabelList[sub, hemi] yields a list of the names of the available Brodmann area labels for the given subject and hemisphere.";
+FreeSurferSubjectBrodmannLabels::usage = "FreeSurferSubjectBrodmannLabels[sub, hemi] yields a list of the Brodmann labels for each vertex in the surface of the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectBrodmannThresholds::usage = "FreeSurferSubjectBrodmannThresholds[sub, hemi] yields an association of each Brodmann area number supported by freesurfer, paired to a list of the probability thresholds for each vertex in the surface of the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectV1Label::usage = "FreeSurferSubjectV1Label[sub, hemi] yields a binary (1/0) mask of the location of V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectV1Threshold::usage = "FreeSurferSubjectV1Label[sub, hemi] yields an overlay of the probability of each vertex belonging to V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
 
 FreeSurfer::nolabel = "The FreeSurferColorLUT.txt file could not be found. This file is normally in your FreeSurfer home directory. Try adding a FreeSurfer home directory (via AddFreeSurferHome[]) and re-evaluating.";
 FreeSurfer::notfound = "Data not found: `1`";
@@ -1372,6 +1377,18 @@ FreeSurferSubjectSimpleAnnot[sub_String /; DirectoryQ[sub], hemi:(LH|RH|RHX), la
   If[dat === $Failed, 
     $Failed,
     Set[FreeSurferSubjectSimpleAnnot[sub, hemi, surf], dat]]];
+FreeSurferSubjectSimpleLabel[sub_String /; DirectoryQ[sub], hemi:(LH|RH|RHX), label_String] := With[
+  {dat = Check[
+     With[
+       {hemistr = Replace[hemi, {(LH|RHX) -> "lh", RH -> "rh"}],
+        dirstr = If[hemi === RHX, 
+          FileNameJoin[{sub, "xhemi", "label"}],
+          FileNameJoin[{sub, "label"}]]},
+       Import[FileNameJoin[{dirstr, hemistr <> "." <> label <> ".label"}], "FreeSurferLabel"]],
+     $Failed]},
+  If[dat === $Failed, 
+    $Failed,
+    Set[FreeSurferSubjectSimpleLabel[sub, hemi, surf], dat]]];
 
 (* FreeSurferSubjectLinearTransform ***************************************************************)
 FreeSurferSubjectLinearTransform[sub_String, name_String] := Check[
@@ -1468,6 +1485,54 @@ FreeSurferSubjectParcellation2009[sub_String, hemi:(LH|RH|RHX)] := FreeSurferSub
 FreeSurferSubjectParcellation2005[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleAnnot[sub, hemi, "aparc.annot"],
   $Failed];
+FreeSurferSubjectV1Label[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleLabel[sub, hemi, "V1"],
+  $Failed];
+FreeSurferSubjectV1Threshold[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleLabel[sub, hemi, "V1.thresh"],
+  $Failed];
+FreeSurferSubjectV2Label[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleLabel[sub, hemi, "V2"],
+  $Failed];
+FreeSurferSubjectV2Threshold[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleLabel[sub, hemi, "V2.thresh"],
+  $Failed];
+FreeSurferSubjectMTLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleLabel[sub, hemi, "MT"],
+  $Failed];
+FreeSurferSubjectMTThreshold[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleLabel[sub, hemi, "MT.thresh"],
+  $Failed];
+FreeSurferSubjectBrodmannLabelList[sub_String, hemi:(LH|RH|RHX)] := Check[
+  Map[
+    StringSplit[Last[FileNameSplit[#]], "."][[2]] &,
+    FileNames @ FileNameJoin[
+      Join[
+        If[hemi === RHX, {sub, "xhemi", "label"}, {sub, "label"}],
+        {".BA*.thresh.label"}]]],
+  $Failed];
+FreeSurferSubjectBrodmannLabels[sub_String, hemi:(LH|RH|RHX)] := With[
+  {res = Check[
+     With[
+       {list = FreeSurferSubjectBrodmannLabelList[sub, hemi]},
+       If[list === $Failed,
+         $Failed,
+         Association @ Map[
+           Function[# -> FreeSurferSubjectSimpleLabel[sub, hemi, #]],
+           list]]],
+     $Failed]},
+  If[res === $Failed, res, (FreeSurferSubjectBrodmannLabels[sub, hemi] = res)]];
+FreeSurferSubjectBrodmannThresholds[sub_String, hemi:(LH|RH|RHX)] := With[
+  {res = Check[
+     With[
+       {list = FreeSurferSubjectBrodmannLabelList[sub, hemi]},
+       If[list === $Failed,
+         $Failed,
+         Association @ Map[
+           Function[# -> FreeSurferSubjectSimpleLabel[sub, hemi, # <> ".thresh"]],
+           list]]],
+     $Failed]},
+  If[res === $Failed, res, (FreeSurferSubjectBrodmannThresholds[sub, hemi] = res)]];
 
 FreeSurferSubjectOP[sub_, hemi:(LH|RH)] := With[
   {V = Check[VertexCoordinates[FreeSurferSubjectInflatedSurface[sub, hemi]], $Failed]},
@@ -1518,6 +1583,10 @@ Protect[FreeSurferSubjectJacobian, FreeSurferSubjectCurvature,
         FreeSurferSubjectParcellation,
         FreeSurferSubjectParcellation2009,
         FreeSurferSubjectParcellation2005,
+        FreeSurferSubjectV1Label, FreeSurferSubjectV1Threshold,
+        FreeSurferSubjectV2Label, FreeSurferSubjectV2Threshold,
+        FreeSurferSubjectMTLabel, FreeSurferSubjectMTThreshold,
+        FreeSurferSubjectBrodmannLabelList,
         FreeSurferSubjectThickness,
         FreeSurferSubjectPialOP, FreeSurferSubjectWhiteOP, 
         FreeSurferSubjectMiddleOP, FreeSurferSubjectInflatedOP, FreeSurferSubjectSphereOP,
@@ -1613,10 +1682,16 @@ DefineImmutable[
                                      RHX :> FreeSurferSubjectParcellation2009[path, RHX]},
        "Parcellation2005"        -> {LH  :> FreeSurferSubjectParcellation2005[path, LH],
                                      RH  :> FreeSurferSubjectParcellation2005[path, RH],
-                                  RHX :> FreeSurferSubjectParcellation2005[path, RHX]},
+                                     RHX :> FreeSurferSubjectParcellation2005[path, RHX]},
        "V1Label"                 -> {LH  :> FreeSurferSubjectV1Label[path, LH],
                                      RH  :> FreeSurferSubjectV1Label[path, RH],
                                      RHX :> FreeSurferSubjectV1Label[path, RHX]},
+       "V2Label"                 -> {LH  :> FreeSurferSubjectV2Label[path, LH],
+                                     RH  :> FreeSurferSubjectV2Label[path, RH],
+                                     RHX :> FreeSurferSubjectV2Label[path, RHX]},
+       "MTLabel"                 -> {LH  :> FreeSurferSubjectMTLabel[path, LH],
+                                     RH  :> FreeSurferSubjectMTLabel[path, RH],
+                                     RHX :> FreeSurferSubjectMTLabel[path, RHX]},
        "BrodmannLabels"          -> {LH  :> FreeSurferSubjectBrodmannLabels[path, LH],
                                      RH  :> FreeSurferSubjectBrodmannLabels[path, RH],
                                      RHX :> FreeSurferSubjectBrodmannLabels[path, RHX]},
@@ -1659,9 +1734,36 @@ DefineImmutable[
      FreeSurferSubjectOP[Path[sub], hemi],
      $Failed],
    (* We can get certain labels this way also *)
-   (* #here *)
-   LabelVertexList[sub, hemi:(LH|RH|RHX), name_] := False,
-   SubjectLabels[sub] := {}},
+   LabelVertexList[sub, hemi:(LH|RH|RHX), name_] := Check[
+     With[
+       {propAndPatt = Switch[
+          name,
+          "V1"|"V1Label", {"V1Label", 1},
+          "V2"|"V2Label", {"V2Label", 1},
+          "MT"|"MTLabel", {"MTLabel", 1},
+          _, $Failed]},
+       If[!ListQ[propAndPatt],
+         propAndPatt,
+         Flatten @ Position[
+           Normal[Association[sub][propAndPatt[[1]]][hemi]],
+           propAndPatt[[2]],
+           {1},
+           Heads -> False]]],
+     $Failed],
+        
+   SubjectLabels[sub] := Join[
+     Intersection[
+       FreeSurferSubjectBrodmannLabelList[Path[sub], LH],
+       FreeSurferSubjectBrodmannLabelList[Path[sub], RH]],
+     Select[
+       Map[
+         Function @ With[
+           {files = Table[
+              FileNameJoin[{Path[sub], "label", hem <> "." <> # <> ".thresh.label"}],
+              {hem, {"lh","rh"}}]},
+           If[FileExistsQ[files[[1]]] && FileExistsQ[files[[2]]], #, None]],
+         {"V1","V2","MT"}],
+       StringQ]]},
   SetSafe -> True,
   Symbol -> FreeSurferSubjectData];
 
