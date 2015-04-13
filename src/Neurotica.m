@@ -28,8 +28,8 @@ BeginPackage[
    "Neurotica`Registration`",
    "Neurotica`MRImage`",
    "Neurotica`FreeSurfer`",
-   "Neurotica`NifTI`"}];
-   (*"Neurotica`VisualCortex`",*)
+   "Neurotica`NifTI`",
+   "Neurotica`VisualCortex`"}];
    (*"Neurotica`MEG`",*)
 Unprotect["Neurotica`*", "Neurotica`Private`*"];
 ClearAll[ "Neurotica`*", "Neurotica`Private`*"];
@@ -60,7 +60,8 @@ NeuroticaReload[] := With[
     "Registration.m",
     "MRImage.m",
     "FreeSurfer.m",
-    "NifTI.m"};
+    "NifTI.m",
+    "VisualCortex.m"};
   Get[$NeuroticaPath];
   $NeuroticaVersionNumber];
 Protect[NeuroticaReload];
