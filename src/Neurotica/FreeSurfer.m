@@ -356,7 +356,7 @@ MGHInterpret[data_] := With[
      spacings = "Spacings" /. header,
      mtx = "VOXToRASMatrix" /. header},
     If[Count[dims, 1, {1}] == Length[dims] - 1,
-      Flatten[frames],
+      Reverse @ Flatten[frames],
       MRImage3D[
         frames,
         Center -> (mtx[[4, 1;;3]] + Dimensions[frames][[1;;3]]/2),
@@ -1655,7 +1655,9 @@ DefineImmutable[
           "V1Label" :> Quiet@Check[assoc["V1Label"][hemi], $Failed],
           "BrodmannLabels" :> Quiet@Check[assoc["BrodmannLabels"][hemi], $Failed]}]]],
    (* We can also get the occipital pole in a similar way... *)
-   OccipitalPoleIndex[sub, hemi:(LH|RH|RHX)] := Check[FreeSurferSubjectOP[sub, hemi], $Failed],
+   OccipitalPoleIndex[sub, hemi:(LH|RH|RHX)] := Check[
+     FreeSurferSubjectOP[Path[sub], hemi],
+     $Failed],
    (* We can get certain labels this way also *)
    (* #here *)
    LabelVertexList[sub, hemi:(LH|RH|RHX), name_] := False,
