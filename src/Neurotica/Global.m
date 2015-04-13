@@ -33,6 +33,10 @@ Posterior::usage = "Posterior is a keyword that represents the rear part of the 
 Superior::usage = "Superior is a keyword that represents the upper part of the brain; it is generally a synonym for Top and is an antonym with Inferior and Bottom.";
 Inferior::usage = "Superior is a keyword that represents the lower part of the brain; it is generally a synonym for Bottom and is an antonym with Superior and Top.";
 
+Eccentricity::usage = "Eccentricity is a key used by the visual cortex package to represent eccentricity, as measured in degrees of visual angle from the foveal confluence (center of the visual field).";
+PolarAngle::usage = "PolarAngle is a key used by the visual cortex package to represent the polar angle, as measured in degrees of rotation about the foveal confluence (center of the visual field) from the upper to the lower vertical meridia.";
+VisualArea::usage = "VisualArea is a key used by the retinotopy package to represent the visual area ID of a particular patch of cortex. See also VisualAreasData.";
+
 Cortex::usage = "Cortex is a keyword that is used by various Neurotica functions to represent the cortical surface of a subject.";
 SubjectLabels::usage = "SubjectLabels[sub] yields a list of the labels supported by the given subject subject sub.";
 
@@ -71,6 +75,7 @@ If[!ValueQ[Radius],
 Begin["`Private`"];
 
 Protect[RH, LH, Anterior, Posterior, Inferior, Superior, 
+        PolarAngle, Eccentricity, VisualArea,
         Curvature, OccipitalPoleIndex, LabelVertexList, SubjectLabels];
 
 (* #Cortex ****************************************************************************************)
