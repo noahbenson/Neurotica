@@ -132,6 +132,8 @@ VertexEdgeMatrix::usage = "VertexEdgeMatrix[M] yields a SparseArray matrix S suc
 EdgeFaceMatrix::usage = "VertexFaceMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if edge j is the kth part of face i and 0 if not (where m is the number of faces in the mesh M).";
 
 SumOverFacesTr::usage = "SumOverFacesTr[M, Q] yields the 3 x n result of summing over the faces given in the matrix Q whose first dimension must be equal to 3 and whose last dimension must be equal to the number of faces in cortical mesh or map M.";
+SumOverFaceVerticesTr::usage = "SumOverFaceVerticesTr[M, Q] yields the vector result of summing over the vertices in the faces given in the matrix Q whose dimensions must be {3,m} where m must be equal to the number of faces in cortical mesh or map M; the result is a length n vector where n is the number of vertices.";
+SumOverFaceVertices::usage = "SumOverFaceVertices[M, Q] is equivalent to Transpose @ SumOverFaceVerticesTr[M, Transpose @ Q].";
 SumOverEdgesTr::usage = "SumOverEdgesTr[M, Q] yields the 3 x n result of summing over the edges given in the matrix Q whose first dimension must be equal to 2 and whose last dimension must be equal to the number of edges in cortical mesh or map M.";
 SumOverFaces::usage = "SumOverFaces[M, Q] yields the result of summing over the faces given in the matrix Q whose last dimension must be equal to 3 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
 SumOverEdges::usage = "SumOverEdges[M, Q] yields the result of summing over the edges given in the matrix Q whose last dimension must be equal to 2 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
@@ -1091,35 +1093,53 @@ DefineImmutable[
 
      (* #FaceAngles *)
      FaceAngleCosinesTr[mesh] :> CalculateFaceAngleCosinesTr[
-       FaceListTr[mesh],
+       VertexIndex[mesh, FaceListTr[mesh]],
        VertexCoordinatesTr[mesh]],
-     FaceAngleCosinesTr[mesh, Xtr_] := CalculateFaceAngleCosinesTr[FaceListTr[mesh], Xtr],
-     FaceAnglesTr[mesh, Xtr_]       := CalculateFaceAnglesTr[FaceListTr[mesh], Xtr],
-     FaceAngleCosines[mesh, Xx_]    := CalculateFaceAngleCosines[FaceList[mesh], Xx],
-     FaceAngles[mesh, Xx_]          := CalculateFaceAngles[FaceList[mesh], Xx],
+     FaceAngleCosinesTr[mesh, Xtr_] := CalculateFaceAngleCosinesTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       Xtr],
+     FaceAnglesTr[mesh, Xtr_] := CalculateFaceAnglesTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       Xtr],
+     FaceAngleCosines[mesh, Xx_] := CalculateFaceAngleCosines[
+       VertexIndex[mesh, FaceList[mesh]],
+       Xx],
+     FaceAngles[mesh, Xx_] := CalculateFaceAngles[VertexIndex[mesh, FaceList[mesh]], Xx],
      FaceAnglesTr[mesh]       := ArcCos @ FaceAngleCosinesTr[mesh],
      FaceAngleCosines[mesh]   := Transpose @ FaceAngleCosinesTr[mesh],
      FaceAngles[mesh]         := Transpose @ ArcCos @ FaceAngleCosinesTr[mesh],
 
      (* #FaceNormals *)
-     FaceNormalsTr[mesh] :> CalculateFaceNormalsTr[FaceListTr[mesh], VertexCoordinatesTr[mesh]],
+     FaceNormalsTr[mesh] :> CalculateFaceNormalsTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       VertexCoordinatesTr[mesh]],
      FaceNormals[mesh] := Transpose @ FaceNormalsTr[mesh],
-     FaceNormalsTr[mesh, Xtr_] := CalculateFaceNormalsTr[FaceListTr[mesh], Xtr],
-     FaceNormals[mesh, X_] := Transpose @ CalculateFaceNormalsTr[FaceListTr[mesh], Transpose @ X],
+     FaceNormalsTr[mesh, Xtr_] := CalculateFaceNormalsTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       Xtr],
+     FaceNormals[mesh, X_] := Transpose @ CalculateFaceNormalsTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       Transpose @ X],
      
      (* #FaceAxes *)
      FaceAxesTr[mesh] :> CalculateFaceAxes3DTr[
-       FaceListTr[mesh],
+       VertexIndex[mesh, FaceListTr[mesh]],
        VertexCoordinatesTr[mesh],
        FaceNormalsTr[mesh]],
      FaceAxes[mesh] := Transpose @ FaceAxesTr[mesh],
-     FaceAxesTr[mesh, Xt_] := CalculateFaceAxesTr[FaceListTr[mesh], Xt],
-     FaceAxes[mesh, Xx_] := Transpose @ CalculateFaceAxesTr[FaceListTr[mesh], Transpose @ Xx],
+     FaceAxesTr[mesh, Xt_] := CalculateFaceAxesTr[VertexIndex[mesh, FaceListTr[mesh]], Xt],
+     FaceAxes[mesh, Xx_] := Transpose @ CalculateFaceAxesTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       Transpose @ Xx],
 
      (* #FaceBisectors *)
-     FaceBisectorsTr[mesh] :> CalculateFaceBisectorsTr[FaceListTr[mesh], VertexCoordinatesTr[mesh]],
+     FaceBisectorsTr[mesh] :> CalculateFaceBisectorsTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       VertexCoordinatesTr[mesh]],
      FaceBisectors[mesh] := Transpose @ FaceBisectorsTr[mesh],
-     FaceBisectorsTr[mesh, X_] := CalculateFaceBisectorsTr[FaceListTr[mesh], X],
+     FaceBisectorsTr[mesh, X_] := CalculateFaceBisectorsTr[
+       VertexIndex[mesh, FaceListTr[mesh]],
+       X],
      FaceBisectors[mesh, X_] := Transpose @ FaceBisectorsTr[mesh, X],
 
      (* #FaceCoordinates *)
@@ -1131,11 +1151,11 @@ DefineImmutable[
 
      (* #FacePlaneCoordinates *)
      FacePlaneCoordinatesTr[mesh] :> CalculateFacePlaneCoordinatesTr[
-       FaceListTr[mesh],
+       VertexIndex[mesh, FaceListTr[mesh]],
        VerteListTr[mesh],
        FaceAxesTr[mesh]],
      FacePlaneCoordinatesTr[mesh, Xt_] := CalculateFacePlaneCoordinatesTr[
-       FaceListTr[mesh],
+       VertexIndex[mesh, FaceListTr[mesh]],
        Xt,
        FaceAxesTr[mesh, Xt]],
      FacePlaneCoordinates[mesh] := Transpose @ FacePlaneCoordinatesTr[mesh],
@@ -1152,15 +1172,15 @@ DefineImmutable[
      
      (* #EdgeLengths *)
      EdgeLengths[mesh] :> With[
-       {EL = EdgePairsTr[mesh],
+       {EL = VertexIndex[mesh, EdgePairsTr[mesh]],
         Xt = VertexCoordinatesTr[mesh]},
        Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
      EdgeLengths[mesh, X_] := With[
-       {EL = EdgePairsTr[mesh],
+       {EL = VertexIndex[mesh, EdgePairsTr[mesh]],
         Xt = Transpose @ X},
        Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
      EdgeLengthsTr[mesh, Xt_] := With[
-       {EL = EdgePairsTr[mesh]},
+       {EL = VertexIndex[mesh, EdgePairsTr[mesh]]},
        Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
      EdgeWeight[mesh] := EdgeLengths[mesh],
      EdgeWeight[mesh, e:(List|UndirectedEdge)[_Integer, _Integer]] := Part[
@@ -1186,7 +1206,7 @@ DefineImmutable[
      (* #NeighborhoodList *)
      NeighborhoodList[mesh] :> With[
        {X = VertexCoordinates[mesh],
-        E = EdgePairsTr[mesh]},
+        E = VertexIndex[mesh, EdgePairsTr[mesh]]},
        With[
          {neivecs = NeighborhoodVectors[mesh],
           neis = Part[
@@ -1669,28 +1689,34 @@ DefineImmutable[
 
      (* #FaceAngles *)
      FaceAngleCosinesTr[map] :> CalculateFaceAngleCosinesTr[
-       FaceListTr[map],
+       VertexIndex[map, FaceListTr[map]],
        VertexCoordinatesTr[map]],
-     FaceAngleCosinesTr[map, Xtr_] := CalculateFaceAngleCosinesTr[FaceListTr[map], Xtr],
-     FaceAnglesTr[map, Xtr_]       := CalculateFaceAnglesTr[FaceListTr[map], Xtr],
-     FaceAngleCosines[map, Xx_]    := CalculateFaceAngleCosines[FaceList[map], Xx],
-     FaceAngles[map, Xx_]          := CalculateFaceAngles[FaceList[map], Xx],
-     FaceAnglesTr[map]             := ArcCos @ FaceAngleCosinesTr[map],
-     FaceAngleCosines[map]         := Transpose @ FaceAngleCosinesTr[map],
-     FaceAngles[map]               := Transpose @ ArcCos @ FaceAngleCosinesTr[map],
+     FaceAngleCosinesTr[map, Xtr_] := CalculateFaceAngleCosinesTr[
+       VertexIndex[map, FaceListTr[map]],
+       Xtr],
+     FaceAnglesTr[map, Xtr_] := CalculateFaceAnglesTr[VertexIndex[map, FaceListTr[map]], Xtr],
+     FaceAngleCosines[map, Xx_] := CalculateFaceAngleCosines[VertexIndex[map, FaceList[map]], Xx],
+     FaceAngles[map, Xx_] := CalculateFaceAngles[VertexIndex[map, FaceList[map]], Xx],
+     FaceAnglesTr[map] := ArcCos @ FaceAngleCosinesTr[map],
+     FaceAngleCosines[map] := Transpose @ FaceAngleCosinesTr[map],
+     FaceAngles[map] := Transpose @ ArcCos @ FaceAngleCosinesTr[map],
 
      (* #FaceAxes *)
      FaceAxesTr[map] :> CalculateFaceAxes2DTr[
-       FaceListTr[map],
+       VertexIndex[map, FaceListTr[map]],
        VertexCoordinatesTr[map]],
      FaceAxes[map] := Transpose @ FaceAxesTr[map],
-     FaceAxesTr[map, Xt_] := CalculateFaceAxesTr[FaceListTr[map], Xt],
-     FaceAxes[map, Xx_] := Transpose @ CalculateFaceAxesTr[FaceListTr[map], Transpose @ Xx],
+     FaceAxesTr[map, Xt_] := CalculateFaceAxesTr[VertexIndex[map, FaceListTr[map]], Xt],
+     FaceAxes[map, Xx_] := Transpose @ CalculateFaceAxesTr[
+       VertexIndex[map, FaceListTr[map]],
+       Transpose @ Xx],
 
      (* #FaceBisectors *)
-     FaceBisectorsTr[map] :> CalculateFaceBisectorsTr[FaceListTr[map], VertexCoordinatesTr[map]],
+     FaceBisectorsTr[map] :> CalculateFaceBisectorsTr[
+       VertexIndex[map, FaceListTr[map]],
+       VertexCoordinatesTr[map]],
      FaceBisectors[map] := Transpose @ FaceBisectorsTr[map],
-     FaceBisectorsTr[map, X_] := CalculateFaceBisectorsTr[FaceListTr[map], X],
+     FaceBisectorsTr[map, X_] := CalculateFaceBisectorsTr[VertexIndex[map, FaceListTr[map]], X],
      FaceBisectors[map, X_] := Transpose @ FaceBisectorsTr[map, X],
 
      (* #FaceCoordinates *)
@@ -1702,11 +1728,11 @@ DefineImmutable[
 
      (* #FacePlaneCoordinates *)
      FacePlaneCoordinatesTr[map] :> CalculateFacePlaneCoordinatesTr[
-       FaceListTr[map],
+       VertexIndex[map, FaceListTr[map]],
        VerteListTr[map],
        FaceAxesTr[map]],
      FacePlaneCoordinatesTr[map, Xt_] := CalculateFacePlaneCoordinatesTr[
-       FaceListTr[map],
+       VertexIndex[map, FaceListTr[map]],
        Xt,
        FaceAxesTr[map, Xt]],
      FacePlaneCoordinates[map] := Transpose @ FacePlaneCoordinatesTr[map],
