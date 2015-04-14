@@ -1654,9 +1654,9 @@ DefineImmutable[
 
      (* #SumOverFacesMatrix and #SumOverEdgesMatrix *)
      SumOverFacesMatrix[map] :> SparseArray[
-       Transpose[{Range[3*FaceCount[map]], Join @@ FaceListTr[map]}] -> 1],
+       Transpose[{Range[3*FaceCount[map]], Join @@ VertexIndex[map, FaceListTr[map]]}] -> 1],
      SumOverEdgesMatrix[map] :> SparseArray[
-       Transpose[{Range[2*EdgeCount[map]], Join @@ EdgePairsTr[map]}] -> 1],
+       Transpose[{Range[2*EdgeCount[map]], Join @@ VertexIndex[map, EdgePairsTr[map]]}] -> 1],
      (* #SumOverFaces *)
      SumOverFacesTr[map, datat_] := Dot[
        MapThread[Join, {datat, datat, datat}],
@@ -1670,6 +1670,12 @@ DefineImmutable[
        SumOverEdgesMatrix[map]],
      SumOverEdges[map, data_] := Dot[
        Transpose @ Join[data, data],
+       SumOverEdgesMatrix[map]],
+     SumOverEdgesDirectedTr[map, datat_] := Dot[
+       MapThread[Join, {datat, -datat}],
+       SumOverEdgesMatrix[map]],
+     SumOverEdgesDirected[map, data_] := Dot[
+       Transpose @ Join[data, -data],
        SumOverEdgesMatrix[map]],
      SumOverEdgeVerticesTr[map, datat_] := Dot[Join @@ datat, SumOverEdgesMatrix[map]],
      SumOverEdgeVertices[map, data_] := Dot[Join @@ Transpose[data], SumOverEdgesMatrix[map]],
@@ -1761,7 +1767,15 @@ DefineImmutable[
        EdgeIndex[map, es]],
      EdgeWeight[map, es:{(List|UndirectedEdge)[_Integer, _Integer]..}] := Part[
        EdgeLengths[map],
-       EdgeIndex[map, ReplaceAll[es, UndirectedEdges -> List]]]
+       EdgeIndex[map, ReplaceAll[es, UndirectedEdges -> List]]],
+     EdgeLengths[map, X_] := With[
+       {EL = VertexIndex[map, EdgePairsTr[map]],
+        Xt = Transpose @ X},
+       Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
+     EdgeLengthsTr[map, Xt_] := With[
+       {EL = VertexIndex[map, EdgePairsTr[map]]},
+       Sqrt @ Total[(Xt[[All, EL[[1]]]] - Xt[[All, EL[[2]]]])^2]],
+
 
      (* ------------------------------------- Neighborhoods ------------------------------------- *)
 

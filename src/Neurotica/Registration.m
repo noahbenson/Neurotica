@@ -421,6 +421,7 @@ HarmonicEdgePotential[mesh_?CorticalMeshQ] := With[
          With[
            {magnitude = (norms - D0) / m},
            SumOverEdgesDirectedTr[
+             mesh,
              dX / {norms, norms, norms} * {magnitude, magnitude, magnitude}]]]]},
     f /: Grad[f, Xarg_List] := Apply[
       Join,
@@ -431,7 +432,7 @@ HarmonicEdgePotential[mesh_?CorticalMeshQ] := With[
 HarmonicEdgePotential[mesh_?CorticalMapQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
    D0 = EdgeLengths[mesh],
-   E = EdgePairsTr[mesh],
+   E = VertexIndex[mesh, EdgePairsTr[mesh]],
    m = EdgeCount[mesh],
    f = TemporarySymbol["edgePotential"]},
   With[
@@ -441,7 +442,7 @@ HarmonicEdgePotential[mesh_?CorticalMapQ] := With[
          {norms = Sqrt[Total[dX^2]]},
          With[
            {magnitude = (norms - D0) / m},
-           SumOverEdgesDirectedTr[dX / {norms, norms} * {magnitude, magnitude}]]]]},
+           SumOverEdgesDirectedTr[mesh, dX / {norms, norms} * {magnitude, magnitude}]]]]},
     f /: Grad[f, Xarg_List] := Apply[
       Join,
       If[Length[Xarg] == 2, df[Xarg], Transpose @ df[Transpose @ Xarg]]];
@@ -461,13 +462,17 @@ HarmonicAnglePotential[mesh_?CorticalMeshQ] := With[
     {Xt = If[Length[Xarg] == 3, Xarg, Transpose @ Xarg]},
     Join @@ With[
       {corners0 = Xt[[All, #]]& /@ Ft},
+      (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y, z} (3 x n) *)
       With[
-        {grad = Sum[
+        {facesGrad = Sum[
           Apply[
             CalculateHarmonicAngleGradient3D,
             Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
           {i, 0, 2}]},
-        Join @@ If[Length[Xarg] == 3, Transpose @ grad, grad] / n]]];
+        (* facesGrad: same format as corners0 *)
+        With[
+          {grad = Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, 3}]},
+          If[Length[Xarg] == 3, grad, Transpose @ grad] / n]]]];
   f[Xarg_List] := With[
     {Xt = If[Length[Xarg] == 3, Xarg, Transpose @ Xarg]},
     With[
@@ -488,13 +493,19 @@ HarmonicAnglePotential[mesh_?CorticalMapQ] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
     Join @@ With[
       {corners0 = Xt[[All, #]]& /@ Ft},
+      (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y, z} (3 x n) *)
       With[
-        {grad = Sum[
+        {facesGrad = Sum[
           Apply[
             CalculateHarmonicAngleGradient2D,
             Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
           {i, 0, 2}]},
-        Join @@ If[Length[Xarg] == 2, Transpose @ grad, grad] / n]]];
+        (* facesGrad: same format as corners0 *)
+        With[
+          {grad = {
+             SumOverFaceVerticesTr[mesh, facesGrad[[All, 1]]],
+             SumOverFaceVerticesTr[mesh, facesGrad[[All, 1]]]}},
+          If[Length[Xarg] == 2, grad, Transpose @ grad] / n]]]];
   f[Xarg_List] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
     With[

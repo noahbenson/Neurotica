@@ -125,10 +125,14 @@ FreeSurferSubjectParcellation::usage = "FreeSurferSubjectParcellation[sub, hemi]
 FreeSurferSubjectParcellation2009::usage = "FreeSurferSubjectParcellation[sub, hemi] yields the 2009 cortical surface parcellation for subject sub's given hemisphere.";
 FreeSurferSubjectParcellation2005::usage = "FreeSurferSubjectParcellation[sub, hemi] yields the 2005 cortical surface parcellation for subject sub's given hemisphere.";
 FreeSurferSubjectBrodmannLabelList::usage = "FreeSurferSubjectBrodmannLabelList[sub, hemi] yields a list of the names of the available Brodmann area labels for the given subject and hemisphere.";
-FreeSurferSubjectBrodmannLabels::usage = "FreeSurferSubjectBrodmannLabels[sub, hemi] yields a list of the Brodmann labels for each vertex in the surface of the given FreeSurfer subject's given hemisphere.";
-FreeSurferSubjectBrodmannThresholds::usage = "FreeSurferSubjectBrodmannThresholds[sub, hemi] yields an association of each Brodmann area number supported by freesurfer, paired to a list of the probability thresholds for each vertex in the surface of the given FreeSurfer subject's given hemisphere.";
-FreeSurferSubjectV1Label::usage = "FreeSurferSubjectV1Label[sub, hemi] yields a binary (1/0) mask of the location of V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
-FreeSurferSubjectV1Threshold::usage = "FreeSurferSubjectV1Label[sub, hemi] yields an overlay of the probability of each vertex belonging to V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectBrodmannThresholdedLabels::usage = "FreeSurferSubjectBrodmannLabels[sub, hemi] yields a list of the Brodmann labels for each vertex in the surface of the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectBrodmannsLabels::usage = "FreeSurferSubjectBrodmannThresholds[sub, hemi] yields an association of each Brodmann area number supported by freesurfer, paired to a list of the probability thresholds for each vertex in the surface of the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectV1ThresholdedLabel::usage = "FreeSurferSubjectV1ThresholdedLabel[sub, hemi] yields a binary (1/0) mask of the location of V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectV1Label::usage = "FreeSurferSubjectV1Label[sub, hemi] yields an overlay of the probability of each vertex belonging to V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectV2ThresholdedLabel::usage = "FreeSurferSubjectV1ThresholdedLabel[sub, hemi] yields a binary (1/0) mask of the location of V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectV2Label::usage = "FreeSurferSubjectV1Label[sub, hemi] yields an overlay of the probability of each vertex belonging to V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectMTThresholdedLabel::usage = "FreeSurferSubjectV1ThresholdedLabel[sub, hemi] yields a binary (1/0) mask of the location of V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
+FreeSurferSubjectMTLabel::usage = "FreeSurferSubjectV1Label[sub, hemi] yields an overlay of the probability of each vertex belonging to V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
 
 FreeSurfer::nolabel = "The FreeSurferColorLUT.txt file could not be found. This file is normally in your FreeSurfer home directory. Try adding a FreeSurfer home directory (via AddFreeSurferHome[]) and re-evaluating.";
 FreeSurfer::notfound = "Data not found: `1`";
@@ -981,7 +985,9 @@ ImportLabel[filename_, options___] := Check[
      opts = {options},
      inval = True /. Append[{options}, True -> 1]},
     SparseArray[
-      Map[(#[[1]] -> inval)&, dat],
+      If[inval == "Unthresholded",
+        Map[(#[[1]] -> #[[2,2]])&, dat],
+        Map[(#[[1]] -> inval)&, dat]],
       {Max /. Append[opts, Max :> Max[dat[[All,1]]]]},
       False /. Append[opts, False -> 0]]],
   $Failed];
@@ -1384,11 +1390,29 @@ FreeSurferSubjectSimpleLabel[sub_String /; DirectoryQ[sub], hemi:(LH|RH|RHX), la
         dirstr = If[hemi === RHX, 
           FileNameJoin[{sub, "xhemi", "label"}],
           FileNameJoin[{sub, "label"}]]},
-       Import[FileNameJoin[{dirstr, hemistr <> "." <> label <> ".label"}], "FreeSurferLabel"]],
+       Import[FileNameJoin[{dirstr, hemistr <> "." <> label <> ".label"}], 
+              "FreeSurferLabel",
+              True -> "Unthresholded"]],
      $Failed]},
   If[dat === $Failed, 
     $Failed,
     Set[FreeSurferSubjectSimpleLabel[sub, hemi, surf], dat]]];
+FreeSurferSubjectSimpleThresholdedLabel[sub_String /; DirectoryQ[sub], 
+                                        hemi:(LH|RH|RHX),
+                                        label_String] := With[
+  {dat = Check[
+     With[
+       {hemistr = Replace[hemi, {(LH|RHX) -> "lh", RH -> "rh"}],
+        dirstr = If[hemi === RHX, 
+          FileNameJoin[{sub, "xhemi", "label"}],
+          FileNameJoin[{sub, "label"}]]},
+       Import[FileNameJoin[{dirstr, hemistr <> "." <> label <> ".label"}], 
+              "FreeSurferLabel",
+              True -> 1]],
+     $Failed]},
+  If[dat === $Failed, 
+    $Failed,
+    Set[FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, surf], dat]]];
 
 (* FreeSurferSubjectLinearTransform ***************************************************************)
 FreeSurferSubjectLinearTransform[sub_String, name_String] := Check[
@@ -1485,23 +1509,23 @@ FreeSurferSubjectParcellation2009[sub_String, hemi:(LH|RH|RHX)] := FreeSurferSub
 FreeSurferSubjectParcellation2005[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleAnnot[sub, hemi, "aparc.annot"],
   $Failed];
-FreeSurferSubjectV1Label[sub_String, hemi:(LH|RH|RHX)] := Check[
-  FreeSurferSubjectSimpleLabel[sub, hemi, "V1"],
+FreeSurferSubjectV1ThresholdedLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, "v1.predict"],
   $Failed];
-FreeSurferSubjectV1Threshold[sub_String, hemi:(LH|RH|RHX)] := Check[
-  FreeSurferSubjectSimpleLabel[sub, hemi, "V1.thresh"],
+FreeSurferSubjectV1Label[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleLabel[sub, hemi, "v1.prob"],
+  $Failed];
+FreeSurferSubjectV2ThresholdedLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, "V2.thresh"],
   $Failed];
 FreeSurferSubjectV2Label[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleLabel[sub, hemi, "V2"],
   $Failed];
-FreeSurferSubjectV2Threshold[sub_String, hemi:(LH|RH|RHX)] := Check[
-  FreeSurferSubjectSimpleLabel[sub, hemi, "V2.thresh"],
+FreeSurferSubjectMTThresholdedLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
+  FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, "MT.thresh"],
   $Failed];
 FreeSurferSubjectMTLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleLabel[sub, hemi, "MT"],
-  $Failed];
-FreeSurferSubjectMTThreshold[sub_String, hemi:(LH|RH|RHX)] := Check[
-  FreeSurferSubjectSimpleLabel[sub, hemi, "MT.thresh"],
   $Failed];
 FreeSurferSubjectBrodmannLabelList[sub_String, hemi:(LH|RH|RHX)] := Check[
   Map[
@@ -1509,8 +1533,19 @@ FreeSurferSubjectBrodmannLabelList[sub_String, hemi:(LH|RH|RHX)] := Check[
     FileNames @ FileNameJoin[
       Join[
         If[hemi === RHX, {sub, "xhemi", "label"}, {sub, "label"}],
-        {".BA*.thresh.label"}]]],
+        {If[hemi === RH, "rh", "lh"] <> ".BA*.thresh.label"}]]],
   $Failed];
+FreeSurferSubjectBrodmannThresholdedLabels[sub_String, hemi:(LH|RH|RHX)] := With[
+  {res = Check[
+     With[
+       {list = FreeSurferSubjectBrodmannLabelList[sub, hemi]},
+       If[list === $Failed,
+         $Failed,
+         Association @ Map[
+           Function[# -> FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, # <> ".thresh"]],
+           list]]],
+     $Failed]},
+  If[res === $Failed, res, (FreeSurferSubjectBrodmannLabels[sub, hemi] = res)]];
 FreeSurferSubjectBrodmannLabels[sub_String, hemi:(LH|RH|RHX)] := With[
   {res = Check[
      With[
@@ -1519,17 +1554,6 @@ FreeSurferSubjectBrodmannLabels[sub_String, hemi:(LH|RH|RHX)] := With[
          $Failed,
          Association @ Map[
            Function[# -> FreeSurferSubjectSimpleLabel[sub, hemi, #]],
-           list]]],
-     $Failed]},
-  If[res === $Failed, res, (FreeSurferSubjectBrodmannLabels[sub, hemi] = res)]];
-FreeSurferSubjectBrodmannThresholds[sub_String, hemi:(LH|RH|RHX)] := With[
-  {res = Check[
-     With[
-       {list = FreeSurferSubjectBrodmannLabelList[sub, hemi]},
-       If[list === $Failed,
-         $Failed,
-         Association @ Map[
-           Function[# -> FreeSurferSubjectSimpleLabel[sub, hemi, # <> ".thresh"]],
            list]]],
      $Failed]},
   If[res === $Failed, res, (FreeSurferSubjectBrodmannThresholds[sub, hemi] = res)]];
@@ -1583,9 +1607,9 @@ Protect[FreeSurferSubjectJacobian, FreeSurferSubjectCurvature,
         FreeSurferSubjectParcellation,
         FreeSurferSubjectParcellation2009,
         FreeSurferSubjectParcellation2005,
-        FreeSurferSubjectV1Label, FreeSurferSubjectV1Threshold,
-        FreeSurferSubjectV2Label, FreeSurferSubjectV2Threshold,
-        FreeSurferSubjectMTLabel, FreeSurferSubjectMTThreshold,
+        FreeSurferSubjectV1Label, FreeSurferSubjectV1ThresholdedLabel,
+        FreeSurferSubjectV2Label, FreeSurferSubjectV2ThresholdedLabel,
+        FreeSurferSubjectMTLabel, FreeSurferSubjectMTThresholdedLabel,
         FreeSurferSubjectBrodmannLabelList,
         FreeSurferSubjectThickness,
         FreeSurferSubjectPialOP, FreeSurferSubjectWhiteOP, 
@@ -1683,21 +1707,30 @@ DefineImmutable[
        "Parcellation2005"        -> {LH  :> FreeSurferSubjectParcellation2005[path, LH],
                                      RH  :> FreeSurferSubjectParcellation2005[path, RH],
                                      RHX :> FreeSurferSubjectParcellation2005[path, RHX]},
-       "V1Label"                 -> {LH  :> FreeSurferSubjectV1Label[path, LH],
+       "V1Probability"           -> {LH  :> FreeSurferSubjectV1Label[path, LH],
                                      RH  :> FreeSurferSubjectV1Label[path, RH],
                                      RHX :> FreeSurferSubjectV1Label[path, RHX]},
-       "V2Label"                 -> {LH  :> FreeSurferSubjectV2Label[path, LH],
+       "V2Probability"           -> {LH  :> FreeSurferSubjectV2Label[path, LH],
                                      RH  :> FreeSurferSubjectV2Label[path, RH],
                                      RHX :> FreeSurferSubjectV2Label[path, RHX]},
-       "MTLabel"                 -> {LH  :> FreeSurferSubjectMTLabel[path, LH],
+       "MTProbability"           -> {LH  :> FreeSurferSubjectMTLabel[path, LH],
                                      RH  :> FreeSurferSubjectMTLabel[path, RH],
                                      RHX :> FreeSurferSubjectMTLabel[path, RHX]},
-       "BrodmannLabels"          -> {LH  :> FreeSurferSubjectBrodmannLabels[path, LH],
+       "V1Label"                 -> {LH  :> FreeSurferSubjectV1ThresholdedLabel[path, LH],
+                                     RH  :> FreeSurferSubjectV1ThresholdedLabel[path, RH],
+                                     RHX :> FreeSurferSubjectV1ThresholdedLabel[path, RHX]},
+       "V2Label"                 -> {LH  :> FreeSurferSubjectV2ThresholdedLabel[path, LH],
+                                     RH  :> FreeSurferSubjectV2ThresholdedLabel[path, RH],
+                                     RHX :> FreeSurferSubjectV2ThresholdedLabel[path, RHX]},
+       "MTLabel"                 -> {LH  :> FreeSurferSubjectMTThresholdedLabel[path, LH],
+                                     RH  :> FreeSurferSubjectMTThresholdedLabel[path, RH],
+                                     RHX :> FreeSurferSubjectMTThresholdedLabel[path, RHX]},
+       "BrodmannLabels"          -> {LH  :> FreeSurferSubjectBrodmannThresholdedLabels[path, LH],
+                                     RH  :> FreeSurferSubjectBrodmannThresholdedLabels[path, RH],
+                                     RHX :> FreeSurferSubjectBrodmannThresholdedLabels[path, RHX]},
+       "BrodmannProbabilities"   -> {LH  :> FreeSurferSubjectBrodmannLabels[path, LH],
                                      RH  :> FreeSurferSubjectBrodmannLabels[path, RH],
                                      RHX :> FreeSurferSubjectBrodmannLabels[path, RHX]},
-       "BrodmannThresholds"      -> {LH  :> FreeSurferSubjectBrodmannThresholds[path, LH],
-                                     RH  :> FreeSurferSubjectBrodmannThresholds[path, RH],
-                                     RHX :> FreeSurferSubjectBrodmannThresholds[path, RHX]},
        "OccipitalPoleIndex"      -> {LH  :> FreeSurferSubjectOP[path, LH],
                                      RH  :> FreeSurferSubjectOP[path, RH],
                                      RHX :> FreeSurferSubjectOP[path, RHX]},
@@ -1728,7 +1761,13 @@ DefineImmutable[
           "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
           "Parcellation" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed],
           "V1Label" :> Quiet@Check[assoc["V1Label"][hemi], $Failed],
-          "BrodmannLabels" :> Quiet@Check[assoc["BrodmannLabels"][hemi], $Failed]}]]],
+          "V2Label" :> Quiet@Check[assoc["V2Label"][hemi], $Failed],
+          "MTLabel" :> Quiet@Check[assoc["MTLabel"][hemi], $Failed],
+          "BrodmannLabels" :> Quiet@Check[assoc["BrodmannLabels"][hemi], $Failed],
+          "V1Probability" :> Quiet@Check[assoc["V1Probability"][hemi], $Failed],
+          "V2Probability" :> Quiet@Check[assoc["V2Probability"][hemi], $Failed],
+          "MTProbability" :> Quiet@Check[assoc["MTProbability"][hemi], $Failed],
+          "BrodmannThresholds" :> Quiet@Check[assoc["BrodmannProbabilities"][hemi], $Failed]}]]],
    (* We can also get the occipital pole in a similar way... *)
    OccipitalPoleIndex[sub, hemi:(LH|RH|RHX)] := Check[
      FreeSurferSubjectOP[Path[sub], hemi],
