@@ -333,7 +333,7 @@ ImportNifTI1Header[stream_, opts___Rule] := Check[
           "Datatype" -> {"Integer16", 1, NifTIDatatypeTranslate[#[[1]]]&},
           "BitsPerVoxel" -> "Integer16",
           "SliceStart" -> "Integer16",
-          "GridSpacings" -> {"Real32", 8},
+          "VoxelDimensions" -> {"Real32", 8},
           "VoxelOffset" -> {"Real32", 1, Max[{#[[1]], $MinNifTI1Offset}]&},
           "ScaleSlope" -> "Real32",
           "ScaleIntercept" -> "Real32",
@@ -361,11 +361,14 @@ ImportNifTI1Header[stream_, opts___Rule] := Check[
         raw,
         "Header" -> Join[
           With[
-            {dims = "Dimensions" /. raw},
-            Replace[
-              raw, 
-              ("GridSpacings" -> gs_) :> ("GridSpacings" -> gs[[2 ;; (Length[dims] + 1)]]),
-              {1}]],
+            {dims = "Dimensions" /. raw,
+             pixdim = "VoxelDimensions" /. raw},
+            Append[
+              Replace[
+                raw,
+                ("VoxelDimensions" -> d_) :> ("VoxelDimensions"->d[[2 ;; (Length[dims] + 1)]]),
+                {1}],
+              "Pixdim0" -> pixdim[[1]]]],
           {"ByteOrdering" -> $ByteOrdering,
            "Extension" -> With[
              {ext = NestWhileList[
@@ -448,7 +451,7 @@ ImportNifTI2Header[stream_, opts___Rule] := Check[
           "BitsPerVoxel" -> "Integer16",
           "Dimensions" -> {"Integer64", 8, #[[2 ;; (#[[1]] + 1)]]&},
           "IntentParameters" -> {"Real64", 3},
-          "GridSpacings" -> {"Real64", 8},
+          "VoxelDimensions" -> {"Real64", 8},
           "VoxelOffset" -> {"Integer64", 1, Max[{#[[1]], $MinNifTI2Offset}]&},          
           "ScaleSlope" -> "Real64",
           "ScaleIntercept" -> "Real64",
@@ -473,11 +476,14 @@ ImportNifTI2Header[stream_, opts___Rule] := Check[
         raw,
         "Header" -> Join[
           With[
-            {dims = "Dimensions" /. raw},
-            Replace[
-              raw, 
-              ("GridSpacings" -> gs_) :> ("GridSpacings" -> gs[[2 ;; (Length[dims] + 1)]]),
-              {1}]],
+            {dims = "Dimensions" /. raw,
+             pixdims = "VoxelDimensions" /. raw},
+            Append[
+              Replace[
+                raw, 
+                ("VoxelDimensions" -> d_) :> ("VoxelDimensions" -> d[[2 ;; (Length[dims] + 1)]]),
+                {1}],
+              "Pixdim0" -> pixdims[[1]]]],
           {"ByteOrdering" -> $ByteOrdering,
            "Extension" -> With[
              {ext = NestWhileList[
@@ -556,9 +562,20 @@ InterpretNifTI[data_List] := With[
     {dims = Dimensions[voxels]},
     If[Count[dims, 1, {1}] == Length[dims] - 1,
       Flatten[voxels],
+      With[
+        {qcode = "QFormCode" /. header,
+         scode = "SFormCode" /. header},
       MRImage3D[
-        voxels,
-        MetaInformation -> {"Header" -> header}]]]];
+        Map[Reverse, voxels, {0,1}],
+        VoxelDimensions -> ("VoxelDimensions" /. header),
+        Sequence @@ If[qcode > 0, 
+          With[
+            {mtx = QuaternionToRotationMatrix[("Quaternions" /. header)[[1;;3]]]},
+            {RightDirectionVector -> mtx[[1]],
+             AnteriorDirectionVector -> mtx[[2]],
+             SuperiorDirectionVector -> mtx[[3]]}],
+          {}],
+        MetaInformation -> header]]]]];
 
 ImportNifTI[stream_, opts___Rule] := Check[
   With[

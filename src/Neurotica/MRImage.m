@@ -22,15 +22,27 @@ BeginPackage["Neurotica`MRImage`", {"Neurotica`Global`", "Neurotica`Util`"}];
 Unprotect["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
 ClearAll["Neurotica`MRImage`*", "Neurotica`MRImage`Private`*"];
 
-MRImage3D::usage = "MRImage3D[data] yields an Image3D-like form that can be used with Image3D functions but which stores additional relevant data regarding MR images.";
+MRImage3D::usage = "MRImage3D[data] yields an Image3D-like form that can be used with Image3D functions but which stores additional relevant data regarding MR images. MRImage3D accepts all the options that can be passed to Image3D as well as the following:
+  * Indeterminate (defailt: Min) specifies what value should be filled in for Indeterminate voxel values when drawing the Image3D representation; any key of MRImageStatistics may be given.
+  * None (default: Min) specifies the value that should be filled in for None voxel values.
+  * RightDirectionVector, AnteriorDirectionVector, and SuperiorDirectionVector (defaults: Indeterminate) are necessary for acurrate MRISlice and MRIOrient function calls; these each specify a vector telling which direction in the image is right, anterior, or superior, respectively. The vectors are interpreted to be in a space such that the vectors {1,0,0}, {0,1,0}, and {0,0,1} point from the center of voxel [[i,j,k]] to the centers of voxels [[i+1,j,k]], [[i,j+1,k]], and [[i,j,k+1]], respectively.
+  * Center (default: Automatic) specifies the center of the brain or item of interest in the MRImage; if Automatic is given, then ImageDimensions/2 is used, otherwise a 3D vector in terms of voxel indices should be given (same coordinate orientation as for the direction vectors, e.g. RightDirectionVector).
+  * VoxelDimensions (default: {1,1,1}) specifies the spatial dimensions of the voxels. Quantity units may be given.";
+
 MRImage3D::badarg = "Bad argument given to MRImage3D: `1`";
 
 MRImage::usage = "MRImage[data] yields an Image-like form that can be used with Image functions but which stores additional relevant data regarding MR images.
 Note that MRImage is intended for MRI slices rather than for 3D images; for a 3D image representation, use MRImage3D.";
 MRImage::badarg = "Bad argument given to MRImage: `1`";
 
-MRImageMax::usage = "MRImageMax[mrimg] yields the maximum value of all voxels in the given MRImage object mrimg.";
-MRImageMin::usage = "MRImageMin[mrimg] yields the minimum value of all voxels in the given MRImage object mrimg.";
+MRImageStatistics::usage = "MRImageStatistics[mrimg] yields an association of a few critical statistics of all the valid numerical values in the image; these statistics are Min, Max, Mean, Median, Variance, Count, and Missing. For more information, see MRImageMax, MRImageCount, etc.";
+MRImageMax::usage = "MRImageMax[mrimg] yields the maximum value of all voxels in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
+MRImageMin::usage = "MRImageMin[mrimg] yields the minimum value of all voxels in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
+MRImageMean::usage = "MRImageMean[mrimg] yields the mean value of all voxels in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
+MRImageMedian::usage = "MRImageMedian[mrimg] yields the median value of all voxels in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
+MRImageVariance::usage = "MRImageVariance[mrimg] yields the variance of all voxels in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
+MRImageCount::usage = "MRImageCount[mrimg] yields the number of valid (numerical) values, including separate frames of the image, in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
+MRImageMissing::usage = "MRImageMissing[mrimg] yields the number of invalid (Indeterminate or None) values, including separate frames of the image, in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
 
 MRImageQ::usage = "MRImageQ[img] yields True if img is a valid MRImage3D object and yields False otherwise.";
 MRImageSliceQ::usage = "MRImageSliceQ[img] yields True if img is a valid MRImage object and yields False otherwise.";
@@ -625,7 +637,9 @@ Options[MRImage3D] = Join[
    AnteriorDirectionVector -> Indeterminate,
    SuperiorDirectionVector -> Indeterminate,
    Center -> Automatic,
-   VoxelDimensions -> {1,1,1}},
+   VoxelDimensions -> {1,1,1},
+   Indeterminate -> Min,
+   None -> Min},
   Replace[
     Options[Image3D],
     {(ColorFunction -> _) -> (ColorFunction -> "XRay"),
@@ -647,10 +661,30 @@ DefineImmutable[
       $MRImageSharedMethods,
       Hold[
         (* Retreive (or edit) the raw image data *)
-        ImageData[img] = ReplaceAll[N[data], Indeterminate -> 0],
+        ImageData[img] = N[data],
         (* Access the scale factors of min and max for the data *)
-        MRImageMax[img] -> Max[Flatten@ImageData[img]],
-        MRImageMin[img] -> Min[Flatten@ImageData[img]],
+        MRImageStatistics[img] -> Fold[
+          Function @ If[AssociationQ[#1],
+            #1,
+            With[
+              {min = Min[#1]},
+              Which[
+                NumericQ[min], Association[
+                  {Min -> min, Max -> Max[#1],
+                   Mean -> Mean[#1], Median -> Median[#1],
+                   Variance -> Variance[#1], Count -> Length[#1],
+                   Missing -> ((Times @@ Dimensions[ImageData[img]]) - Length[#1])}],
+                MatchQ[max, #2[[1]]], DeleteCases[#1, #2[[2]], {3}],
+                True, #1]]],
+          Flatten @ ImageData[img],
+          {Indeterminate -> Indeterminate, Max[_, None] -> None}],
+        MRImageMax[img] := MRImageStatistics[img][Max],
+        MRImageMin[img] := MRImageStatistics[img][Min],
+        MRImageMean[img] := MRImageStatistics[img][Mean],
+        MRImageMedian[img] := MRImageStatistics[img][Median],
+        MRImageVariance[img] := MRImageStatistics[img][Variance],
+        MRImageCount[img] := MRImageStatistics[img][Count],
+        MRImageMissing[img] := MRImageStatistics[img][Missing],
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
         (* Obtain a few options specifically! *)
@@ -683,8 +717,8 @@ DefineImmutable[
             mtx,
             AffineTransform[{mtx[[1;;3, 1;;3]], mtx[[1;;3, 4]]}]]],
                 
-        (* The image as it is represented internally *)
-        Image3D[img] -> With[
+        (* This is an MRImage... Checks of data quality should go here as well. *)
+        MRImageQ[img] -> With[
           {dat = ImageData[img],
            opts = Options[img]},
           With[
@@ -712,14 +746,25 @@ DefineImmutable[
               !ArrayQ[vdims, 1, NumericQ] || Length[vdims] != 3, Message[
                 MRImage3D::badarg,
                 "VodelDimensions must be Indeterminate or a 3-element numeric vector"],
-              True, Image3D[
-                (dat - MRImageMin[img]) / (MRImageMax[img] - MRImageMin[img]),
-                (*"Real32",*)
-                Sequence@@FilterRules[opts, Options[Image3D][[All,1]]]]]]],
-        
-        (* This is an MRImage... Checks of data quality should go here as well. *)
-        MRImageQ[img] -> True,
+              NumericQ[MRImageMax[img]] && NumericQ[MRImageMin[img]], Message[
+                MRImage3D::badarg,
+                "Image data may only contain numeric, Indeterminate, or None values"],
+              True, True]]],
 
+        (* The image as it is represented internally *)
+        Image3D[img] :> With[
+          {stats = MRImageStatistics[img],
+           opts = Options[img]},
+          Image3D[
+            Rescale[
+              If[stats[Missing] == 0,
+                dat, 
+                dat /. {
+                  Indeterminate -> (If[KeyExistsQ[stats, #], stats[#], #]& @ (Indeterminate /. opts)),
+                  None -> (If[KeyExistsQ[stats, #], stats[#], #]& @ (None /. opts))}],
+              {stats[Min], stats[Max]}],
+            Sequence@@FilterRules[opts, Options[Image3D][[All,1]]]]],
+        
         (* This produces slices, but the preferred method is to use MRISlices[], below. *)
         Image3DSlices[img, opts___] := With[
           {max = MRImageMax[img],
@@ -818,8 +863,11 @@ Protect[MRImageObjectQ, MRImageQ, MRImageSliceQ];
 
 (* and some others *)
 Protect[
-  RightDirectionVector, AnteriorDirectionVector, SuperiorDirectionVector,
-  VoxelDimensions, PixelDimensions];
+  RightDirectionVector, AnteriorDirectionVector, SuperiorDirectionVector, 
+  VoxelDimensions, PixelDimensions,
+  MRImageStatistics, MRImageMin, MRImageMax,
+  MRImageMean, MRImageMedian, MRImageVariance,
+  MRImageCount, MRImageMissing];
 
 (* #MRIORientMatrix *******************************************************************************)
 MRIOrientMatrix[img_?MRImageQ, spec:{_,_,_}, dims:{_,_,_}] := Catch @ With[

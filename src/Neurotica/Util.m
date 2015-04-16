@@ -77,6 +77,9 @@ NormalizeColumns::usage = "NormalizeColumns[X] yields a transformation of the ma
 RowNorms::usage = "RowNorms[X] yields the equivalent of Norm /@ X but has been optimized for speed.";
 ColumnNorms::usage = "ColumnNorms[X] yields the equivalent of Norm /@ Transpose[X] but has been optimized for speed.";
 
+QuaternionToRotationMatrix::usage = "QuaternionToRotationMatrix[{x,y,z,w}] yields the rotation matrix associated with the quaternion {x,y,z,w}.
+QuaternionToRotationMatrix[{y, z, q}] is equivalent to QuaternionToRotationMatrix[{x,y,z,q}] where x is Sqrt[1 - (x^2 + y^2 + z^2)].";
+
 ReadBinaryStructure::usage = "ReadBinaryStructure[stream, instructionsList] yields the data structure result of importing the given instructions via BinaryReadList. Instructions may take the following format:
   * type (e.g., \"Integer32\" or \"Real64\") are read as is;
   * {type, n} reads in a list of n of the given type (if n is 1 then a 1-element list is returned);
@@ -611,6 +614,15 @@ Protext[RowNorms];
 ColumnNorms[Xt_] := Sqrt @ Total[Xt^2];
 ColumnNorms[{}] = {};
 Protext[ColumnNorms];
+
+(* #QuaternionToRotationMatrix *******************************************************************)
+QuaternionToRotationMatrix[{a_, b_, c_, d_}] := {
+  {a^2 + b^2 - c^2 - d^2, 2*b*c - 2*a*d, 2*b*d + 2*a*c},
+  {2*b*c + 2*a*d, a^2 + c^2 - b^2 - d^2,   2*c*d - 2*a*b},
+  {2*b*d - 2*a*c, 2*c*d + 2*a*b, a^2 + d^2 - c^2 - b^2}};
+QuaterionToRotationMatrix[{b_, c_, d_}] := QuaternionToRotationMatrix[
+  {Sqrt[1.0 - (b^2 + c^2 + d^2)], b, c, d}];
+Protect[QuaternionToRotationMatrix];
 
 (* #BinaryStringFix *******************************************************************************)
 BinaryStringFix[clist_] := StringJoin[TakeWhile[clist, ToCharacterCode[#] != {0}&]];
