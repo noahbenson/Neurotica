@@ -146,7 +146,7 @@ CalculateHarmonicAngleGradient2D = ReplacePart[
                   Normalize[{x2 - x0, y2 - y0}]]] - th0)^2,
              Assumptions -> Element[{x0, y0, x1, y1, x2, y2}, Reals]],
            {x0, y0, x1, y1, x2, y2}]},
-        Hold[grad, 3]]],
+        Hold[grad, 2]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
     Parallelization -> True],
   {{2,0} -> Partition,
@@ -184,7 +184,7 @@ CalculateCosineAngleGradient3D = ReplacePart[
                 Normalize[{x2 - x0, y2 - y0, z2 - z0}]] - cos0)^2,
              Assumptions -> Element[{x0, y0, z0, x1, y1, z1, x2, y2, z2}, Reals]],
            {x0, y0, z0, x1, y1, z1, x2, y2, z2}]},
-        Hold[grad, 3]]],
+        Hold[grad, 2]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
     Parallelization -> True],
   {{2,0} -> Partition,
@@ -221,7 +221,7 @@ CalculateCosineAngleGradient2D = ReplacePart[
                 Normalize[{x2 - x0, y2 - y0}]] - cos0)^2,
              Assumptions -> Element[{x0, y0, x1, y1, x2, y2}, Reals]],
            {x0, y0, x1, y1, x2, y2}]},
-        Hold[grad, 3]]],
+        Hold[grad, 2]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
     Parallelization -> True],
   {{2,0} -> Partition,
@@ -420,7 +420,7 @@ HarmonicEdgePotential[mesh_?CorticalMeshQ] := With[
          {norms = Sqrt[Total[dX^2]]},
          With[
            {magnitude = (norms - D0) / m},
-           SumOverEdgesDirectedTr[
+           -SumOverEdgesDirectedTr[
              mesh,
              dX / {norms, norms, norms} * {magnitude, magnitude, magnitude}]]]]},
     f /: Grad[f, Xarg_List] := Apply[
@@ -454,7 +454,7 @@ Protect[HarmonicEdgePotential];
 (* #HarmonicAnglePotential ************************************************************************)
 HarmonicAnglePotential[mesh_?CorticalMeshQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
-   Ft = FaceListTr[mesh],
+   Ft = VertexIndex[mesh, FaceListTr[mesh]],
    A0 = FaceAnglesTr[mesh],
    n = 3 * FaceCount[mesh],
    f = TemporarySymbol["anglePotential"]},
@@ -485,7 +485,7 @@ HarmonicAnglePotential[mesh_?CorticalMeshQ] := With[
   f];
 HarmonicAnglePotential[mesh_?CorticalMapQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
-   Ft = FaceListTr[mesh],
+   Ft = VertexIndex[mesh, FaceListTr[mesh]],
    A0 = FaceAnglesTr[mesh],
    n = 3 * FaceCount[mesh],
    f = TemporarySymbol["anglePotential"]},
@@ -493,7 +493,7 @@ HarmonicAnglePotential[mesh_?CorticalMapQ] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
     Join @@ With[
       {corners0 = Xt[[All, #]]& /@ Ft},
-      (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y, z} (3 x n) *)
+      (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y} (2 x n) *)
       With[
         {facesGrad = Sum[
           Apply[
@@ -504,7 +504,7 @@ HarmonicAnglePotential[mesh_?CorticalMapQ] := With[
         With[
           {grad = {
              SumOverFaceVerticesTr[mesh, facesGrad[[All, 1]]],
-             SumOverFaceVerticesTr[mesh, facesGrad[[All, 1]]]}},
+             SumOverFaceVerticesTr[mesh, facesGrad[[All, 2]]]}},
           If[Length[Xarg] == 2, grad, Transpose @ grad] / n]]]];
   f[Xarg_List] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
@@ -521,21 +521,23 @@ Protect[HarmonicAnglePotential];
 (* #CosineAnglePotential **************************************************************************)
 CosineAnglePotential[mesh_?CorticalMeshQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
-   Ft = FaceListTr[mesh],
-   A0 = FaceAnglesTr[mesh],
+   Ft = VertexIndex[mesh, FaceListTr[mesh]],
+   A0 = FaceAngleCosinesTr[mesh],
    n = 3 * FaceCount[mesh],
-   f = TemporarySymbol["anglePotential"]},
+   f = TemporarySymbol["angleCosinePotential"]},
   f /: Grad[f, Xarg_List] := With[
     {Xt = If[Length[Xarg] == 3, Xarg, Transpose @ Xarg]},
     Join @@ With[
       {corners0 = Xt[[All, #]]& /@ Ft},
       With[
-        {grad = Sum[
+        {facesGrad = Sum[
           Apply[
             CalculateCosineAngleGradient3D,
             Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
           {i, 0, 2}]},
-        Join @@ If[Length[Xarg] == 3, Transpose @ grad, grad] / n]]];
+        With[
+          {grad = Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, 3}]},
+          If[Length[Xarg] == 2, grad, Transpose @ grad] / n]]]];
   f[Xarg_List] := With[
     {Xt = If[Length[Xarg] == 3, Xarg, Transpose @ Xarg]},
     With[
@@ -548,21 +550,25 @@ CosineAnglePotential[mesh_?CorticalMeshQ] := With[
   f];
 CosineAnglePotential[mesh_?CorticalMapQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
-   Ft = FaceListTr[mesh],
-   A0 = FaceAnglesTr[mesh],
+   Ft = VertexIndex[mesh, FaceListTr[mesh]],
+   A0 = FaceAngleCosinesTr[mesh],
    n = 3 * FaceCount[mesh],
-   f = TemporarySymbol["anglePotential"]},
+   f = TemporarySymbol["angleCosinePotential"]},
   f /: Grad[f, Xarg_List] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
     Join @@ With[
       {corners0 = Xt[[All, #]]& /@ Ft},
       With[
-        {grad = Sum[
+        {facesGrad = Sum[
           Apply[
             CalculateCosineAngleGradient2D,
             Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]]],
           {i, 0, 2}]},
-        Join @@ If[Length[Xarg] == 2, Transpose @ grad, grad] / n]]];
+        With[
+          {grad = {
+             SumOverFaceVerticesTr[mesh, facesGrad[[All, 1]]],
+             SumOverFaceVerticesTr[mesh, facesGrad[[All, 2]]]}},
+          If[Length[Xarg] == 2, grad, Transpose @ grad] / n]]]];
   f[Xarg_List] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
     With[
