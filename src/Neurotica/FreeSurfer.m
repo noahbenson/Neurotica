@@ -1509,11 +1509,20 @@ FreeSurferSubjectParcellation2009[sub_String, hemi:(LH|RH|RHX)] := FreeSurferSub
 FreeSurferSubjectParcellation2005[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleAnnot[sub, hemi, "aparc.annot"],
   $Failed];
-FreeSurferSubjectV1ThresholdedLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
-  FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, "v1.predict"],
-  $Failed];
 FreeSurferSubjectV1Label[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleLabel[sub, hemi, "v1.prob"],
+  $Failed];
+FreeSurferSubjectV1ThresholdedLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
+  With[
+    {label = FreeSurferSubjectV1Label[sub, hemi]},
+    SparseArray[
+      Map[
+        #[[1]] -> 1&,
+        Select[
+          Most@ArrayRules@label,
+          #[[2]] > 0.5&]],
+      Dimensions[label],
+      0]],
   $Failed];
 FreeSurferSubjectV2ThresholdedLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, "V2.thresh"],

@@ -866,9 +866,9 @@ DefineImmutable[
      
      (* #SumOverFacesMatrix and #SumOverEdgesMatrix *)
      SumOverFacesMatrix[mesh] :> SparseArray[
-       Transpose[{Range[3*FaceCount[mesh]], Join @@ FaceListTr[mesh]}] -> 1],
+       Transpose[{Range[3*FaceCount[mesh]], Join @@ VertexIndex[mesh, FaceListTr[mesh]]}] -> 1],
      SumOverEdgesMatrix[mesh] :> SparseArray[
-       Transpose[{Range[2*EdgeCount[mesh]], Join @@ EdgePairsTr[mesh]}] -> 1],
+       Transpose[{Range[2*EdgeCount[mesh]], Join @@ VertexIndex[mesh, EdgePairsTr[mesh]]}] -> 1],
 
 
      (* ======================================= Settables ======================================= *)
@@ -2719,7 +2719,14 @@ LabelBoundaryEdgePairsTr[sub_, hemi_, name_] := Check[
     {Ft = LabelFaceListTr[sub, hemi, name]},
     With[
       {allE = Sort /@ Transpose[{Join@@Ft, Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
-      Transpose[Select[Tally[allE], Last[#] == 1&][[All, 1]]]]],
+      With[
+        {pairs = Select[Tally[allE], Last[#] == 1&][[All, 1]]},
+        With[
+          {path = FindShortestPath[
+             Graph[Apply[UndirectedEdge, #]& /@ Rest[pairs]],
+             pairs[[1,1]],
+             pairs[[1,2]]]},
+          {path, RotateLeft[path]}]]]],
   $Failed];
 Protect[LabelBoundaryEdgePairsTr];
 

@@ -76,6 +76,7 @@ PredictRetinotopy::usae = "PredictRetinotopy[subject, meshName, hemi] is equival
 
 (* The Schira Model *******************************************************************************)
 $DefaultSchiraA::usage = "The default value of the Schira model A parameter.";
+$DefaultSchiraB::usage = "The default value of the Schira model B parameter.";
 $DefaultSchira\[CapitalLambda]::usage = "The default value of the Schira model lambda parameter.";
 $DefaultSchira\[CapitalPsi]::usage = "The default rotation of the Schira model in radians.";
 $DefaultSchira\[CapitalRho]90::usage = "The default degree position for 90 degrees in the Schira model.";
@@ -701,43 +702,6 @@ Protect[SchiraModel, SchiraModelObject, SchiraFunction, SchiraInverse,
         CorticalMapToRetinotopy, RetinotopyToCorticalMap];
 
 (* Plotting Data **********************************************************************************)
-With[
-  {angleColors = {Blue, Darker[Cyan, 1/6], Darker@Green, Darker[Yellow, 1/6], Red},
-   eccenColors = Join[
-    {Black, Purple, Red, Yellow, Green},
-    Table[Blend[{Green, Cyan}, (u - 20.0)/20.0], {u, 25, 40, 5}],
-    Table[Blend[{Cyan, White}, (u - 40.0)/50.0], {u, 45, 90, 5}]],
-   options = {Hemisphere -> Automatic, Opacity -> 1}},
-  CorticalColor[PolarAngle] = {{-180,180}, Join[Reverse[angleColors], Rest[angleColors]]};
-  CorticalColor[Eccentricity] = {{0,90}, eccenColors};
-  CorticalColor[{type:(PolarAngle|Eccentricity), opts___}] := Check[
-    With[
-      {hemi = Replace[Hemisphere, Join[{opts}, options]],
-       opac = Replace[Opacity, Join[{opts}, options]]},
-      If[!NumberQ[opac] || !TrueQ[0 <= opac <= 1],
-        Message[CorticalColor::badarg, "Opacity must be a number between 0 and 1"]];
-      With[
-        {range = If[type === PolarAngle,
-           Replace[
-             hemi,
-             {(Automatic|Full) -> {-180, 180},
-              LH -> {0, 180},
-              RH -> {-180, 0},
-              _ :> Message[
-                CorticalColor::badarg, 
-                "Hemisphere option must be LH, RH, or Automatic"]}],
-           {0,90}],
-         colors = If[type === PolarAngle,
-           Replace[
-             hemi,
-             {(Automatic|Full) -> Join[Reverse[angleColors], angleColors],
-              LH -> angleColors,
-              RH -> Reverse[angleColors]}],
-           eccenColors]},
-        {range, If[opac < 1, Opacity[opac, #]& /@ colors, colors]}]],
-    $Failed];
-];
-
 PolarAngleLegend[hemi : (LH|RH), opts___Rule] := DensityPlot[
   If[hemi === LH, ArcTan[x, y], ArcTan[90 - x, y]],
   {x, 0, 90},
@@ -745,7 +709,9 @@ PolarAngleLegend[hemi : (LH|RH), opts___Rule] := DensityPlot[
   opts,
   RegionFunction -> If[hemi === LH, (Norm[{#1, #2}] < 90 &), (Norm[{90 - #1, #2}] < 90 &)],
   ColorFunctionScaling -> False,
-  ColorFunction -> With[{f = ColorCortex[PolarAngle]}, (f[90.0 - #*180.0/Pi]) &],
+  ColorFunction -> With[
+    {f = ColorCortex["PolarAngle"]},
+    (f[{0,0,0}, 1, {"PolarAngle" -> 90.0 - #*180.0/Pi}]) &],
   Frame -> False,
   Axes -> False,
   BaseStyle -> Directive[10, FontFamily -> "Arial"],
@@ -760,7 +726,9 @@ EccentricityLegend[hemi : (LH | RH), max_?NumericQ /; 0 < max <= 90, opts___Rule
   opts,
   RegionFunction -> If[hemi === LH, (Norm[{#1, #2}] < max &), (Norm[{max - #1, #2}] < max &)],
   ColorFunctionScaling -> False,
-  ColorFunction -> ColorCortex[Eccentricity],
+  ColorFunction -> With[
+    {f = ColorCortex["Eccentricity"]},
+    f[{0,0,0}, 1, {"Eccentricity" -> #}]&],
   Frame -> False,
   Axes -> False,
   BaseStyle -> Directive[10, FontFamily -> "Arial"],
@@ -907,12 +875,12 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
      esf = Replace[
        OptionValue[EccentricityStyleFunction],
        x : (Automatic | Thick | Thin | Dotted | Dashed) :> With[
-         {clr = ColorCortex[Eccentricity]},
+         {clr = With[{f = ColorCortex["Eccentricity"]}, f[{0,0,0},1,{"Eccentricity" -> #}]&]},
          If[x === Automatic, clr, {x, clr[#]} &]]],
      psf = Replace[
        OptionValue[PolarAngleStyleFunction],
        x : (Automatic | Thick | Thin | Dotted | Dashed) :> With[
-         {clr = ColorCortex[PolarAngle]},
+         {clr = With[{f = ColorCortex["PolarAngle"]}, f[{0,0,0},1,{"PolarAngle" -> #}]&]},
          If[x === Automatic, clr, {x, clr[#]} &]]],
      eclines = Replace[
        OptionValue[EccentricityLines],
