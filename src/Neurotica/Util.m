@@ -49,6 +49,8 @@ MemoizeSafe::usage = "MemoizeSafe[f := expr, ...] is identical to calling Memoiz
 Forget::usage = "Forget[f] forces all memoized values associated with the symbol f to be forgotten.
 Forget[\!\(\*SubscriptBox[\(f\),\(1\)]\), \!\(\*SubscriptBox[\(f\),\(2\)]\), ...] forgets each of the symbols.";
 
+Indices::usage = "Indices[list, patt] yields a list of the indices of elements that match patt in list; this is equivalent to Flatten[Position[list, patt, {1}, Heads->False]], but is considerably optimized.";
+
 TemporarySymbol::usage = "TemporarySymbol[] yields a unique symbol that is marked as temporary.
 TemporarySymbol[string] yields a unique symbol that begins with the given string and is marked temporary.";
 
@@ -243,6 +245,10 @@ Forget[symbol_] := With[
          {2}]},
       Scan[Apply[Unset, #]&, memoized]]]];
 Protect[Forget];      
+
+(* #Indices ***************************************************************************************)
+Indices[list_List, patt_] := Pick[Range[Length@list], list, patt];
+Protect[Indices];
 
 (* #TemporarySymbol *******************************************************************************)
 TemporarySymbol[] := With[{sym = Unique[]}, SetAttributes[Evaluate[sym], Temporary]; sym];
