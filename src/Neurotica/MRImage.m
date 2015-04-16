@@ -84,6 +84,7 @@ Examples:
   * MRIOrient[img, {RH, Front, Top}, {256, 256, 256}] is equivalent to the example above except that it also centers the image in 256 x 256 x 256 voxel space.
   * MRIOrient[img, {Left, Posterior, Superior}] yields img in a scanner orientation.
   * MRIOrient[img, {Anterior, Superior, Back}] is invalid because Anterior and Back are antonyms.
+MRIOrient may also be called with string arguments such as \"RAS\" or \"LIA\", which are automatically converted into the appropriate lists.  
 MRIOrient[img, {rows, columns}] orients the rows and columns of an MRImage slice as with an MRImage3D object; note that the rows and columns must correspond to axes that the given image represents; e.g., you cannot slice parallel the Saggital plane then orient the resulting image slices in left or right directions.";
 MRIOrient::badarg = "Invalid instructions given to MRIOrient: `1`";
 MRIOrientMatrix::usage = "MRIOrientMatrix[img, spec] and MRIOrientMatrix[img, spec, dims] both yield the matrix used in the transformation undertaken by MRIOrient[img, spec, dims]. Note that these yield matrices that are appropriate for use with ImageForwardTransformation or MRITransformation, but not ImageTransformation.";
@@ -720,7 +721,8 @@ DefineImmutable[
         (* This is an MRImage... Checks of data quality should go here as well. *)
         MRImageQ[img] -> With[
           {dat = ImageData[img],
-           opts = Options[img]},
+           opts = Options[img],
+           stats = MRImageStatistics[img]},
           With[
             {rv = RightDirectionVector /. opts,
              av = AnteriorDirectionVector /. opts,
@@ -746,7 +748,7 @@ DefineImmutable[
               !ArrayQ[vdims, 1, NumericQ] || Length[vdims] != 3, Message[
                 MRImage3D::badarg,
                 "VodelDimensions must be Indeterminate or a 3-element numeric vector"],
-              NumericQ[MRImageMax[img]] && NumericQ[MRImageMin[img]], Message[
+              !NumericQ[stats[Min]] || !NumericQ[stats[Max]], Message[
                 MRImage3D::badarg,
                 "Image data may only contain numeric, Indeterminate, or None values"],
               True, True]]],
@@ -758,8 +760,8 @@ DefineImmutable[
           Image3D[
             Rescale[
               If[stats[Missing] == 0,
-                dat, 
-                dat /. {
+                ImageData[img], 
+                ImageData[img] /. {
                   Indeterminate -> (If[KeyExistsQ[stats, #], stats[#], #]& @ (Indeterminate /. opts)),
                   None -> (If[KeyExistsQ[stats, #], stats[#], #]& @ (None /. opts))}],
               {stats[Min], stats[Max]}],
@@ -1012,7 +1014,8 @@ MRITransformation[img_?MRImageQ, tx_, opts___Rule] := Check[
            tx],
          opts,
          DataRange -> Map[{-#/2, #/2}&, ImageDimensions[img]]],
-       $Failed]},
+       $Failed],
+     stats = MRImageStatistics[img]},
     If[res === $Failed, 
       res,
       With[
@@ -1038,10 +1041,20 @@ MRIOrient[img_?MRImageQ, spec:{_,_,_}, dims:{_,_,_}] := Check[
   MRITransformation[img, MRIOrientTransform[img, spec, dims]],
   $Failed];
 MRIOrient[img_?MRImageQ, spec:{_,_,_}] := MRIOrient[img, spec, ImageDimensions[img]];
-MRIOrient[img_?MRImageQ, "RAS", dims_] := MRIOrient[img, {Right, Anterior, Superior}, dims];
-MRIOrient[img_?MRImageQ, "RAS"] := MRIOrient[img, {Right, Anterior, Superior}];
-MRIOrient[img_?MRImageQ, "LAS"|"Scanner", dims_] := MRIOrient[img, {Left, Anterior, Superior}, dims];
-MRIOrient[img_?MRImageQ, "LAS"|"Scanner"] := MRIOrient[img, {Left, Anterior, Superior}];
+MRIOrient[img_?MRImageQ, type_String /; StringLength[type] == 3] := Check[
+  MRIOrient[
+    img,
+    Replace[
+      Characters @ ToUpperCase[type],
+      {"R" -> Right,    "L" -> Left,
+       "A" -> Anterior, "P" -> Posterior,
+       "S" -> Superior, "I" -> Inferior,
+       c_ :> Message[MRIOrient::badarg, "Unrecognized orientation character: " <> c]},
+      {1}]],
+    $Failed];
+MRIOrient[img_?MRImageQ, "Scanner"] := MRIOrient[img, {Left, Anterior, Superior}];
+MRIOrient[img_?MRImageQ, "Anatomical"] := MRIOrient[img, {Right, Anterior, Superior}];
+MRIOrient[img_?MRImageQ, s_String] := MRIOrient[img, s, ImageDimensions[img]];
 Protect[MRIOrient];
 
 (* #MRISlices *************************************************************************************)
