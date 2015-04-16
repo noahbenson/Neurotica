@@ -688,6 +688,7 @@ DefineImmutable[
         MRImageMissing[img] := MRImageStatistics[img][Missing],
         (* Retreive (or edit) the raw image options *)
         Options[img] = Map[(# -> OptionValue[#])&, Options[MRImage3D][[All, 1]]],
+        Options[img, opt_] := Replace[opt, Options[img]],
         (* Obtain a few options specifically! *)
         Center[img] := Replace[Center /. Options[img], Automatic :> (ImageDimensions[img]/2)],
         RightDirectionVector[img] := (RightDirectionVector /. Options[img]),

@@ -397,19 +397,26 @@ ExportMGH[filename_, data_, opts___] := Block[
   With[
     {datExtr = Which[
        ImageQ[data] && Head[data] === Image3D, ImageData[data],
+       MRImageQ[data], ImageData[data],
        ListQ[data] && ArrayQ[data, 3|4, NumericQ], data,
        ListQ[data] && ArrayQ[data, 1, NumericQ], {{data}},
        True, Message[
          ExportMGH::badfmt,
-         "Export data for MGH must be a list or Image3D"]],
-     meta = Replace[
-       Cases[{opts}, Rule[(MetaInformation|"MetaInformation"), info_] :> info, {1}],
-       {(l_List /; Length[l] > 0) :> First[l],
-        _ :> If[ImageQ[data], 
-          MetaInformation /. Options[data, MetaInformation],
-          {"DegreesOfFreedom" -> 0,
-           "Spacings" -> {1.0,1.0,1.0}, 
-           "VOXToRASMatrix" -> {{-1., 0., 0.}, {0., 0., -1.}, {0., 1., 0.}, {0., 0., 0.}}}]}]},
+         "Export data for MGH must be a list, MRImage, or Image3D"]],
+     meta = Join[
+       Replace[
+         Cases[{opts}, Rule[(MetaInformation|"MetaInformation"), info_] :> info, {1}],
+         {(l_List /; Length[l] > 0) :> First[l],
+          _ :> Which[
+            ImageQ[data], MetaInformation /. Options[data, MetaInformation],
+            MRImageQ[data], {
+              "DegreesOfFreedom" -> ("DegreesOfFreedom" /. Options[data, MetaInformation]),
+              "Spacings" -> VoxelDimensions[data],
+              "VOXToRASMatrix" -> VoxelIndexToCoordinateMatrix[data]},
+            True, {}]}],
+       {"DegreesOfFreedom" -> 0,
+        "Spacings" -> {1.0,1.0,1.0}, 
+        "VOXToRASMatrix" -> {{-1., 0., 0., 0.}, {0., 0., -1., 0.}, {0., 1., 0., 0.}}}]},
     If[!ListQ[meta] || Length[meta] == 0,
       (Message[ExportMGH::badfmt, "Invalid MetaInformation"]; $Failed),
       With[
@@ -420,24 +427,24 @@ ExportMGH[filename_, data_, opts___] := Block[
          fl = OpenWrite[filename, BinaryFormat -> True]},
         With[
           {res = Catch[
-            If[fl === $Failed,
-              Message[ExportMGH::nofile, filename];
-              Throw[$Failed]];
-            (* Write header... *)
-            BinaryWrite[fl, 1, "Integer32"];
-            BinaryWrite[fl, Rest[Dimensions[dat]], "Integer32"];
-            BinaryWrite[fl, Length[dat], "Integer32"];
-            BinaryWrite[fl, outtype /. $MMATypesToMGH, "Integer32"];
-            BinaryWrite[fl, "DegreesOfFreedom" /. meta, "Integer32"];
-            BinaryWrite[fl, 1, "Integer16"];
-            BinaryWrite[fl, "Spacings" /. meta, "Real32"];
-            BinaryWrite[fl, Flatten[Transpose["VOXToRASMatrix" /. meta][[All, 1;;3]]], "Real32"];
-            BinaryWrite[fl, Table[0, {$MGHHeaderSize - StreamPosition[fl]}], "Integer8"];
-            (* write frames... *)
-            BinaryWrite[fl, Flatten[Map[Reverse, dat, {0,1}]], outtype];
-            (* Optional data is not currently supported; zeros are written *)
-            Scan[BinaryWrite[fl, 0, #[[2]]]&, $MGHOptionalData];
-            True]},
+             If[fl === $Failed,
+               Message[ExportMGH::nofile, filename];
+               Throw[$Failed]];
+             (* Write header... *)
+             BinaryWrite[fl, 1, "Integer32"];
+             BinaryWrite[fl, Rest[Dimensions[dat]], "Integer32"];
+             BinaryWrite[fl, Length[dat], "Integer32"];
+             BinaryWrite[fl, outtype /. $MMATypesToMGH, "Integer32"];
+             BinaryWrite[fl, "DegreesOfFreedom" /. meta, "Integer32"];
+             BinaryWrite[fl, 1, "Integer16"];
+             BinaryWrite[fl, "Spacings" /. meta, "Real32"];
+             BinaryWrite[fl, Join@@Transpose@Part["VOXToRASMatrix" /. meta, 1;;3, All], "Real32"];
+             BinaryWrite[fl, Table[0, {$MGHHeaderSize - StreamPosition[fl]}], "Integer8"];
+             (* write frames... *)
+             BinaryWrite[fl, Flatten[Map[Reverse, dat, {1,2}]], outtype];
+             (* Optional data is not currently supported; zeros are written *)
+             Scan[BinaryWrite[fl, 0, #[[2]]]&, $MGHOptionalData];
+             True]},
           Close[fl];
           If[res === $Failed, $Failed, filename]]]]]];
 Protect[ExportMGH];
