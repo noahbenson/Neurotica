@@ -2719,7 +2719,13 @@ LabelBoundaryEdgePairsTr[sub_, hemi_, name_] := Check[
     {Ft = LabelFaceListTr[sub, hemi, name]},
     With[
       {allE = Sort /@ Transpose[{Join@@Ft, Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
-      Transpose[Select[Tally[allE], Last[#] == 1&][[All, 1]]]]],
+      With[
+        {Es = Transpose[Select[Tally[allE], Last[#] == 1&][[All, 1]]]},
+        With[
+          {path = FindShortestPath[
+             Graph[Apply[UndirectedEdge,#]& /@ Rest[Transpose[Es]]],
+             Es[[2,1]], Es[[1,1]]]},
+          {path, RotateLeft[path]}]]]],
   $Failed];
 Protect[LabelBoundaryEdgePairsTr];
 
@@ -2737,7 +2743,7 @@ Protect[LabelBoundaryEdgeList];
 
 (* #LabelBoundaryVertexList ***********************************************************************)
 LabelBoundaryVertexList[sub_, hemi_, name_] := Check[
-  Append[#[[1]], #[[2, -1]]]& @ LabelBoundaryEdgePairsTr[sub, hemi, name],
+  LabelBoundaryEdgePairsTr[sub, hemi, name][[1]],
   $Failed];
 Protect[LabelBoundaryVertexList];
 

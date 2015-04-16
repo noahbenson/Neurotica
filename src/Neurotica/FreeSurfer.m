@@ -1774,20 +1774,27 @@ DefineImmutable[
      $Failed],
    (* We can get certain labels this way also *)
    LabelVertexList[sub, hemi:(LH|RH|RHX), name_] := Check[
-     With[
-       {propAndPatt = Switch[
-          name,
-          "V1"|"V1Label", {"V1Label", 1},
-          "V2"|"V2Label", {"V2Label", 1},
-          "MT"|"MTLabel", {"MTLabel", 1},
-          _, $Failed]},
-       If[!ListQ[propAndPatt],
-         propAndPatt,
-         Flatten @ Position[
-           Normal[Association[sub][propAndPatt[[1]]][hemi]],
-           propAndPatt[[2]],
-           {1},
-           Heads -> False]]],
+     If[ListQ[name],
+       (* custom label *)
+       Pick[
+         Range[Length@name],
+         Replace[name, {0.0|False -> 0, Except[0|0.0|False] -> 1}, {1}],
+         1],
+       (* builtin label *)
+       With[
+         {propAndPatt = Switch[
+            name,
+            "V1"|"V1Label", {"V1Label", 1},
+            "V2"|"V2Label", {"V2Label", 1},
+            "MT"|"MTLabel", {"MTLabel", 1},
+            _, $Failed]},
+         If[!ListQ[propAndPatt],
+           propAndPatt,
+           Flatten @ Position[
+             Normal[Association[sub][propAndPatt[[1]]][hemi]],
+             propAndPatt[[2]],
+             {1},
+             Heads -> False]]]],
      $Failed],
         
    SubjectLabels[sub] := Join[
