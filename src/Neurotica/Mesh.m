@@ -991,6 +991,9 @@ DefineImmutable[
 
      (* ======================================== Methods ======================================== *)
 
+     (* Extension of Options... *)
+     Options[mesh, opt_] := Replace[opt, Options[mesh]],
+
      (* A few simple extensions of the immediates that count things *)
      VertexCount[mesh, patt_] := Count[VertexList[mesh], patt, {1}],
      FaceCount[mesh, patt_] := Count[FaceList[mesh], patt, {1}],
@@ -1651,6 +1654,22 @@ DefineImmutable[
                First],
              First],
            All, All, 2]]],
+     (* extensions of the opposite indices; edge/face lists *)
+     VertexEdgeList[map, i_Integer] := Part[VertexEdgeList[map], VertexIndex[map, i]],
+     VertexEdgeList[map, l_List] := With[
+       {idx = VertexEdgeList[map]},
+       Map[Part[idx, #]&, VertexIndex[map, i], {-2}]],
+     VertexFaceList[map, i_Integer] := Part[VertexFaceList[map], VertexIndex[map, i]],
+     VertexFaceList[map, l_List] := With[
+       {idx = VertexFaceList[map]},
+       Map[Part[idx, #]&, VertexIndex[map, i], {-2}]],
+     EdgeFaceList[map, e_] := With[
+       {idx = EdgeFaceList[map]},
+       Which[
+         Head[e] === UndirectedEdge, Part[idx, EdgeIndex[map, e]],
+         MatchQ[e, {_Integer, _Integer}], Part[idx, EdgeIndex[map, e]],
+         ListQ[e], Map[Part[idx, #]&, e, {-2}],
+         True, $Failed]],
 
      (* #SumOverFacesMatrix and #SumOverEdgesMatrix *)
      SumOverFacesMatrix[map] :> SparseArray[
@@ -1818,7 +1837,10 @@ DefineImmutable[
        {X, X[[#]]& /@ NeighborhoodList[map]}],
 
 
-     (* ======================================= Functions ======================================= *)   
+     (* ======================================= Functions ======================================= *)
+
+     (* Extension of Options... *)
+     Options[map, opt_] := Replace[opt, Options[map]],
 
      (* #Reproject *)
      ReprojectTr[map, Xtr_List] := With[

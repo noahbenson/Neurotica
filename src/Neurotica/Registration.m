@@ -344,11 +344,11 @@ HarmonicPotentialWellParseHarmonic[x0_, OptionsPattern[]] := With[
      Compile[
        {{X, _Real, 2}},
        With[
-         {U = MapThread[Subtract, {x0, X}]},
+         {U = MapThread[Subtract, {X, x0}]},
          With[
-           {distances = Sqrt[Total[U^2]]},
+           {distances = Sqrt @ Total[U^2]},
            With[
-             {magnitudes = weight / width * (distances / width)^(shape - 1) / distances},
+             {magnitudes = weight * (distances / width)^(shape) / distances^2},
              U * ConstantArray[magnitudes, Length[U]]]]],
        RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
        Parallelization -> True]}]];
@@ -419,8 +419,8 @@ HarmonicEdgePotential[mesh_?CorticalMeshQ] := With[
        With[
          {norms = Sqrt[Total[dX^2]]},
          With[
-           {magnitude = (norms - D0) / m},
-           -SumOverEdgesDirectedTr[
+           {magnitude = (D0 - norms) / m},
+           SumOverEdgesDirectedTr[
              mesh,
              dX / {norms, norms, norms} * {magnitude, magnitude, magnitude}]]]]},
     f /: Grad[f, Xarg_List] := Apply[
@@ -439,9 +439,9 @@ HarmonicEdgePotential[mesh_?CorticalMapQ] := With[
     {df = Function @ With[
        {dX = #[[All, E[[2]]]] - #[[All, E[[1]]]]},
        With[
-         {norms = Sqrt[Total[dX^2]]},
+         {norms = ColumnNorms[dX]},
          With[
-           {magnitude = (norms - D0) / m},
+           {magnitude = (D0 - norms) / m},
            SumOverEdgesDirectedTr[mesh, dX / {norms, norms} * {magnitude, magnitude}]]]]},
     f /: Grad[f, Xarg_List] := Apply[
       Join,
@@ -493,7 +493,7 @@ HarmonicAnglePotential[mesh_?CorticalMapQ] := With[
     {Xt = If[Length[Xarg] == 2, Xarg, Transpose @ Xarg]},
     Join @@ With[
       {corners0 = Xt[[All, #]]& /@ Ft},
-      (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y} (2 x n) *)
+      (* corners0: {v1, v2, v3} (3x2xn); vi: {x, y} (2 x n) *)
       With[
         {facesGrad = Sum[
           Apply[
