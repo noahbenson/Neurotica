@@ -1421,7 +1421,7 @@ $CortexPlotOptions = Join[
    VertexRenderingFunction -> None,
    EdgeRenderingFunction -> None,
    FaceRenderingFunction -> Automatic}];
-Protect[$CortexPlot3DOptions];
+Protect[$CortexPlotOptions];
 
 Options[CorticalMap] = Join[
   $CortexPlotOptions,
