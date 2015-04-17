@@ -23,7 +23,10 @@ BeginPackage["Neurotica`Registration`", {"Neurotica`Global`","Neurotica`Util`","
 Unprotect["Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 ClearAll[ "Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 
-CorticalPotential::usage = "CorticalPotential[expression] ";
+CorticalPotentialFunction::usage = "CorticalPotentialFunction[{F, G}, X] yields a cortical potential function object with potential F and gradient G in terms of the coordinate matrix X, which is assumed to be a 2 or 3 by n matrix when the potential is evaluated. The following options may be given:
+  * Name (default: Subscript[\"F\", \"Potential\"]) specifies what symbol should be used to display the potential function.";
+PotentialFunction::usage = "PotentialFunction[f] yields a pure functional form of the cortical potential function instance, f.";
+GradientFunction::usage = "GradientFunction[f] yields a pure functional form of the gradient of the cortical potential function instance, f.";
 
 HarmonicEdgePotential::usage = "HarmonicEdgePotential[mesh] yields a function symbol f such that f[X] is the harmonic edge potential where X is a possible vertex coordinate list for the given cortical mesh. The potential is calculated as the total of (d - d0)^2 where d is the distance between two vertices in X and d0 is the distance in the coordinates of the given mesh. Note that Grad[f, X] yields the numerical gradient of the potential at the vertex configuration given in X.
 The potential function of a HarmonicEdgePotential is U[d] = 0.5 / n * (d - d0)^2 where d is the distance between a pair of vertices connected by an edge, n is the number of edges in the system, and d0 is the distance, in the initial mesh, between the two vertices.";
@@ -228,6 +231,112 @@ CalculateCosineAngleGradient2D = ReplacePart[
    {0}   -> Compile}];
 Protect[CalculateCosineAnglePotential2D, CalculateCosineAngleGradient2D];
 
+(* #CorticalPotentialFunction *********************************************************************)
+Options[CorticalPotentialFunction] = {
+  Print -> Subscript["F", "Potential"],
+  MetaInformation -> {},
+  CorticalMesh -> None};
+DefineImmutable[
+  CorticalPotentialFunction[{F_, G_}, X_Symbol, OptionsPattern[]] :> P,
+  {(* Let's start with options! *)
+   Options[P] = Map[# -> OptionValue[#]&, Options[CorticalPotentialFunction][[All,1]]],
+   Options[P, opt_] := Replace[
+     opt,
+     Append[Options[P], x_ :> (Message[Options::optionf, x, CorticalPotentialFunction]; {})]],
+   (* We need to define the potential functions and gradients... *)
+   PotentialFunction[P] -> Block[
+     {X},
+     With[
+       {pos = Position[Hold[F], X, Infinity]},
+       Function @@ Fold[
+           ReplacePart,
+           Hold[F],
+           {Map[(# -> Hold[1])&, pos], Map[Append[#,0] -> Slot&, pos]}]]],
+   GradientFunction[P]  -> Block[
+     {X},
+     With[
+       {pos = Position[Hold[G], X, Infinity]},
+       Function @@ Fold[
+           ReplacePart,
+           Hold[G],
+           {Map[(# -> Hold[1])&, pos], Map[Append[#,0] -> Slot&, pos]}]]],
+   (* And a call form for the gradient. *)
+   Grad[P, M_?MatrixQ] := Gradient[P][If[Length[M] <= Length[M[[1]]], M, Transpose[M]]],
+   (* Finally, this one is private, but useful for combining potential functions *)
+   HeldArguments[P] -> {Hold[F], Hold[G], Hold[X]}},
+  SetSafe -> True,
+  Symbol -> CorticalPotentialFunctionInstance];
+SetAttributes[CorticalPotentialFunction, HoldAll];
+Protect[PotentialFunction, GradientFunction];
+
+(* We have a few more edits for the potential function though: *)
+Unprotect[CorticalPotentialFunctionInstance];
+
+(* The call form for the potential is here, where it can be defined: *)
+(* #here: not working
+(P:CorticalPotentialFunctionInstance[__])[X_MatrixQ] := PotentialFunction[P][
+  If[Length[X] <= Length[X[[1]]], X, Transpose[X]]];
+*)
+
+(* Critically, we want a nice display form for these potential functions: *)
+MakeBoxes[P_CorticalPotentialFunctionInstance, form_] := MakeBoxes[#]& @ Options[P, Print];
+
+(* We need to define some simple combination operators... *)
+SetAttributes[AutoExtendCorticalPotential, HoldRest];
+Quiet[
+  AutoExtendCorticalPotential[
+    patt_ -> res_,
+    P0_Symbol -> P_Symbol, 
+    {F0_Symbol, G0_Symbol} -> {F_, G_}, X_Symbol
+    ] := TagSetDelayed[
+      CorticalPotentialFunctionInstance,
+      Evaluate[patt /. HoldPattern[P0] :> P0_CorticalPotentialFunctionInstance],
+      With[
+        {opts = Options[P0],
+         args = HeldArguments[P0]},
+        With[
+          {fns = ReplaceAll[
+             Hold[{F, G}],
+             MapThread[
+               RuleDelayed @@ Join[Hold@@{HoldPattern @@ #1}, #2] &,
+               {{Hold[F0], Hold[G0]},
+                ReplaceAll[args[[1;;2]], HoldPattern @@ args[[3]] :> X]}]]},
+          CorticalPotentialFunction @@ Join[
+            fns,
+            Hold[X],
+            Hold @@ opts]]]],
+  {RuleDelayed::rhs}];
+Protect[AutoExtendCorticalPotential];
+
+AutoExtendCorticalPotential[
+  Plus[x_?NumericQ, P0, rest___] -> Plus[P, rest], P0 -> P,
+  {F0, G0} -> {x + F0, G0},
+  X];
+AutoExtendCorticalPotential[
+  Times[x_?NumericQ, P0, rest___] -> Times[P, rest], P0 -> P,
+  {F0, G0} -> {x * F0, x * G0},
+  X];
+(* One weird one... *)
+CorticalPotentialFunctionInstance /: Plus[P0_CorticalPotentialFunctionInstance,
+                                          P1_CorticalPotentialFunctionInstance,
+                                          rest___] := Plus[
+  With[
+    {args0 = HeldArguments[P0], args1 = HeldArguments[P1]},
+    With[
+      {rule = RuleDelayed @@ Join[Hold @@ {HoldPattern @@ args1[[3]]}, args0[[3]]]},
+      CorticalPotentialFunction @@ Join[
+        Replace[
+          Hold @@ {
+            {Join[args0[[1]], ReplaceAll[args1[[1]], rule]],
+             Join[args0[[2]], ReplaceAll[args1[[2]], rule]]}},
+          Hold[a__] :> Plus[a__],
+          {2}],
+        args0[[3]],
+        Hold @@ opts]]],
+  rest];
+
+Protect[CorticalPotentialFunction, CorticalPotentialFunctionInstance];
+
 (* These functions are helpers for the Gaussian potential well functions *)
 Options[GaussianPotentialWellParseGaussian] = {
   "FWHM" -> False,
@@ -413,22 +522,21 @@ HarmonicEdgePotential[mesh_?CorticalMeshQ] := With[
    E = EdgePairsTr[mesh],
    m = EdgeCount[mesh],
    f = TemporarySymbol["edgePotential"]},
-  With[
-    {df = Function @ With[
-       {dX = #[[All, E[[2]]]] - #[[All, E[[1]]]]},
-       With[
-         {norms = Sqrt[Total[dX^2]]},
-         With[
-           {magnitude = (D0 - norms) / m},
-           SumOverEdgesDirectedTr[
-             mesh,
-             dX / {norms, norms, norms} * {magnitude, magnitude, magnitude}]]]]},
+  f["GradientFunction"] = Function @ With[
+    {dX = #[[All, E[[2]]]] - #[[All, E[[1]]]]},
+    With[
+      {norms = Sqrt[Total[dX^2]]},
+      With[
+        {magnitude = (D0 - norms) / m},
+        SumOverEdgesDirectedTr[
+          mesh,
+          dX / {norms, norms, norms} * {magnitude, magnitude, magnitude}]]]];
     f /: Grad[f, Xarg_List] := Apply[
       Join,
       If[Length[Xarg] == 3, df[Xarg], Transpose @ df[Transpose @ Xarg]]];
     f[Xarg_List] := (0.5 / m * Total[(# - D0)^2])&[
       If[Length@Xarg == 3, EdgeLengthsTr[mesh, Xarg], EdgeLengths[mesh, Xarg]]];
-    f]];
+    f];
 HarmonicEdgePotential[mesh_?CorticalMapQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
    D0 = EdgeLengths[mesh],
@@ -598,6 +706,18 @@ GaussianPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
 Protect[GaussianPotentialWell];
 
 (* #HarmonicPotentialWell *************************************************************************)
+HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_] := With[
+  {wells = Transpose @ ParseHarmonicPotentialWells[mesh, spec],
+   dims = If[CorticalMeshQ[mesh], 3, 2]},
+  CorticalPotentialFunction[
+    {CalculateHarmonicPotential[wells, If[Length[X] == dims, X, Transpose[X]]],
+     Join @@ If[Length[X] == dims,
+       CalculateHarmonicGradient[wells, X],
+       Transpose @ CalculateHarmonicGradient[wells, Transpose[X]]]},
+    X,
+    Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{Length[wells],",",Length[dims]}]],
+    CorticalMesh -> mesh]];
+(*
 HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
   With[
     {wells = Transpose @ ParseHarmonicPotentialWells[mesh, spec],
@@ -611,6 +731,7 @@ HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
       If[Length[Xarg] == dims, Xarg, Transpose[Xarg]]];
     f],
   $Failed];
+*)
 Protect[HarmonicPotentialWell];
 
 (* #MapToMeshPotential ****************************************************************************)
