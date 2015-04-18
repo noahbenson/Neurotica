@@ -711,32 +711,43 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
                     S[[2]]]]},
                meshRadius * Sqrt[2.0] * {2.0 / Pi * S[[1]] * Cos[th], Sin[th]}]]],
          None},
-       "equirectangular", {
-         Function[{X},
-           With[
-             {S = ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
-              meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
-             Transpose[meshRadius * S]]],
-         None},
-       "mercator", {
-         Function[{X},
-           With[
-             {S = Transpose @ ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
-              meshRadius = Mean[Sqrt[Total[Transpose[X]^2]]]},
-             With[
-               {sinPhi = Sin[S[[2]]]},
-               meshRadius * {S[[1]], 0.5*Log[(1 + sinPhi) / (1 - sinPhi)]}]]],
-         None},
-       "orthographic", {
-         Function[{Xt}, Xt[[2;;3]]],
-         None},
+       "equirectangular", With[
+         {radvar = {Mean[#], Variance[#]}& @ ColumnNorms[VertexCoordinatesTr[mesh]]},
+         {Function[{X},
+            With[
+              {S = ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}]},
+              Transpose[radvar[[1]] * S / Pi]]],
+          Function[{S},
+            With[
+              {X = ConvertCoordinates[
+                 Transpose[S * Pi / radvar[[1]]], 
+                 {Longitude, Latitude} -> Cartesian]},
+              Transpose[X * radvar[[1]]]]]}],
+       "mercator", With[
+         {radvar = {Mean[#], Variance[#]}& @ ColumnNorms[VertexCoordinatesTr[mesh]]},
+         {Function[{X},
+            With[
+              {S = Transpose@ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}]},
+              With[
+                {sinPhi = Sin[S[[2]]]},
+                radvar[[1]] * {
+                  S[[1]],
+                  (*0.5*Log[(1 + sinPhi) / (1 - sinPhi)]*)
+                  Log @ Tan[0.25*Pi + 0.5*S[[2]]]}]]],
+          Function[{S},
+            radvar[[1]] * Transpose@ConvertCoordinates[
+              Transpose[{S[[1]] * radvar[[1]], 2.0 * ArcTan[Exp[S[[2]] / radvar[[1]]]]}],
+              {Longitude, Latitude} -> Certesian]]}],
+       "orthographic", With[
+         {radvar = {Mean[#], Variance[#]}& @ ColumnNorms[VertexCoordinatesTr[mesh]]},
+         {Function[{Xt}, Xt[[2;;3]]],
+          Function[{Xt}, radvar[[1]] * Prepend[#, Sqrt[1.0 - Total[#^2]]]&[Xt / radvar[[1]]]]}],
        "polarstretching", {
          Function[{X},
            With[
              {polar = Transpose @ ConvertCoordinates[
                 Transpose @ X[[{2,3,1}]],
                 Cartesian -> {Longitude, SphericalPolarAngle}]},
-             Global`dbg = {X, polar};
              {# * Cos[polar[[1]]], # * Sin[polar[[1]]]}& @ Tan[polar[[2]] / 2]]],
          None},
        "graph", {
