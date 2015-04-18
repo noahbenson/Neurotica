@@ -231,7 +231,7 @@ CalculateHarmonicAngleGradient3D = Compile[
                f2 = (cos*n2 - n1) * ConstantArray[(th - th0) / (d2 * sin), Length[u1]]},
               {-(f1 + f2), f1, f2}]]]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-    Parallelization -> True],
+    Parallelization -> True];
 Protect[CalculateHarmonicAnglePotential3D, CalculateHarmonicAngleGradient3D];
 
 CalculateHarmonicAnglePotential2D = Compile[

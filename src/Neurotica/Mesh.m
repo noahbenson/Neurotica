@@ -177,7 +177,21 @@ The form CorticalColorData[name] = schema; may be evaluated to construct a Corti
 CorticalColorSchema::usage = "CorticalColorSchema[...] is a form that declares a cortical color schema object. CorticalColorSchema[] may be called with the following arguments to construct a color schema object:
 CorticalColorSchema[property -> {range, colors}] indicates the vertices should be colored according to the given colors, blended over the given range of the given property.
 CorticalColorSchema[property -> function] indicates that the given function should be passed the given property value and will return a color.
-CorticalColorSchema[All -> function] indicates that the given function should accept three arguments: the vertex id, the vertex coordinate, and the vertex property list; the function must return a color or $Failed or None.";
+CorticalColorSchema[All -> function] indicates that the given function should accept three arguments: the vertex id, the vertex coordinate, and the vertex property list; the fun
+ction must return a color or $Failed or None.";
+
+VertexPropertyList::usage   = "VertexPropertyList[mesh, prop] is equivalent to PropertyList[{mesh, VertexList}, prop].";
+EdgePropertyList::usage     = "EdgePropertyList[mesh, prop] is equivalent to PropertyList[{mesh, EdgeList}, prop].";
+FacePropertyList::usage     = "FacePropertyList[mesh, prop] is equivalent to PropertyList[{mesh, FaceList}, prop].";
+VertexPropertyValues::usage = "VertexPropertyValues[mesh, prop] is equivalent to PropertyValue[{mesh, VertexList}, prop].";
+EdgePropertyValues::usage   = "EdgePropertyValues[mesh, prop] is equivalent to PropertyValue[{mesh, EdgeList}, prop].";
+FacePropertyValues::usage   = "FacePropertyValues[mesh, prop] is equivalent to PropertyValue[{mesh, FaceList}, prop].";
+SetVertexProperties::usage  = "SetVertexProperties[mesh, prop] is equivalent to SetProperty[{mesh, VertexList}, prop].";
+SetEdgeProperties::usage    = "SetEdgeProperties[mesh, prop] is equivalent to SetProperty[{mesh, EdgeList}, prop].";
+SetFaceProperties::usage    = "SetFaceProperties[mesh, prop] is equivalent to SetProperty[{mesh, faceList}, prop].";
+RemoveVertexProperty::usage = "RemoveVertexProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, VertexList}, prop].";
+RemoveEdgeProperty::usage   = "RemoveEdgeProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, EdgeList}, prop].";
+RemoveFaceProperty::usage   = "RemoveFaceProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, FaceList}, prop].";
 
 Reproject::usage = "Reproject[map, X] yields a map identical to the given map except that it reprojects its coordinates from the alternate coordinate list for the original mesh, given by X. If X is instead a mesh with the same number of elements as the original mesh, then its coordinates are used.";
 ReporjectTr::usage = "ReprojectTr[map, Xt] is equivalent to Reproject[map, Transpose[Xt]].";
@@ -2000,23 +2014,22 @@ DefineImmutable[
  *  - Options
  *)
 $CorticalMapReconstructionOptions = Join[
-  {SourceMesh},
+  {SourceMesh, VertexCoordinates},
   Cases[Options[CorticalMap][[All,1]], Except[Properties], {1}]];
 Protect[$CorticalMapReconstructionOptions];
 CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
   With[
-    {optsarg = (
+    {optsarg = {args} // Function[
        If[Complement[#[[All,1]], $CorticalMapReconstructionOptions] == {},
          #,
          Message[
            CorticalMap::badarg,
-           StringJoin[
-             "CorticalMap[] reconstructor may only be passed CorticalMesh options or SourceMesh"]]]
-       )& @ {args}},
+           "CorticalMap[] reconstructor may only be passed CorticalMesh options or SourceMesh"]]]},
     If[Length[optsarg] == 0,
       map,
       With[
         {source = Replace[SourceMesh, optsarg],
+         coords = Replace[VertexCoordinates, optsarg],
          opts = Fold[
            Function @ With[
              {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
@@ -2027,6 +2040,7 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
           map,
           Sequence @@ Flatten[
             {If[source =!= SourceMesh, SourceMesh -> source, {}],
+             If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords]],
              If[Length[opts] > 0, Options -> opts, {}]}]]]]],
   $Failed];
 
@@ -2329,7 +2343,24 @@ RemoveProperty[mesh_?CorticalObjectQ] := Clone[
   EdgeProperties -> {},
   FaceProperties -> {}];
 
-Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList];
+(* Individualized property functions *)
+VertexPropertyList[mesh_?CorticalObjectQ] := PropertyList[{mesh, VertexList}];
+EdgePropertyList[mesh_?CorticalObjectQ] := PropertyList[{mesh, EdgeList}];
+FacePropertyList[mesh_?CorticalObjectQ] := PropertyList[{mesh, FaceList}];
+VertexPropertyValues[mesh_?CorticalObjectQ, prop_] := PropertyValue[{mesh, VertexList}, prop];
+EdgePropertyValues[mesh_?CorticalObjectQ, prop_] := PropertyValue[{mesh, EdgeList}, prop];
+FacePropertyValues[mesh_?CorticalObjectQ, prop_] := PropertyValue[{mesh, FaceList}, prop];
+SetVertexProperties[mesh_?CorticalObjectQ, prop_] := SetProperty[{mesh, VertexList}, prop];
+SetEdgeProperties[mesh_?CorticalObjectQ, prop_] := SetProperty[{mesh, EdgeList}, prop];
+SetFaceProperties[mesh_?CorticalObjectQ, prop_] := SetProperty[{mesh, FaceList}, prop];
+RemoveVertexProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, VertexList}, prop];
+RemoveEdgeProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, EdgeList}, prop];
+RemoveFaceProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, FaceList}, prop];
+
+Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList,
+        VertexPropertyList, EdgePropertyList, FacePropertyList, VertexPropertyValues,
+        EdgePropertyValues, FacePropertyValues, SetVertexProperties, SetEdgePropertues,
+        SetFaceProperties, RemoveVertexProperty, RemoveEdgeProperty, RemoveFaceProperty];
 
 
 (* #CorticalCurvatureColor ************************************************************************)
