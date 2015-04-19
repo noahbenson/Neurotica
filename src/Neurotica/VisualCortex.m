@@ -39,7 +39,8 @@ BeginPackage[
    "Neurotica`Util`",
    "Neurotica`Coordinates`",
    "Neurotica`Mesh`",
-   "Neurotica`FreeSurfer`"}];
+   "Neurotica`FreeSurfer`",
+   "Neurotica`Registration`"}];
 Unprotect["Neurotica`VisualCortex`*", "Neurotica`VisualCortex`Private`*"];
 ClearAll[ "Neurotica`VisualCortex`*", "Neurotica`VisualCortex`Private`*"];
 
@@ -139,6 +140,14 @@ PolarAngleLines::usage = "PolarAngleLines is an option to SchiraLinePlot that sp
 EccentricityLines::usage = "EccentricityLines is an option to SchiraLinePlot that specifies the eccentricity values at which to draw the iso-angular lines.";
 PolarAngleStyleFunction::usage = "PolarAngleStyleFunction is an option to SchiraLinePlot that must accept a polar angle value and yield the style directive for plotting that angle's iso-eccentric line. The value Automatic results in ColorCortex[PolarAngle] beign used. The values Thick, Dashed, Dotted, etc. will result in the same coloring schele with the option directive appended.";
 EccentricityStyleFunction::usage = "EccentricityStyleFunction is an option to SchiraLinePlot that must accept an eccentricity value and yield the style directive for plotting that eccentricity's iso-angular line. The value Automatic results in ColorCortex[Eccentricity] beign used. The values Thick, Dashed, Dotted, etc. will result in the same coloring schele with the option directive appended.";
+
+ManipulateSchiraModel::usage = "ManipulateSchiraModel[map] yields a manipulate form that allows one to edit the parameters of the Schira model which is projected over a cortex plot of the given map.
+ManipulateSchiraModel[map, model] uses the given model as the starting parameterization of the model.
+ManipulateSchiraModel[map, model :> var] assigns the updated model value to the given var every time a change is entered, assuming that the \"Save on change?\" option is set to True.";
+
+(* Registration potential functions ***************************************************************)
+GaussianSchiraPotential::usage = "GaussianSchiraPotential[map, model] yields a potential function that describes the agreement between the given SchiraModel object, model, and the retinotopy data found in the properties \"PolarAngle\" and \"Eccentricity\" of map. If the property \"VertexWeight\" is also present, then all vertices with a value above 0 are included and they are weighted by the given weights. Otherwise, any vertex with missing polar angle or eccentricity values ($Failed, None, or Indeterminate) are excluded.";
+GaussianSchiraPotential::badarg = "Bad argument given to GaussianSchiraPotential: `1`";
 
 (**************************************************************************************************)
 (**************************************************************************************************)
@@ -1002,6 +1011,87 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
 Protect[PolarAngleLegend, EccentricityLegend, SchiraParametricPlot, VisualAreas,
         SchiraLinePlot, EccentricityStyleFunction, PolarAngleStyleFunction,
         EccentricityLines, PolarAngleLines];
+
+(* #ManipulateSchiraModel *************************************************************************)
+(* #here *)
+ManipulateSchiraModel[map_?CorticalMapQ, model_SchiraModelObject :> var_Symbol] := $Failed;
+Protect[ManipulateSchiraModel];
+
+(* #GaussianSchiraPotential ***********************************************************************)
+Options[GaussianSchiraPotential] = {
+  VertexWeight -> Automatic,
+  StandardDeviation -> 1.0,
+  Print -> Subscript[Style["\[GothicCapitalG]", FontWeight -> Bold], "Schira"],
+  MetaInformation -> {}};
+GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPattern[]] := With[
+  {angle = VertexPropertyValues[map, "PolarAngle"],
+   eccen = VertexPropertyValues[map, "Eccentricity"],
+   weights = Replace[
+     OptionValue[VertexWeight],
+     {list_ /; ArrayQ[list, 1] && Length[list] == VertexCount[map] :> list,
+      list:{(_Integer -> _)..} /; Length[list] == VertexCount[map] :> SparseArray[
+        Select[VertexIndex[map, list[[All,1]]] -> list[[All, 2]], NumericQ[#[[2]]]&],
+        VertexCount[map]],
+      s_ /; ArrayQ[VertexPropertyValues[map, s], 1] :> VertexPropertyValues[map, s],
+      Automatic :> ConstantArray[1, VertexCount[map]],
+      _ :> Message[GaussianSchiraPotential::badarg, "Unrecognized VertexWeight option"]}]},
+  With[
+    {idcs = Indices[
+       Thread[{angle, eccen, weights}],
+       {a_?NumericQ, e_?NumericQ /; e >= 0, w_ /; NumericQ[w] && Positive[w]}]},
+    With[
+      {indexedWeights = weights[[idcs]] / Total[weights[[idcs]]],
+       stddev = Replace[
+         OptionValue[StandardDeviation],
+         {x_?NumericQ :> ConstantArray[x, Length[idcs]],
+          x_ /; ArrayQ[x,1] && Length[x] == VertexCount[map] :> x[[idcs]],
+          x_ /; ArrayQ[x,1] && Length[x] == Length[idcs] :> x,
+          s_ /; ArrayQ[VertexPropertyValues[map, s], 1] :> Part[
+            VertexPropertyValues[map, s]
+            idcs],
+          _ :> Message[
+            GaussianSchiraPotential::badarg,
+            StringJoin[
+              "StandardDeviation option should be a number, a list of numbers, or a property name",
+              " that is a list of numbers for all vertices"]]}],
+       preds = Transpose[RetinotopyToCorticalMap[model, angle[[idcs]], eccen[[idcs]]], {3, 1, 2}]},
+      Which[
+        Length[idcs] == 0, Message[
+          GaussianSchiraPotential::badarg,
+          "No vertices selected"]; $Failed,
+        !ArrayQ[stddev, 1, NumericQ[#] && Positive[#]&], Message[
+          GaussianSchiraPotential::badarg,
+          "standard deviations contains non-positive or non-numeric quantities"]; $Failed,
+        True, With[
+          {ks = indexedWeights / (Sqrt[2.0 * Pi] * stddev),
+           vardenom = -1.0 / (2.0 * stddev^2),
+           var = stddev^2,
+           zeros = ConstantArray[0, {2, VertexCount[map]}]},
+          CorticalPotentialFunction[
+            {Dot[
+               ks,
+               Sum[
+                 1.0 - Exp[Total[X[[All, idcs]] - preds[[i]]]^2 * vardenom], 
+                 {i, 1, Length[preds]}]],
+             Sum[
+               With[
+                 {dX = preds[[i]] - X[[All, idcs]]},
+                 With[
+                   {d = ColumnNorms[dX]},
+                   With[
+                     {grad = Times[
+                        ConstantArray[ks / var * Exp[d * vardenom], Length[X]],
+                        dX],
+                      res = zeros},
+                     res[[All, idcs]] = grad;
+                     res]]],
+               {i, 1, Length[preds]}]},
+            X,
+            Print -> OptionValue[Print],
+            CorticalMesh -> map,
+            MetaInformation -> OptionValue[MetaInformation]]]]]]];
+Protect[GaussianSchiraPotential];
+             
 
 End[];
 EndPackage[];
