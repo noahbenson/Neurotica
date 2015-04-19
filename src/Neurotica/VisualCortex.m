@@ -1075,16 +1075,17 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
                  {i, 1, Length[preds]}]],
              Sum[
                With[
-                 {dX = preds[[i]] - X[[All, idcs]]},
+                 {dX = X[[All, idcs]] - preds[[i]]},
                  With[
                    {d = ColumnNorms[dX]},
                    With[
                      {grad = Times[
                         ConstantArray[ks / var * Exp[d * vardenom], Length[X]],
-                        dX],
-                      res = zeros},
-                     res[[All, idcs]] = grad;
-                     res]]],
+                        dX]},
+                     Module[
+                       {res = zeros},
+                       res[[All, idcs]] = grad;
+                       res]]]],
                {i, 1, Length[preds]}]},
             X,
             Print -> OptionValue[Print],
