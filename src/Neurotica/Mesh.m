@@ -155,6 +155,13 @@ VertexEdgeList::usage = "VertexEdgeList[mesh] yields a list of the edges (in the
 VertexEdgeList[mesh, vertex] yields a list of just the edges that the given vertex is a member of.";
 EdgeFaceList::usage = "EdgeFaceList[mesh] yields a list of, for each edge (in the same order as EdgeList and EdgePairs), the faces to which that edge belongs.";
 
+MapBoundaryVertexList::usage = "MapBoundaryVertexList[map] yields a list of the vertices, in counter-clockwise order, that form the outer boundary of the given cortical map.";
+MapBoundaryEdgeList::usage = "MapBoundaryEdgeList[map] yields a list of the edges, in counter-clockwise order, that form the outer boundary of the given cortical map.";
+MapBoundaryEdgePairs::usage = "MapBoundaryEdgePairs[map] yields a list of the edge pairs, in counter-clockwise order, that form the outer boundary of the given cortical map.";
+MapBoundaryFaceList::usage = "MapBoundaryFaceList[map] yields a list of the faces, in counter-clockwise order, that form the outer boundary of the given cortical map.";
+MapBoundaryEdgePairsTr::usage = "MapBoundaryEdgePairsTr[map] is equivalent to Transpose @ MapBoundaryEdgePairs[map].";
+MapBoundaryFaceListTr::usage = "MapBoundaryFaceListTr[map] is equivalent to Transpose @ MapBoundaryFaceList[map].";
+
 SourceImage::usage = "SourceImage[mesh] yields the source volume of the given mesh, if the given mesh has specified a volume; otherwise None is yielded.";
 
 FaceRenderingFunction::usage = "FaceRenderingFunction is an option that can be given to CorticalMesh or CortexPlot3D, which specifies how to render the faces of a cortical mesh. The function is organized as with VertexRenderingFunction and EdgeRenderingFunction; the arguments are in an association passed as the first argument; each property for the face is listed in the association as well as the keys \"Coordinates\" and \"Face\" which give the cartesian coordinates of the vertcices in the face and the vertices in the face, respectively.";
@@ -980,22 +987,23 @@ DefineImmutable[
            First],
          All, All, 2]],
      EdgeFaceList[mesh] :> With[
-       {Ft = VertexIndex[mesh, Transpose @ FaceList[mesh]],
-        RT = Range[FaceCount[mesh]],
-        eidx = EdgeIndexArray[mesh]},
+       {Ft = FaceListTr[mesh],
+        RT = Range[FaceCount[mesh]]},
        With[
-         {edges = Extract[
-            eidx,
-            Transpose @ {
-              Join[Ft[[1]], Ft[[2]], Ft[[3]]],
-              Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
-         Part[
-           SplitBy[
-             SortBy[
-               Transpose[{edges, Join[RT, RT, RT]}],
-               First],
-             First],
-           All, All, 2]]],
+         {edges = {
+            Join[
+              Range[EdgeCount[mesh]],
+              Extract[
+                EdgeIndexArray[mesh],
+                Transpose @ {
+                  Join[Ft[[1]], Ft[[2]], Ft[[3]]],
+                  Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]],
+            Join[ConstantArray[0, EdgeCount[mesh]], RT, RT, RT]}},
+         With[
+           {idx = SplitBy[
+              Transpose @ edges[[All, Ordering[edges[[1]]]]],
+              First]},
+           idx[[All, 2;;All, 2]]]]],
 
      (* #Properties *)
      Properties[mesh] :> With[
@@ -1081,7 +1089,7 @@ DefineImmutable[
        Which[
          Head[e] === UndirectedEdge, Part[idx, EdgeIndex[mesh, e]],
          MatchQ[e, {_Integer, _Integer}], Part[idx, EdgeIndex[mesh, e]],
-         ListQ[e], Map[Part[idx, #]&, e, {-2}],
+         ListQ[e], Map[Part[idx, #]&, EdgeIndex[mesh, e], {-2}],
          True, $Failed]],
      
      (* #VertexDegree *)
@@ -1614,10 +1622,13 @@ DefineImmutable[
      EdgeIndexArray[map] :> With[
        {Et = EdgePairsTr[map],
         RE = Range[EdgeCount[map]]},
-       SparseArray[Transpose[MapThread[Join, {Et, Reverse[Et]}]] -> Join[RE, RE]]],
+       SparseArray[Transpose[{Join[Et[[1]], Et[[2]]], Join[Et[[2]], Et[[1]]]}] -> Join[RE, RE]]],
      EdgeIndex[map, (List|UndirectedEdge)[a_Integer, b_Integer]] := With[
        {id = EdgeIndexArray[map][[a,b]]},
        If[id == 0, $Failed, id]],
+     EdgeIndex[map, list:{(List|UndirectedEdge)[a_Integer, b_Integer]...}] := Extract[
+       EdgeIndexArray[map],
+       list],
      EdgeIndex[map, list_List] := With[
        {id = EdgeIndexArray[map]},
        ReplaceAll[
@@ -1664,22 +1675,23 @@ DefineImmutable[
            First],
          All, All, 2]],
      EdgeFaceList[map] :> With[
-       {Ft = VertexIndex[map, Transpose @ FaceList[map]],
-        RT = Range[FaceCount[map]],
-        eidx = EdgeIndexArray[map]},
+       {Ft = FaceListTr[map],
+        RT = Range[FaceCount[map]]},
        With[
-         {edges = Extract[
-            eidx,
-            Transpose @ {
-              Join[Ft[[1]], Ft[[2]], Ft[[3]]],
-              Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
-         Part[
-           SplitBy[
-             SortBy[
-               Transpose[{edges, Join[RT, RT, RT]}],
-               First],
-             First],
-           All, All, 2]]],
+         {edges = {
+            Join[
+              Range[EdgeCount[map]],
+              Extract[
+                EdgeIndexArray[map],
+                Transpose @ {
+                  Join[Ft[[1]], Ft[[2]], Ft[[3]]],
+                  Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]],
+            Join[ConstantArray[0, EdgeCount[map]], RT, RT, RT]}},
+         With[
+           {idx = SplitBy[
+              Transpose @ edges[[All, Ordering[edges[[1]]]]],
+              First]},
+           idx[[All, 2;;All, 2]]]]],
      (* extensions of the opposite indices; edge/face lists *)
      VertexEdgeList[map, i_Integer] := Part[VertexEdgeList[map], VertexIndex[map, i]],
      VertexEdgeList[map, l_List] := With[
@@ -1694,7 +1706,7 @@ DefineImmutable[
        Which[
          Head[e] === UndirectedEdge, Part[idx, EdgeIndex[map, e]],
          MatchQ[e, {_Integer, _Integer}], Part[idx, EdgeIndex[map, e]],
-         ListQ[e], Map[Part[idx, #]&, e, {-2}],
+         ListQ[e], Map[Part[idx, #]&, EdgeIndex[map, e], {-2}],
          True, $Failed]],
 
      (* #SumOverFacesMatrix and #SumOverEdgesMatrix *)
@@ -2081,8 +2093,7 @@ MakeBoxes[mesh_CorticalMesh3D, form_] := MakeBoxes[#]&[
                   Spacer[2], #2, Spacer[4]}],
                {{"Vertex Count:", "Edge Count:", "Face Count:"},
                 {VertexCount[mesh], EdgeCount[mesh], FaceCount[mesh]}}],
-             Alignment -> 
-             Table[{Right, Right, Center, Left, Left}, {3}]]]]},
+             Alignment -> Table[{Right, Right, Center, Left, Left}, {3}]]]]},
       BaseStyle -> Darker[Gray]]]];
 MakeBoxes[mesh_CorticalMesh2D, form_] := MakeBoxes[#]&[
   With[
@@ -2875,6 +2886,43 @@ OccipitalPole[sub_, mesh_, hemi_] := Check[
   $Failed];
 OccipitalPole[sub_, hemi_] := OccipitalPole[sub, Automatic, hemi];
 Protect[OccipitalPole];
+
+(* #MapBoundaryVertexList *************************************************************************)
+MapBoundaryVertexList[map_?CorticalMapQ] := With[
+  {bounds = Indices[EdgeFaceList[map], {x_Integer}],
+   edges = EdgePairs[map]},
+  FindShortestPath[
+   Graph[edges[[Rest@bounds]]],
+   edges[[bounds[[1]], 2]],
+   edges[[bounds[[1]], 1]]]];
+Protect[MapBoundaryVertexList];
+
+(* #MapBoundaryEdgePairsTr ************************************************************************)
+MapBoundaryEdgePairsTr[map_?CorticalMapQ] := With[
+  {vlist = MapBoundaryVertexList[map]},
+  {vlist, RotateLeft[vlist]}];
+Protect[MapBoundaryEdgePairsTr];
+
+(* #MapBoundaryEdgePairs **************************************************************************)
+MapBoundaryEdgePairs[map_?CorticalMapQ] := Transpose @ MapBoundaryEdgePairsTr[map];
+Protect[MapBoundaryEdgePairs];
+
+(* #MapBoundaryEdgeList ***************************************************************************)
+MapBoundaryEdgeList[map_?CorticalMapQ] := Map[
+  Apply[UndirectedEdge, #]&,
+  MapBoundaryEdgePairs[map]];
+Protect[MapBoundaryEdgeList];
+
+(* #MapBoundaryFaceList ***************************************************************************)
+MapBoundaryFaceList[map_?CorticalMapQ] := With[
+  {bounds = EdgeIndex[map, MapBoundaryEdgePairs[map]],
+   EFL = EdgeFaceList[map]},
+  Join@@EFL[[bounds]]];
+Protect[MapBoundaryFaceList];
+
+(* #MapBoundaryFaceListTr *************************************************************************)
+MapBoundaryFaceListTr[map_?CorticalMapQ] := Transpose @ MapBoundaryFaceList[map];
+Protect[MapBoundaryFaceListTr];
 
 End[];
 EndPackage[];
