@@ -1040,7 +1040,7 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
        Thread[{angle, eccen, weights}],
        {a_?NumericQ, e_?NumericQ /; e >= 0, w_ /; NumericQ[w] && Positive[w]}]},
     With[
-      {indexedWeights = weights[[idcs]] / Total[weights[[idcs]]],
+      {indexedWeights = (#/Total[#])& @ weights[[idcs]],
        stddev = Replace[
          OptionValue[StandardDeviation],
          {x_?NumericQ :> ConstantArray[x, Length[idcs]],
@@ -1080,7 +1080,7 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
                    {d = ColumnNorms[dX]},
                    With[
                      {grad = Times[
-                        ConstantArray[ks / var * Exp[d * vardenom], Length[X]],
+                        ConstantArray[ks / var * Exp[d^2 * vardenom], Length[X]],
                         dX]},
                      Module[
                        {res = zeros},

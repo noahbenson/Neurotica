@@ -2058,7 +2058,7 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
            Function @ With[
              {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
              If[SameQ[edit, #1], Append[#1, #2], edit]],
-           Options[mesh],
+           Options[map],
            Select[optsarg, (#[[1]] =!= SourceMesh)&]]},
         Clone[
           map,
@@ -2645,6 +2645,13 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
         Sequence@@FilterRules[
           Join[{opts}, Options[mesh], $CortexPlotOptions],
           Options[Graphics][[All,1]]]]]]];
+CortexPlot[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
+  {map = CorticalMap @@ Prepend[
+     Map[
+       Function[# -> OptionValue[#]],
+       Intersection[Options[CorticalMap][[All,1]], Options[CortexPlot][[All,1]]]],
+     map]},
+  If[!CorticalMapQ[map], $Failed, CortexPlot[map, opts]]];
 Protect[CortexPlot];
 
 
