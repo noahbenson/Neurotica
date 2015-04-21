@@ -71,6 +71,18 @@ the harmonic potential function f and its gradient are defined as:
   * \[Gradient]f[x] = w/k (d[x]/k)^(\[Beta] - 1)";
 HarmonicPotentialWell::badarg = "Bad argument given to HarmonicPotentialWell: `1`";
 
+RegionDistancePotential::usage = "RegionDistancePotential[mesh, reg, {F, G}] yields a cortical potential function with potential function F and gradient G. Both F and G must be functions such that F[dists] and G[dists], for a vector dists of the distances of the relevant vertices to the region, yield a total potential and a vector of gradient magnitudes, respectively. Note that the direction of the gradient is calculated automatically. The following additional options may be given:
+  * Print (default: Style[\"\[GothicCapitalG]\", FontWeight -> Bold]) specifies the default display name for the function.
+  * MetaInformation (default: {}) specifies extra meta information attached to the function.
+  * VertexWeight (default: Automatic) specifies the relative strength of each vertex in the field; the region will have a repulsive, neutral, or attractive effect on any vertex with a weight less than, equal to, or greater than 0, respectively. If a property is named by this argument, then its values are used. The default value, Automatic, applies the field to all vertices.
+See also SignedRegionDistancePotential.";
+RegionDistancePotential::badarg = "Bad argument given to RegionDistancePotential: `1`";
+
+SignedRegionDistancePotential::usage = "SignedRegionDistancePotential[mesh, reg, {F, G}] is identical to RegionDistancePotential[mesh, reg, {F, G}] except that the functions F and G are given signed distances to the BoundaryMeshRegion reg for the relevant vertices instead of the absolute distances.";
+SignedRegionDistancePotential::badarg = "Bad argument given to SignedRegionDistancePotential: `1`";
+
+HarmonicPerimeterPotential::usage = "HarmonicPerimeterPotential[map] yields a cortical potential function that operates on the vertices on the perimeter of the given map to hold them in place using a harmonic potential well tied to their initial positions.";
+
 MapToMeshPotential::usage = "MapToMeshPotential[map, f] yields a function equivalent to f projected onto the cortical mesh origin of the given map. A heuristic is used when necessary. Note that this may be slow for many maps, so the use of small orthographic maps is suggested.";
 
 Begin["`Private`"];
@@ -475,25 +487,29 @@ HarmonicPotentialWellParseHarmonic[x0_, OptionsPattern[]] := With[
   {width = OptionValue["Width"],
    shape = OptionValue["Shape"],
    weight = OptionValue["Weight"]},
-  Block[
-    {X, U, distance},
-    {(* Potential function *)
-     Compile[{{X, _Real, 2}},
-       weight / shape * (Sqrt[Total[MapThread[Subtract, {X, x0}]^2]] / width)^shape,
-       RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-       Parallelization -> True],
-     (* Gradient function *)
-     Compile[
-       {{X, _Real, 2}},
-       With[
-         {U = MapThread[Subtract, {X, x0}]},
+  With[
+    {const = weight / width^shape},
+    Block[
+      {X, U, distance},
+      {(* Potential function *)
+       Compile[
+         {{X, _Real, 2}},
+         const / shape * Sqrt[Total[MapThread[Subtract, {X, x0}]^2]]^shape,
+         RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+         Parallelization -> True],
+       (* Gradient function *)
+       Compile[
+         {{X, _Real, 2}},
          With[
-           {distances = Sqrt @ Total[U^2]},
+           {U = MapThread[Subtract, {X, x0}]},
            With[
-             {magnitudes = weight * (distances / width)^(shape) / distances^2},
-             U * ConstantArray[magnitudes, Length[U]]]]],
-       RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-       Parallelization -> True]}]];
+             {distances = (# + (1 - Abs@Sign[#]))& @ Chop @ Sqrt @ Total[U^2]},
+             With[
+               {magnitudes = const * distances^(shape - 1),
+                Unorm = U / ConstantArray[distances, Length[U]]},
+               Unorm * ConstantArray[magnitudes, Length[U]]]]],
+         RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+         Parallelization -> True]}]]];
 Protect[HarmonicPotentialWellParseHarmonic];
 
 HarmonicPotentialWellParseSpec[mesh_, Rule[idcsArg_, harmonicArg_]] := Check[
@@ -663,19 +679,112 @@ GaussianPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
 Protect[GaussianPotentialWell];
 
 (* #HarmonicPotentialWell *************************************************************************)
-Options[HarmonicPotentialWell] = {MetaInformation -> {}};
-HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_] := With[
+Options[HarmonicPotentialWell] = {
+  MetaInformation -> {}, 
+  Print -> Automatic};
+HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_, OptionsPattern[]] := With[
   {wells = Transpose @ ParseHarmonicPotentialWells[mesh, spec],
    dims = If[CorticalMeshQ[mesh], 3, 2]},
   CorticalPotentialFunction[
     {CalculateHarmonicPotential[wells, X], CalculateHarmonicGradient[wells, X]},
     X,
-    Print -> Subscript[
-      Style["\[GothicCapitalH]",Bold], 
-      Row[{"Well","<",Length@wells,">",",",dims}]],
+    MetaInformation -> OptionValue[MetaInformation],
     CorticalMesh -> mesh,
-    MetaInformation -> OptionValue[MetaInformation]]];
+    Print -> Replace[
+      OptionValue[Print],
+      Automatic :> Subscript[
+        Style["\[GothicCapitalH]",Bold], 
+        Row[{"Well","<",Length@wells,">",",",dims}]]]]];
 Protect[HarmonicPotentialWell];
+
+(* #RegionDistancePotential ***********************************************************************)
+Options[RegionDistancePotential] = {
+  Print -> Style["\[GothicCapitalR]", FontWeight -> Bold],
+  MetaInformation -> {},
+  VertexWeight -> Automatic};
+RegionDistancePotential[mesh_?CorticalObjectQ, reg_?RegionQ, {F_, G_}, OptionsPattern[]] := With[
+  {weight = Replace[
+     OptionValue[VertexWeight],
+     {list_ /; ArrayQ[list, 1, NumericQ] && Length[list] == VertexCount[mesh] :> list,
+      list:{(_Integer -> _?NumericQ)..} /; Length[list] == VertexCount[mesh] :> SparseArray[
+        VertexIndex[mesh, list[[All,1]]] -> list[[All, 2]], 
+        VertexCount[mesh]],
+      s_ /; ArrayQ[VertexPropertyValues[mesh, s], 1, NumericQ] :> VertexPropertyValues[mesh, s],
+      Automatic :> ConstantArray[1, VertexCount[mesh]],
+      _ :> Message[RegionDistancePotential::badarg, "Unrecognized VertexWeight option"]}]},
+  With[
+    {idcs = Indices[weights, Except[0|0.0]],
+     distFn = RegionDistanceFunction[reg],
+     nearFn = RegionNearestFunction[reg],
+     W = Total[Abs@weight]},
+    With[
+      {w = weight[[idcs]], absw = Abs[weight[[idcs]]]},
+      CorticalPotentialFunction[
+        {Dot[F @ distFn @ Transpose @ X[[All, idcs]], absw] / W,
+         With[
+           {nears = nearFn @ Transpose @ X},
+           With[
+             {dX = X - Transpose[nears]},
+             With[
+               {dists = ColumnNorms[dX]},
+               dX * ConstantArray[w * G[dists] / (W * dists), Length[X]]]]]},
+        X,
+        Print -> OptionValue[Print],
+        MetaInformation -> OptionValue[MetaInformation],
+        CorticalMesh -> mesh]]]];
+Protect[RegionDistancePotential];
+
+(* #SignedRegionDistancePotential *****************************************************************)
+Options[SignedRegionDistancePotential] = {
+  Print -> Subscript[Style["\[GothicCapitalR]", FontWeight -> Bold], "Signed"],
+  MetaInformation -> {},
+  VertexWeight -> Automatic};
+SignedRegionDistancePotential[mesh_?CorticalObjectQ,
+                              reg_?BoundaryMeshRegionQ,
+                              {F_, G_},
+                              OptionsPattern[]] := With[
+  {weight = Replace[
+     OptionValue[VertexWeight],
+     {list_ /; ArrayQ[list, 1, NumericQ] && Length[list] == VertexCount[mesh] :> list,
+      list:{(_Integer -> _?NumericQ)..} /; Length[list] == VertexCount[mesh] :> SparseArray[
+        VertexIndex[mesh, list[[All,1]]] -> list[[All, 2]], 
+        VertexCount[mesh]],
+      s_ /; ArrayQ[VertexPropertyValues[mesh, s], 1, Numeric] :> VertexPropertyValues[mesh, s],
+      Automatic :> ConstantArray[1, VertexCount[mesh]],
+      _ :> Message[SignedRegionDistancePotential::badarg, "Unrecognized VertexWeight option"]}]},
+  With[
+    {idcs = Indices[weights, Except[0|0.0]],
+     distFn = SignedRegionDistanceFunction[reg],
+     nearFn = RegionNearestFunction[reg],
+     W = Total[Abs@weight]},
+    With[
+      {w = weight[[idcs]], absw = Abs[weight[[idcs]]]},
+      CorticalPotentialFunction[
+        {Dot[F @ distFn @ Transpose @ X[[All, idcs]], absw] / W,
+         With[
+           {nears = nearFn @ Transpose @ X},
+           With[
+             {dX = X - Transpose[nears]},
+             With[
+               {dists = distFn[Transpose @ X[[All, idcs]]]},
+               dX * ConstantArray[w * G[dists] / (W * dists), Length[X]]]]]},
+        X,
+        Print -> OptionValue[Print],
+        MetaInformation -> OptionValue[MetaInformation],
+        CorticalMesh -> mesh]]]];
+Protect[SignedRegionDistancePotential];
+
+(* #HarmonicPerimeterPotential ********************************************************************)
+Options[HarmonicPerimeterPotential] = {MetaInformation -> {}};
+HarmonicPerimeterPotential[map_?CorticalMapQ, OptionsPattern[]] := With[
+  {perimeter = MapBoundaryVertexList[map],
+   X0 = VertexCoordinates[map]},
+  HarmonicPotentialWell[
+    map,
+    Thread[perimeter -> X0[[VertexIndex[map, perimeter]]]],
+    Print -> Subscript[Style["\[GothicCapitalH]", FontWeight -> Bold], "Perimeter"],
+    MetaInformation -> OptionValue[MetaInformation]]];
+Protect[HarmonicPerimeterPotential];
 
 (* #MapToMeshPotential ****************************************************************************)
 (* #here *)

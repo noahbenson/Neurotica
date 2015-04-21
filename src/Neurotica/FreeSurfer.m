@@ -1830,11 +1830,19 @@ DefineImmutable[
   Symbol -> FreeSurferSubjectData];
 
 (* We want to have a nice box-form for the subjects *)
-MakeBoxes[s_FreeSurferSubjectData, form_] := RowBox[
-  {"FreeSurferSubjectData","[",
-   StyleBox[Path[s], "Text", FontWeight -> Bold, FontFamily -> "Courier"],
-   "]"}];
-
+MakeBoxes[s_FreeSurferSubjectData, form_] := MakeBoxes[#]&[
+  With[
+    {style = {
+       FontSize -> 11,
+       FontColor -> Gray,
+       FontFamily -> "Arial",
+       FontWeight -> "Thin"}},
+    Row[
+      {"FreeSurferSubejct"[
+         Panel @ Grid[
+           {{Style[Path[s], Sequence@@style]}}, 
+           Alignment -> {{Center}}]]},
+      BaseStyle -> Darker[Gray]]]];
 
 (* FSAverage and FSAverageSym *********************************************************************)
 $FSAverage := With[
