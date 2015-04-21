@@ -231,7 +231,7 @@ CalculateHarmonicAngleGradient3D = Compile[
                f2 = (cos*n2 - n1) * ConstantArray[(th - th0) / (d2 * sin), Length[u1]]},
               {-(f1 + f2), f1, f2}]]]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-    Parallelization -> True],
+    Parallelization -> True];
 Protect[CalculateHarmonicAnglePotential3D, CalculateHarmonicAngleGradient3D];
 
 CalculateHarmonicAnglePotential2D = Compile[
@@ -567,7 +567,7 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
              mesh,
              dX * ConstantArray[magnitude, Length[dX]]]]]]},
     X,
-    Print -> Subscript["\[GothicCapitalH]", Row[{"Edges",",",Length@X0}]],
+    Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Edges",",",Length@X0}]],
     CorticalMesh -> mesh,
     MetaInformation -> OptionValue[MetaInformation]]];
 Protect[HarmonicEdgePotential];
@@ -604,7 +604,7 @@ HarmonicAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
          (* facesGrad: same format as corners0 *)
          Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}] / n]]},
     X,
-    Print -> Subscript["\[GothicCapitalH]", Row[{"Angles",",",Length@X0}]],
+    Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Angles",",",Length@X0}]],
     CorticalMesh -> mesh,
     MetaInformation -> OptionValue[MetaInformation]]];
 Protect[HarmonicAnglePotential];
@@ -641,7 +641,9 @@ CosineAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
          (* facesGrad: same format as corners0 *)
          Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}] / n]]},
     X,
-    Print -> Subscript["\[GothicCapitalH]", Row[{Subscript["Angles", "Cosine"],",",Length@X0}]],
+    Print -> Subscript[
+      Style["\[GothicCapitalH]",Bold],
+      Row[{Subscript["Angles", "Cosine"],",",Length@X0}]],
     CorticalMesh -> mesh,
     MetaInformation -> OptionValue[MetaInformation]]];
 Protect[CosineAnglePotential];
@@ -654,7 +656,7 @@ GaussianPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
     CorticalPotentialFunction[
       {CalculateGaussianGradient[wells, X], CalculateGaussianPotential[wells, X]},
       X,
-      Print -> Subscript["\[GothicCapitalH]", Row[{Subscript["Angles", "Cosine"],",",Length@X0}]],
+      Print -> Subscript[Style["\[GothicCapitalC]",Bold], Row[{"Angles",",",Length@X0}]],
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]],
   $Failed];
@@ -668,7 +670,9 @@ HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_] := With[
   CorticalPotentialFunction[
     {CalculateHarmonicPotential[wells, X], CalculateHarmonicGradient[wells, X]},
     X,
-    Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{Length[wells],",",Length[dims]}]],
+    Print -> Subscript[
+      Style["\[GothicCapitalH]",Bold], 
+      Row[{"Well","<",Length@wells,">",",",dims}]],
     CorticalMesh -> mesh,
     MetaInformation -> OptionValue[MetaInformation]]];
 Protect[HarmonicPotentialWell];
