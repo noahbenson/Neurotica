@@ -745,6 +745,8 @@ EccentricityLegend[hemi : (LH | RH), max_?NumericQ /; 0 < max <= 90, opts___Rule
   AspectRatio -> 2,
   Background -> White];
 
+
+(* #SchiraParametricPlot **************************************************************************)
 Options[SchiraParametricPlot] = Join[
    Options[ParametricPlot],
    {VisualAreas -> Automatic,
@@ -843,11 +845,7 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
            optseqShow]]]]]];
 
 
-EccentricityStyleFunction = EccentricityStyleFunction;
-PolarAngleStyleFunction = PolarAngleStyleFunction;
-EccentricityLines = EccentricityLines;
-PolarAngleLines = PolarAngleLines;
-
+(* #SchiraLinePlot ********************************************************************************)
 Options[SchiraLinePlot] = Join[
   FilterRules[Options[ParametricPlot], Except[PlotStyle | ColorFunction | ColorFunctionScaling]],
   {EccentricityStyleFunction -> Automatic,
@@ -884,12 +882,12 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
      esf = Replace[
        OptionValue[EccentricityStyleFunction],
        x : (Automatic | Thick | Thin | Dotted | Dashed) :> With[
-         {clr = With[{f = ColorCortex["Eccentricity"]}, f[{0,0,0},1,{"Eccentricity" -> #}]&]},
+         {clr = With[{f = CorticalColorData["Eccentricity"]}, f[<|"Eccentricity" -> #|>]&]},
          If[x === Automatic, clr, {x, clr[#]} &]]],
      psf = Replace[
        OptionValue[PolarAngleStyleFunction],
        x : (Automatic | Thick | Thin | Dotted | Dashed) :> With[
-         {clr = With[{f = ColorCortex["PolarAngle"]}, f[{0,0,0},1,{"PolarAngle" -> #}]&]},
+         {clr = With[{f = CorticalColorData["PolarAngle"]}, f[<|"PolarAngle" -> #|>]&]},
          If[x === Automatic, clr, {x, clr[#]} &]]],
      eclines = Replace[
        OptionValue[EccentricityLines],
