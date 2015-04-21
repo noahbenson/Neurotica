@@ -1070,23 +1070,27 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
           CorticalPotentialFunction[
             {Dot[
                ks,
-               Sum[
-                 1.0 - Exp[Total[X[[All, idcs]] - preds[[i]]]^2 * vardenom], 
-                 {i, 1, Length[preds]}]],
-             Sum[
                With[
-                 {dX = X[[All, idcs]] - preds[[i]]},
+                 {Xidcs = X[[All, idcs]]},
+                 Sum[
+                   1.0 - Exp[Total[(Xidcs - preds[[i]])^2] * vardenom], 
+                   {i, 1, Length[preds]}]]],
+             With[
+               {Xidcs = X[[All, idcs]]},
+               Sum[
                  With[
-                   {d = ColumnNorms[dX]},
+                   {dX = Xidcs - preds[[i]]},
                    With[
-                     {grad = Times[
-                        ConstantArray[ks / var * Exp[d^2 * vardenom], Length[X]],
-                        dX]},
-                     Module[
-                       {res = zeros},
-                       res[[All, idcs]] = grad;
-                       res]]]],
-               {i, 1, Length[preds]}]},
+                     {d = ColumnNorms[dX]},
+                     With[
+                       {grad = Times[
+                          ConstantArray[ks / var * Exp[d^2 * vardenom], Length[X]],
+                          dX]},
+                       Module[
+                         {res = zeros},
+                         res[[All, idcs]] = grad;
+                         res]]]],
+                 {i, 1, Length[preds]}]]},
             X,
             Print -> OptionValue[Print],
             CorticalMesh -> map,

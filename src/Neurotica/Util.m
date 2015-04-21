@@ -509,8 +509,10 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                           (* otherwise, we have one change; just handle it *)
                           True, With[
                             {id = Replace[
-                               Position[patternNames, rules[[1,1]]], 
-                               {{{i_}} /; MemberQ[settables, i] :> i,
+                               Select[
+                                 Indices[patternNames, rules[[1,1]]],
+                                 MemberQ[settables, #]&],
+                               {{i_} :> i,
                                 _ :> Message[
                                   Clone::badarg,
                                   "unrecognized or unsettable rule: " <> ToString[rules[[1,1]]]]}],
