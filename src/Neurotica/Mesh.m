@@ -2661,13 +2661,32 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
              True, {
                EdgeForm[], Gray, 
                MapThread[
-                 ffn[Association[Join[#3, {"Coordinates" -> #1, "Face" -> #2}]]]&,
-                 {FaceCoordinates[mesh], F, GetProperties[FaceList], vprop[[#]]& /@ F}]}],
+                 Function[
+                   ffn @ Apply[
+                     Association,
+                     Join[
+                       #1,
+                       {"Coordinates" -> #2, "Face" -> #3, 
+                        "Vertices" -> #4, "VertexProperties" -> Map[Apply[Association,#]&, #5],
+                        "VertexColors" -> #6}]]],
+                 {GetProperties[FaceList], FaceCoordinates[mesh], F,
+                  VertexIndex[mesh, F], vprop[[#]]& /@ VertexIndex[mesh, F],
+                  vcolors[[#]]& /@ VertexIndex[mesh, F]}]}],
            If[efn === None || efn === Automatic, 
              {},
              MapThread[
-               efn[Association[Join[#3, {"Coordinates" -> #1, "Edge" -> #3}]]]&,
-               {EdgeCoordinates[mesh], EdgePairs[mesh], GetProperties[EdgeList]}]],
+               Function[
+                 efn @ Apply[
+                   Association,
+                   Join[
+                     #1,
+                     {"Coordinates" -> #2, "Edge" -> #3, "Vertices" -> #4,
+                      "VertexProperties" -> Map[Apply[Association,#]&, #5],
+                      "VertexColors" -> #6}]]],
+                 {GetProperties[EdgeList], EdgeCoordinates[mesh], EdgePairs[mesh],
+                  VertexIndex[mesh, EdgePairs[mesh]],
+                  vprop[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]],
+                  vcolors[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]]}]],
            If[vfn === None || vfn === Automatic,
              {},
              MapThread[vfn, {X, U, vprop}]]},
@@ -2699,7 +2718,6 @@ CorticalColorSchema[property_ -> {range_, colors_}][assoc_?AssociationQ] := If[
 CorticalColorSchema[property_ -> f:Except[{_, _}]][assoc_?AssociationQ] := If[
   KeyExistsQ[assoc, property],
   With[
-    {val = Replace[property, props]},
     {val = assoc[property]},
     If[val === None || val === $Failed || val === Indeterminate,
       $Failed,
