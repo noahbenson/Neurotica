@@ -2054,18 +2054,20 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
       With[
         {source = Replace[SourceMesh, optsarg],
          coords = Replace[VertexCoordinates, optsarg],
-         opts = Fold[
-           Function @ With[
-             {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
-             If[SameQ[edit, #1], Append[#1, #2], edit]],
-           Options[map],
-           Select[optsarg, (#[[1]] =!= SourceMesh)&]]},
+         opts = Select[optsarg, (#[[1]] =!= SourceMesh && #[[1]] =!= VertexCoordinates)&]},
         Clone[
           map,
           Sequence @@ Flatten[
             {If[source =!= SourceMesh, SourceMesh -> source, {}],
-             If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords]],
-             If[Length[opts] > 0, Options -> opts, {}]}]]]]],
+             If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords], {}],
+             If[Length[opts] > 0,
+               Options -> Fold[
+                 Function @ With[
+                   {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
+                   If[SameQ[edit, #1], Append[#1, #2], edit]],
+                 Options[map],
+                 opts],
+               {}]}]]]]],
   $Failed];
 
 (* #CorticalMapQ *)
@@ -2530,13 +2532,28 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
             ConstantArray[Gray, VertexCount[mesh]],
             (sel[[2]])[mesh]]],
         None -> None,
+        name_ /; Head[CorticalColorData[name]] === CorticalColorSchema :> With[
+          {f = CorticalColorData[name]},
+          MapThread[
+            f[Association[Join[#3, {"Coordinate" -> #1, "Vertex" -> #2}]]]&,
+            {X, U, GetProperties[VertexList]}]],
         f_ :> With[
           {known = Replace[f, $CortexPlotDefaultColorSchemas]},
-          If[f === known,
+          If[f =!= known,
+            known[mesh],
             MapThread[
-              f[Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]]&,
-              {X, U, GetProperties[VertexList]}],
-            known[mesh]]]}]},
+              Function @ With[
+                {assoc = Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]},
+                With[
+                  {res = f[assoc]},
+                  If[ColorQ[res],
+                    res,
+                    With[
+                      {clrDat = CorticalColorData[res]},
+                      If[Head[clrDat] === CorticalColorSchema,
+                        clrDat[assoc],
+                        Gray]]]]],
+              {X, U, GetProperties[VertexList]}]]]}]},
     With[
       {vfn = Opt[VertexRenderingFunction],
        efn = Opt[EdgeRenderingFunction],
@@ -2604,13 +2621,28 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
             ConstantArray[Gray, VertexCount[mesh]],
             (sel[[2]])[mesh]]],
         None -> None,
+        name_ /; Head[CorticalColorData[name]] === CorticalColorSchema :> With[
+          {f = CorticalColorData[name]},
+          MapThread[
+            f[Association[Join[#3, {"Coordinate" -> #1, "Vertex" -> #2}]]]&,
+            {X, U, GetProperties[VertexList]}]],
         f_ :> With[
           {known = Replace[f, $CortexPlotDefaultColorSchemas]},
-          If[f === known,
+          If[f =!= known,
+            known[mesh],
             MapThread[
-              f[Association[Join[#3, {"Coordinate" -> #1, "Vertex" -> #2}]]]&,
-              {X, U, GetProperties[VertexList]}],
-            known[mesh]]]}]},
+              Function @ With[
+                {assoc = Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]},
+                With[
+                  {res = f[assoc]},
+                  If[ColorQ[res],
+                    res,
+                    With[
+                      {clrDat = CorticalColorData[res]},
+                      If[Head[clrDat] === CorticalColorSchema,
+                        clrDat[assoc],
+                        Gray]]]]],
+              {X, U, GetProperties[VertexList]}]]]}]},
     With[
       {vfn = Opt[VertexRenderingFunction],
        efn = Opt[EdgeRenderingFunction],
@@ -2656,17 +2688,24 @@ Protect[CortexPlot];
 
 
 (* #CorticalColorSchema ***************************************************************************)
-CorticalColorSchema[property_ -> {range_, colors_}][coord_List, id_Integer, props_List] := With[
-  {val = Replace[property, props]},
-  If[val === property || val === $Failed || val === None,
-    $Failed,
-    Blend[colors, Clip[Rescale[val, range], {0,1}]]]];
-CorticalColorSchema[property_ -> f:Except[{_, _}]][coord_List, id_Integer, props_List] := With[
-  {val = Replace[property, props]},
-  If[val === property || val === $Failed || val === None,
-    $Failed,
-    f[val]]];
-CorticalColorSchema[f:Except[_Rule]][coord_List, id_Integer, props_List] := f[id, coord, props];
+CorticalColorSchema[property_ -> {range_, colors_}][assoc_?AssociationQ] := If[
+  KeyExistsQ[assoc, property],
+  With[
+    {val = assoc[property]},
+    If[val === None || val === $Failed || val === Indeterminate,
+      $Failed,
+      Blend[colors, Clip[Rescale[val, range], {0,1}]]]],
+  $Failed];
+CorticalColorSchema[property_ -> f:Except[{_, _}]][assoc_?AssociationQ] := If[
+  KeyExistsQ[assoc, property],
+  With[
+    {val = Replace[property, props]},
+    {val = assoc[property]},
+    If[val === None || val === $Failed || val === Indeterminate,
+      $Failed,
+      f[val]]],
+  $Failed];
+CorticalColorSchema[f:Except[_Rule]][assoc_?AssociationQ] := f[assoc];
 Protect[CorticalColorSchema];
 
 (* #CorticalColorData *****************************************************************************)
