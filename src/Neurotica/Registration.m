@@ -713,9 +713,9 @@ RegionDistancePotential[mesh_?CorticalObjectQ, reg_?RegionQ, {F_, G_}, OptionsPa
       Automatic :> ConstantArray[1, VertexCount[mesh]],
       _ :> Message[RegionDistancePotential::badarg, "Unrecognized VertexWeight option"]}]},
   With[
-    {idcs = Indices[weights, Except[0|0.0]],
-     distFn = RegionDistanceFunction[reg],
-     nearFn = RegionNearestFunction[reg],
+    {idcs = Indices[weight, Except[0|0.0]],
+     distFn = RegionDistance[reg],
+     nearFn = RegionNearest[reg],
      W = Total[Abs@weight]},
     With[
       {w = weight[[idcs]], absw = Abs[weight[[idcs]]]},
@@ -753,9 +753,9 @@ SignedRegionDistancePotential[mesh_?CorticalObjectQ,
       Automatic :> ConstantArray[1, VertexCount[mesh]],
       _ :> Message[SignedRegionDistancePotential::badarg, "Unrecognized VertexWeight option"]}]},
   With[
-    {idcs = Indices[weights, Except[0|0.0]],
-     distFn = SignedRegionDistanceFunction[reg],
-     nearFn = RegionNearestFunction[reg],
+    {idcs = Indices[weight, Except[0|0.0]],
+     distFn = SignedRegionDistance[reg],
+     nearFn = RegionNearest[reg],
      W = Total[Abs@weight]},
     With[
       {w = weight[[idcs]], absw = Abs[weight[[idcs]]]},
