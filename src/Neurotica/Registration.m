@@ -220,7 +220,7 @@ CalculateHarmonicAnglePotential3D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
+      0.5 * Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient3D = Compile[
@@ -257,7 +257,7 @@ CalculateHarmonicAnglePotential2D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
+      0.5 * Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient2D = Compile[
@@ -268,16 +268,21 @@ CalculateHarmonicAngleGradient2D = Compile[
     With[
       {u1 = {x1 - x0, y1 - y0}, u2 = {x2 - x0, y2 - y0}},
       With[
-        {d1 = Sqrt[Total[u1^2]], d2 = Sqrt[Total[u2^2]]},
+        {d1 = (# + 1 - Unitize[#])& @ Chop @ Sqrt[Total[u1^2]],
+         d2 = (# + 1 - Unitize[#])& @ Chop @ Sqrt[Total[u2^2]]},
         With[
-          {th = ArcCos[Total[u1*u2] / (d1*d2)],
+          {cos = ConstantArray[Total[u1*u2] / (d1*d2), Length[u1]],
            n1 = u1 / ConstantArray[d1, Length[u1]],
            n2 = u2 / ConstantArray[d2, Length[u2]]},
           With[
-            {cos = ConstantArray[Cos[th], Length[u1]], sin = Sin[th]},
+            {th = ArcCos[cos[[1]]], sin = Sqrt[1 - cos[[1]]^2]},
             With[
-              {f1 = (cos*n1 - n2) * ConstantArray[(th - th0) / (d1 * sin), Length[u1]],
-               f2 = (cos*n2 - n1) * ConstantArray[(th - th0) / (d2 * sin), Length[u1]]},
+              {f1 = Unitize[Chop[1-cos]] * (cos*n1 - n2) * ConstantArray[
+                 (th - th0) / (# + 1 - Unitize[#])&[Chop[d1 * sin]],
+                 Length[u1]],
+               f2 = Unitize[Chop[1-cos]] * (cos*n2 - n1) * ConstantArray[
+                 (th - th0) / (# + 1 - Unitize[#])&[Chop[d2 * sin]],
+                 Length[u1]]},
               {-(f1 + f2), f1, f2}]]]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
     Parallelization -> True];
@@ -319,7 +324,7 @@ CalculateCosineAnglePotential3D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      Total[(Total[u01 * u02] / Sqrt[l01 * l02] - cos0)^2]]],
+      0.5 * Total[(Total[u01 * u02] / Sqrt[l01 * l02] - cos0)^2]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateCosineAngleGradient3D = ReplacePart[
@@ -335,7 +340,7 @@ CalculateCosineAngleGradient3D = ReplacePart[
            Simplify[
              (Dot[
                 Normalize[{x1 - x0, y1 - y0, z1 - z0}],
-                Normalize[{x2 - x0, y2 - y0, z2 - z0}]] - cos0)^2,
+                Normalize[{x2 - x0, y2 - y0, z2 - z0}]] - cos0)^2 / 2,
              Assumptions -> Element[{x0, y0, z0, x1, y1, z1, x2, y2, z2}, Reals]],
            {x0, y0, z0, x1, y1, z1, x2, y2, z2}]},
         Hold[grad, 2]]],
@@ -356,7 +361,7 @@ CalculateCosineAnglePotential2D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      Total[(Total[u01 * u02] / Sqrt[l01 * l02] - cos0)^2]]],
+      0.5 * Total[(Total[u01 * u02] / Sqrt[l01 * l02] - cos0)^2]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateCosineAngleGradient2D = ReplacePart[
@@ -372,7 +377,7 @@ CalculateCosineAngleGradient2D = ReplacePart[
            Simplify[
              (Dot[
                 Normalize[{x1 - x0, y1 - y0}],
-                Normalize[{x2 - x0, y2 - y0}]] - cos0)^2,
+                Normalize[{x2 - x0, y2 - y0}]] - cos0)^2 / 2,
              Assumptions -> Element[{x0, y0, x1, y1, x2, y2}, Reals]],
            {x0, y0, x1, y1, x2, y2}]},
         Hold[grad, 2]]],
@@ -503,7 +508,7 @@ HarmonicPotentialWellParseHarmonic[x0_, OptionsPattern[]] := With[
          With[
            {U = MapThread[Subtract, {X, x0}]},
            With[
-             {distances = (# + (1 - Abs@Sign[#]))& @ Chop @ Sqrt @ Total[U^2]},
+             {distances = (# + (1 - Unitize[#]))& @ Chop @ Sqrt @ Total[U^2]},
              With[
                {magnitudes = const * distances^(shape - 1),
                 Unorm = U / ConstantArray[distances, Length[U]]},
@@ -602,27 +607,29 @@ HarmonicAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
    gfun = If[CorticalMeshQ[mesh],
      CalculateHarmonicAngleGradient3D,
      CalculateHarmonicAngleGradient2D]},
-  CorticalPotentialFunction[
-    {With[
-       {corners0 = X[[All, #]]& /@ Ft},
-       0.5 / n * Sum[
-         pfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
-         {i, 0, 2}]],
-     With[
-       {corners0 = X[[All, #]]& /@ Ft},
-       (* corners0: {v1, v2, v3} (3xdxn); vi: {x, y, z} (3 x n) or {x, y} (2 x n) *)
+  With[
+    {const = 1.0 / n},
+    CorticalPotentialFunction[
+      {With[
+         {corners0 = X[[All, #]]& /@ Ft},
+         const * Sum[
+           pfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
+           {i, 0, 2}]],
        With[
-         {facesGrad = Sum[
-            RotateRight[
-              gfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i + 1]]],
-              i],
-            {i, 0, 2}]},
-         (* facesGrad: same format as corners0 *)
-         Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}] / n]]},
-    X,
-    Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Angles",",",Length@X0}]],
-    CorticalMesh -> mesh,
-    MetaInformation -> OptionValue[MetaInformation]]];
+         {corners0 = X[[All, #]]& /@ Ft},
+         (* corners0: {v1, v2, v3} (3xdxn); vi: {x, y, z} (3 x n) or {x, y} (2 x n) *)
+         With[
+           {facesGrad = Sum[
+              RotateRight[
+                gfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i + 1]]],
+                i],
+              {i, 0, 2}]},
+           (* facesGrad: same format as corners0 *)
+           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]]},
+      X,
+      Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Angles",",",Length@X0}]],
+      CorticalMesh -> mesh,
+      MetaInformation -> OptionValue[MetaInformation]]]];
 Protect[HarmonicAnglePotential];
 
 (* #CosineAnglePotential **************************************************************************)
@@ -639,29 +646,31 @@ CosineAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
    gfun = If[CorticalMeshQ[mesh],
      CalculateCosineAngleGradient3D,
      CalculateCosineAngleGradient2D]},
-  CorticalPotentialFunction[
-    {With[
-       {corners0 = X[[All, #]]& /@ Ft},
-       0.5 / n * Sum[
-         pfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
-         {i, 0, 2}]],
-     With[
-       {corners0 = X[[All, #]]& /@ Ft},
-       (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y, z} (3 x n) *)
+  With[
+    {const = 1.0 / n},
+    CorticalPotentialFunction[
+      {With[
+         {corners0 = X[[All, #]]& /@ Ft},
+         const * Sum[
+           pfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
+           {i, 0, 2}]],
        With[
-         {facesGrad = Sum[
-            RotateRight[
-              gfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
-              1],
-            {i, 0, 2}]},
-         (* facesGrad: same format as corners0 *)
-         Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}] / n]]},
-    X,
-    Print -> Subscript[
-      Style["\[GothicCapitalH]",Bold],
-      Row[{Subscript["Angles", "Cosine"],",",Length@X0}]],
-    CorticalMesh -> mesh,
-    MetaInformation -> OptionValue[MetaInformation]]];
+         {corners0 = X[[All, #]]& /@ Ft},
+         (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y, z} (3 x n) *)
+         With[
+           {facesGrad = Sum[
+              RotateRight[
+                gfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
+                1],
+              {i, 0, 2}]},
+           (* facesGrad: same format as corners0 *)
+           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]]},
+      X,
+      Print -> Subscript[
+        Style["\[GothicCapitalH]",Bold],
+        Row[{Subscript["Angles", "Cosine"],",",Length@X0}]],
+      CorticalMesh -> mesh,
+      MetaInformation -> OptionValue[MetaInformation]]]];
 Protect[CosineAnglePotential];
 
 (* #GaussianPotentialWell *************************************************************************)
@@ -727,7 +736,9 @@ RegionDistancePotential[mesh_?CorticalObjectQ, reg_?RegionQ, {F_, G_}, OptionsPa
              {dX = X - Transpose[nears]},
              With[
                {dists = ColumnNorms[dX]},
-               dX * ConstantArray[w * G[dists] / (W * dists), Length[X]]]]]},
+               dX * ConstantArray[
+                 w * G[dists] / (W * (# + (1 - Unitize[#]))&[Chop @ dists]),
+                 Length[X]]]]]},
         X,
         Print -> OptionValue[Print],
         MetaInformation -> OptionValue[MetaInformation],
