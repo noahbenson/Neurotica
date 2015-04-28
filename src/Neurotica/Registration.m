@@ -85,6 +85,11 @@ HarmonicPerimeterPotential::usage = "HarmonicPerimeterPotential[map] yields a co
 
 MapToMeshPotential::usage = "MapToMeshPotential[map, f] yields a function equivalent to f projected onto the cortical mesh origin of the given map. A heuristic is used when necessary. Note that this may be slow for many maps, so the use of small orthographic maps is suggested.";
 
+CortexGradientPlot::usage = "CortexGradientPlot[mesh, functions] yields a plot of the edges in the given mesh with the arrows representing the gradient of the vertices in the mesh, according to the list of potential functions given in the list functions. In addition to all options that are valid for CortexPlot, the following options may be given:
+  * Arrowheads (default: Small) indicates that the arrowheads should be the given size in the plot.
+  * PlotStyle (default: Automatic) should be a list of style instructions for the arrows of the gradients; these are cycled across the potential functions as in ListPlot.
+  * Scaled (default: Automatic) indicates the absolute plotting length of the largest single gradient vector for any of the vertices; effectively, all gradients are scaled such that the largest gradient is equal to this value. If Automatic is given, then the value used is 75% of the mean edge length.";
+
 Begin["`Private`"];
 
 (* #CorticalPotentialFunction *********************************************************************)
@@ -800,6 +805,55 @@ Protect[HarmonicPerimeterPotential];
 (* #MapToMeshPotential ****************************************************************************)
 (* #here *)
 MapToMeshPotential[map_?CoticalMapQ, f_] := None;
+
+(* #CortexGradientPlot ****************************************************************************)
+Unprotect[CortexGradientPlot];
+ClearAll[CortexGradientPlot];
+
+Options[CortexGradientPlot] = Join[
+  {Arrowheads -> Small,
+   PlotStyle -> Automatic,
+   Scaled -> Automatic},
+  Options[CortexPlot]];
+CortexGradientPlot[mesh_?CorticalMapQ, functions_List, opts : OptionsPattern[]] := With[
+  {arrowheads = OptionValue[Arrowheads],
+   scale = Replace[OptionValue[Scaled], Automatic :> 0.75*Max[EdgeLengths[mesh]]],
+   styles = OptionValue[PlotStyle],
+   cortexPlotOpts = FilterRules[{opts}, Options[CortexPlot]],
+   showOpts = FilterRules[{opts}, Options[Show]],
+   X = VertexCoordinates[mesh],
+   n = Length[functions]},
+  Show[
+    {CortexPlot[
+       mesh,
+       Sequence @@ cortexPlotOpts,
+       EdgeRenderingFunction -> ({Thin, Line[#Coordinates, VertexColors -> #VertexColors]}&),
+       FaceRenderingFunction -> None],
+     With[
+       {grads = Partition[Grad[#, X], 2] & /@ functions},
+       With[
+         {coef = scale/Max[Join @@ Map[RowNorms, grads]]},
+         Graphics[
+           {Arrowheads[arrowheads],
+            MapIndexed[
+              Function@With[
+                {style = Which[
+                   styles === Automatic, ColorData["Rainbow"][
+                     If[n == 1, 0.5, (#2[[1]] - 1)/(n - 1)]],
+                   !ListQ[styles], styles,
+                   True, styles[[Mod[#2[[1]] - 1, n] + 1]]]},
+                Join[
+                  If[ListQ[style], style, {style}],
+                  MapThread[Arrow[{#1, #1 + coef*#2}] &, {X, #1}]]],
+              grads]}]]]},
+    Sequence @@ showOpts]];
+CortexGradientPlot[Rule[X_ /; ArrayQ[X, 2, NumericQ], mesh_?CorticalMapQ],
+                   functions_List,
+                   opts:OptionsPattern[]] := CortexGradientPlot[
+  CorticalMap[mesh, VertexCoordinates -> X],
+  functions,
+  opts];
+Protect[CortexGradientPlot];
 
 End[];
 EndPackage[];
