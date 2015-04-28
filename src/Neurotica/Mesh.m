@@ -2509,7 +2509,7 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
         (name|Automatic) :> Replace[name, $CortexPlot3DOptions]}]],
    GetProperties = Function[{type},
      Replace[
-       Thread[Rule[#, PropertyValue[{mesh, type}, #]]]& /@ PropertyList[{mesh, type}],
+       Thread[Rule[ToString[#], PropertyValue[{mesh, type}, #]]]& /@ PropertyList[{mesh, type}],
        {{} :> Table[{}, {Length[type[mesh]]}],
         l_ :> Transpose[l]}]],
    U = VertexList[mesh],
@@ -2568,15 +2568,35 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
           VertexCoordinates[mesh],
           {If[ffn =!= Automatic,
              {EdgeForm[], Gray, 
-              MapThread[
-                ffn[Association[Join[#3, {"Face" -> #2, "Coordinates" -> #1}]]]&,
-                {FaceCoordinates[mesh], F, GetProperties[FaceList], vprop[[#]]& /@ F}]},
+               MapThread[
+                 Function[
+                   ffn @ Apply[
+                     Association,
+                     Join[
+                       #1,
+                       {"Coordinates" -> #2, "Face" -> #3, 
+                        "Vertices" -> #4, "VertexProperties" -> Map[Apply[Association,#]&, #5],
+                        "VertexColors" -> #6}]]],
+                 {GetProperties[FaceList], FaceCoordinates[mesh], F,
+                  VertexIndex[mesh, F], vprop[[#]]& /@ VertexIndex[mesh, F],
+                  vcolors[[#]]& /@ VertexIndex[mesh, F]}]},
              {EdgeForm[], Gray, Polygon[F]}],
+
            If[efn === None || efn === Automatic, 
              {},
              MapThread[
-               efn[Association[Join[#3, {"Edge" -> #2, "Coordinates" -> #1}]]]&,
-               {EdgeCoordinates[mesh], EdgePairs[mesh], GetProperties[EdgeList]}]],
+               Function[
+                 efn @ Apply[
+                   Association,
+                   Join[
+                     #1,
+                     {"Coordinates" -> #2, "Edge" -> #3, "Vertices" -> #4,
+                      "VertexProperties" -> Map[Apply[Association,#]&, #5],
+                      "VertexColors" -> #6}]]],
+                 {GetProperties[EdgeList], EdgeCoordinates[mesh], EdgePairs[mesh],
+                  VertexIndex[mesh, EdgePairs[mesh]],
+                  vprop[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]],
+                  vcolors[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]]}]],
            If[vfn === None || vfn === Automatic,
              {},
              MapThread[
