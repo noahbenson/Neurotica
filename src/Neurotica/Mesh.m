@@ -2566,8 +2566,10 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
       Graphics3D[
         GraphicsComplex[
           VertexCoordinates[mesh],
-          {If[ffn =!= Automatic,
-             {EdgeForm[], Gray, 
+          {Which[
+             ffn === None, {},
+             ffn === Automatic, {EdgeForm[], Gray, Polygon[F]}
+             True, {EdgeForm[], Gray, 
                MapThread[
                  Function[
                    ffn @ Apply[
@@ -2579,9 +2581,7 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
                         "VertexColors" -> #6}]]],
                  {GetProperties[FaceList], FaceCoordinates[mesh], F,
                   VertexIndex[mesh, F], vprop[[#]]& /@ VertexIndex[mesh, F],
-                  vcolors[[#]]& /@ VertexIndex[mesh, F]}]},
-             {EdgeForm[], Gray, Polygon[F]}],
-
+                  vcolors[[#]]& /@ VertexIndex[mesh, F]}]}],
            If[efn === None || efn === Automatic, 
              {},
              MapThread[
