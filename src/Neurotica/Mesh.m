@@ -2568,7 +2568,7 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
           VertexCoordinates[mesh],
           {Which[
              ffn === None, {},
-             ffn === Automatic, {EdgeForm[], Gray, Polygon[F]}
+             ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
              True, {EdgeForm[], Gray, 
                MapThread[
                  Function[
