@@ -539,8 +539,7 @@ ImportNifTIVoxels[stream_, opts___Rule] := Check[
             Fold[
               Partition,
               raw,
-              Most @ Reverse[
-                If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]]]]]]]],
+              Most @ If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]]]]]]],
   $Failed];
 
 ImportNifTIData[stream_, opts___Rule] := Check[
