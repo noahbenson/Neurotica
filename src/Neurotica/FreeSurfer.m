@@ -261,7 +261,7 @@ ImportMGHFrames[stream_InputStream, opts___] := "Frames" -> Catch[
                 Partition[
                   Partition[
                     BinaryReadList[stream, type, volsz],
-                    dims[[3]]],
+                    dims[[1]]],
                   dims[[2]]],
                 {0,1}],
               {nframes}]]]]]];
@@ -365,7 +365,7 @@ MGHInterpret[data_] := With[
      spacings = "Spacings" /. header,
      mtx = "VOXToRASMatrix" /. header},
     If[Count[dims, 1, {1}] == Length[dims] - 1,
-      Reverse @ Flatten[frames],
+      Flatten[frames],
       MRImage3D[
         frames,
         Center -> (mtx[[4, 1;;3]] + Dimensions[frames][[1;;3]]/2),

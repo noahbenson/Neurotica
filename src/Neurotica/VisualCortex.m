@@ -659,6 +659,7 @@ SchiraModelObject[disp_][x_] := Replace[x, disp];
 SchiraFunction[SchiraModelObject[disp_]] := Replace[Function, disp];
 SchiraInverse[SchiraModelObject[disp_]] := Replace[Inverse, disp];
 
+(* #CorticalMapToRetinotopy ***********************************************************************)
 CorticalMapToRetinotopy[SchiraModelObject[disp_], map_?MapQ] := With[
   {inv = Replace[Inverse, disp],
    Z = Transpose[VertexList[map]],
@@ -672,6 +673,15 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_], {x:Except[_List], y:Except[_Li
   With[
    {z = inv[x + I*y] * (90.0 / r90)},
    Append[ComplexToVisualAngle[z[[1]]], z[[2]]]]];
+CorticalMapToRetinotopy[SchiraModelObject[disp_],
+                        {x_List, y_List} /; Length[x] == Length[y] && Length[x] != 2] := With[
+  {inv = Replace[Inverse, disp],
+   r90 = Replace[\[CapitalRho]90, disp]},
+  With[
+    {res = inv[X + I*Y] * (90.0 / r90)},
+    If[ListQ[First@res],
+      Append[ComplexToVisualAngle[#[[1]]], #[[2]]]& /@ res,
+      Append[ComplexToVisualAngle[res[[1]]], res[[2]]]]]];
 CorticalMapToRetinotopy[SchiraModelObject[disp_], coords:{{_,_}..}] := With[
   {inv = Replace[Inverse, disp],
    Z = Transpose[coords],

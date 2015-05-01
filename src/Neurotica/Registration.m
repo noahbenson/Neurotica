@@ -83,8 +83,6 @@ SignedRegionDistancePotential::badarg = "Bad argument given to SignedRegionDista
 
 HarmonicPerimeterPotential::usage = "HarmonicPerimeterPotential[map] yields a cortical potential function that operates on the vertices on the perimeter of the given map to hold them in place using a harmonic potential well tied to their initial positions.";
 
-MapToMeshPotential::usage = "MapToMeshPotential[map, f] yields a function equivalent to f projected onto the cortical mesh origin of the given map. A heuristic is used when necessary. Note that this may be slow for many maps, so the use of small orthographic maps is suggested.";
-
 CortexGradientPlot::usage = "CortexGradientPlot[mesh, functions] yields a plot of the edges in the given mesh with the arrows representing the gradient of the vertices in the mesh, according to the list of potential functions given in the list functions. In addition to all options that are valid for CortexPlot, the following options may be given:
   * Arrowheads (default: Small) indicates that the arrowheads should be the given size in the plot.
   * PlotStyle (default: Automatic) should be a list of style instructions for the arrows of the gradients; these are cycled across the potential functions as in ListPlot.
@@ -801,10 +799,6 @@ HarmonicPerimeterPotential[map_?CorticalMapQ, OptionsPattern[]] := With[
     Print -> Subscript[Style["\[GothicCapitalH]", FontWeight -> Bold], "Perimeter"],
     MetaInformation -> OptionValue[MetaInformation]]];
 Protect[HarmonicPerimeterPotential];
-
-(* #MapToMeshPotential ****************************************************************************)
-(* #here *)
-MapToMeshPotential[map_?CoticalMapQ, f_] := None;
 
 (* #CortexGradientPlot ****************************************************************************)
 Unprotect[CortexGradientPlot];
