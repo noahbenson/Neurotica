@@ -2834,33 +2834,33 @@ CortexResample[a_?CorticalMeshQ, b_?CorticalMeshQ, opts:OptionsPattern[]] := Cat
       SetProperty[
         {surf, VertexList}, 
         Map[(# -> PropertyValue[{b, VertexList}, #])&, PropertyList[{b, VertexList}]]],
-      Switch[
+      Replace[
         Replace[method, x:Except[_List] :> {x}],
-        {"Nearest"}|{"NearestNeighbor"}|{Nearest}, With[
-          {nearest = Nearest[VertexCoordinates[b] -> Automatic]},
-          With[
-            {idcs = Map[Function[First[nearest[#, 1]]], VertexCoordinates[a]]},
-            SetProperty[
-              {surf, VertexList},
-              MapThread[(#1 -> #2[[idcs]])&, {propNames, props}]]]],
-        {"Interpolation"|Interpolation, args___} :> With[
-           {interp = Interpolation[
-              MapThread[
-                List,
-                {VertexCoordinates[b], VertexPropertyValues[b, VertexPropertyList[b]]}],
-              args],
-            props = VertexPropertyList[b]},
-           With[
-             {resampled = Map[Apply[interp, #]&, VertexCoordinates[a]]},
-             SetProperty[
-               {surf, VertexList},
-               Thread[props -> resampled]]]],
-        _, (
-          Message[
-            SurfResample::badarg,
-            Method,
-            "Method given to CortexResample must be Nearest or Interpolation"];
-          Throw[$Failed])]]]];
+        {{"Nearest"|"NearestNeighbor"|Nearest} :> With[
+            {nearest = Nearest[VertexCoordinates[b] -> Automatic]},
+            With[
+              {idcs = Map[Function[First[nearest[#, 1]]], VertexCoordinates[a]]},
+              SetProperty[
+                {surf, VertexList},
+                MapThread[(#1 -> #2[[idcs]])&, {propNames, props}]]]],
+         {"Interpolation"|Interpolation, args___} :> With[
+            {interp = Interpolation[
+               MapThread[
+                 List,
+                 {VertexCoordinates[b], VertexPropertyValues[b, VertexPropertyList[b]]}],
+               args],
+             props = VertexPropertyList[b]},
+            With[
+              {resampled = Map[Apply[interp, #]&, VertexCoordinates[a]]},
+              SetProperty[
+                {surf, VertexList},
+                Thread[props -> resampled]]]],
+         _ :> Throw[
+           Message[
+             SurfResample::badarg,
+             Method,
+             "Method given to CortexResample must be Nearest or Interpolation"];
+           $Failed]}]]]];
 CortexResample[Rule[a_?CorticalMeshQ, b_?CorticalMeshQ], opts:OptionsPattern[]] := CortexResample[
   b, a, opts];
 Protect[CortexResample];
