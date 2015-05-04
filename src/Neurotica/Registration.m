@@ -849,6 +849,80 @@ CortexGradientPlot[Rule[X_ /; ArrayQ[X, 2, NumericQ], mesh_?CorticalMapQ],
   opts];
 Protect[CortexGradientPlot];
 
+(* #MapTangledQ ***********************************************************************************)
+MapTangledQ[map_?MapQ, X_] := With[
+  {nei = NeighborhoodList[map]},
+  Catch[
+    MapThread[
+      Function[{x, n},
+        If[Length[n] > 2,
+          With[
+            {xnei = X[[#]] & /@ n},
+            With[
+              {ord = Ordering[ArcTan[#[[1]] - x[[1]], #[[2]] - x[[2]]] & /@ xnei]},
+              With[
+                {rot = RotateLeft[ord, Position[ord, 1, {1}][[1, 1]] - 1]},
+                If[Range[Length[rot]] != rot || !Graphics`Mesh`InPolygonQ[xnei, x],
+                  Throw[True]]]]]]],
+      {X, nei}];
+    False]];
+MapTangledQ[map_?MapQ] := MapTangledQ[map, VertexList[map]];
+Protect[MapTangledQ];
+
+(* #MapTangles ************************************************************************************)
+MapTangles[map_?MapQ, X_] := With[
+  {nei = NeighborhoodList[map]},
+  Flatten@Last@Reap[
+    MapThread[
+      Function[{x, n, k},
+        If[Length[n] > 2,
+          With[
+            {xnei = X[[#]] & /@ n},
+            With[
+             {ord = Ordering[ArcTan[#[[1]] - x[[1]], #[[2]] - x[[2]]] & /@ xnei]},
+             With[
+               {rot = RotateLeft[ord, Position[ord, 1, {1}][[1, 1]] - 1]},
+               If[Range[Length[rot]] != rot || !Graphics`Mesh`InPolygonQ[xnei, x],
+                 Sow[k]]]]]]],
+      {X, nei, Range[Length@X]}]]];
+MapTangles[map_?MapQ] := MapTangles[map, VertexList[map]];
+Protect[MapTangles];
+
+(* #MapUntangle ***********************************************************************************)
+Options[MapUntangle] = {Hold -> None};
+MapUntangle[map_?MapQ, Xtangled_, max_: 50, OptionsPattern[]] := With[
+  {P = HarmonicEdgePotential[map] + HarmonicAnglePotential[map],
+   hold = Replace[OptionValue[Hold], None->{}],
+   nei = NeighborhoodList[map]},
+  NestWhile[
+    Function[{X0},
+      With[
+        {tangles = With[
+           {t0 = MapTangles[map, X0]},
+           Complement[Union[Flatten[{t0, nei[[#]] & /@ t0}]], hold]]},
+        Block[{X, f, g},
+          f[x_List] := P[ReplacePart[X0, Thread[tangles -> x]], tangles];
+          g[x_List] := Grad[P, ReplacePart[X0, Thread[tangles -> x]], tangles];
+          ReplacePart[
+            X0,
+            Thread[
+              tangles -> Quiet[
+                First@FindArgMin[
+                  f[X],
+                  {X, X0[[tangles]]},
+                  Gradient :> g[X],
+                  Method -> {"QuasiNewton",
+                    "StepControl" -> {"LineSearch", "CurvatureFactor" -> 1.0}},
+                  AccuracyGoal -> 6,
+                  MaxIterations -> 100],
+                {FindArgMin::cvmit, FindArgMin::lstol}]]]]]],
+    Xtangled,
+    MapTangledQ[map, #] &,
+    1,
+    max]];
+Protect[MapUntangle];
+
+
 End[];
 EndPackage[];
 
