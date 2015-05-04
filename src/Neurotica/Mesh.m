@@ -226,6 +226,10 @@ CorticalLabelQ::usage = "CorticalLabelQ[mesh, label] yields True if and only if 
   * mesh is 3D and label is a list whose first element is a vertex u and whose remaining elements are a list of edge pairs or edges that form a cycle such that u is not in the list of edges; in this case, u is by definition on the inside of the label;
   * mesh is 2D and label is a BoundaryMeshRegion whose RegionDimension is 2;
   * mesh is 3D and label is a BoundaryMeshRegion whose RegionDimension is 3.";
+CorticalLabelMask::usage = "CorticalLabelMask[mesh, label] yields a mask of the vertices in the given mesh that are included in the label. The mask returned is in the form or a SparseArray or list with 0s indicating vertices that are not included and 1s indicating vertices that are. If label is not a valid cortical label, then $Failed is yielded and a message is generated.";
+CorticalLabelMask::notlab = "Label argument given to CorticalLabelMask is not a valid cortical label.";
+CorticalLabelVertexList::usage = "CorticalLabelVertexList[mesh, label] yields a list of the vertices in the given mesh that are included in the label. If label is not a valid cortical label, then $Failed is yielded and a message is generated.";
+CorticalLabelVertexList::notlab = "Label argument given to CorticalLabelVertexList is not a valid cortical label.";
 
 LabelVertexCoordinates::usage = "LabelVertexCoordinates[sub, mesh, hemi, name] yields the vertex coordinates for the given subject, mesh, and hemisphere of the vertices that lie in the label with the given name.
 Note that if you are defining a new subject modality, you should define LabelVertexList[] instead of LabelVertexCoordinates.";
@@ -1081,7 +1085,7 @@ DefineImmutable[
        If[id == 0, $Failed, id]],
      VertexIndex[mesh, is_List] := With[
        {idx = VertexIndexArray[mesh]},
-       Map[Part[idx, #]&, is, {-2}]],
+       ReplaceAll[Map[Part[idx, #]&, is, {-2}], 0 -> $Failed]]
 
      (* extensions of the opposite indices; edge/face lists *)
      VertexEdgeList[mesh, i_Integer] := Part[VertexEdgeList[mesh], VertexIndex[mesh, i]],
@@ -1654,7 +1658,7 @@ DefineImmutable[
        If[id == 0, $Failed, id]],
      VertexIndex[map, is_List] := With[
        {idx = VertexIndexArray[map]},
-       Map[Part[idx, #]&, is, {-2}]],
+       ReplaceAll[Map[Part[idx, #]&, is, {-2}], 0 -> $Failed]],
      
 
      (* ======================================== Delays ========================================= *)
@@ -2875,14 +2879,156 @@ Protect[CortexResample];
 
 (* #CorticalLabelQ ********************************************************************************)
 CorticalLabelQ[mesh_?CorticalObjectQ, label_] := False;
-(*
-CorticalLabelQ[mesh_?CorticalObjectQ, label_ /; ArrayQ[label, 1]] := Which[
-  Length[label] == VertexCount[mesh], AllTrue[label, Or[BooleanQ[#], N[#] == 1.0, N[#] == 0.0]&],
-  Length[label] <= VertexCount[mesh], And[
-    AllTrue[label, IntegerQ],,
-    AllTrue[VertexIndex[mesh, label], And[IntegerQ[#], Positive[#]]&]],
+CorticalLabelQ[map_?CorticalMapQ, label_] := Which[
+  VectorQ[label, IntegerQ], Which[
+    Length[Complement[label, VertexList[map]]] == 0, True,
+    Length[label] == VertexCount[map] && Length[Complement[label, {1, 0}]] == 0, True,
+    True, False],
+  ArrayQ[label, 1|2], Which[
+    Length[label] == VertexCount[map] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, True,
+    AllTrue[label, Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&], With[
+      {fix = ReplaceAll[label, UndirectedEdge -> List]},
+      And[Complement[Join @@ fix, VertexList[map]] == {},
+          FindCycle[Graph[fix], {Length[fix]}] != {}]],
+    True, False],
+  BoundaryMeshQ[label] && RegionDimension[label] == 2, True,
   True, False];
-*)
+CorticalLabelQ[mesh_?CorticalMeshQ, label_] := Which[
+  VectorQ[label, IntegerQ], Which[
+    Length[Complement[label, VertexList[mesh]]] == 0, True,
+    Length[label] == VertexCount[mesh] && Length[Complement[label, {1, 0}]] == 0, True,
+    True, False],
+  ArrayQ[label, 1|2], Which[
+    Length[label] == VertexCount[mesh] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, True,
+    And[
+      AllTrue[Rest[label], Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&],
+      IntegerQ[label[[1]]],
+      IntegerQ[VertexIndex[mesh, label[[1]]]]], With[
+        {fix = ReplaceAll[label, UndirectedEdge -> List]},
+        And[Complement[Join @@ fix, VertexList[mesh]] == {},
+            FindCycle[Graph[fix], {Length[fix]}] != {}]],
+    True, False],
+  BoundaryMeshQ[label] && RegionDimension[label] == 3, True,
+  True, False];
+Protect[CorticalLabelQ];
+
+(* #CorticalLabelMask *****************************************************************************)
+CorticalLabelMask[map_?CorticalMapQ, label_] := Which[
+  VectorQ[label, IntegerQ], Which[
+    Length[Complement[label, VertexList[map]]] == 0, SparseArray[
+      Thread[VertexIndex[map, label] -> 1],
+      {VertexCount[map]},
+      0],
+    Length[label] == VertexCount[map] && Length[Complement[label, {1, 0}]] == 0, label,
+    True, (Message[CorticalLabelMask::notlab]; $Failed)],
+  ArrayQ[label, 1|2], Which[
+    Length[label] == VertexCount[map] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, label,
+    AllTrue[label, Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&], With[
+      {fix = ReplaceAll[label, UndirectedEdge -> List]},
+      If[And[Complement[Join @@ fix, VertexList[map]] == {},
+             FindCycle[Graph[fix], {Length[fix]}] != {}],
+        With[
+          {pgonfn = SignedRegionDistance[
+             Polygon[Part[VertexCoordinates[map], #]& /@ VertexIndex[map, fix]]],
+           X = VertexCoordinates[map]},
+          SparseArray[
+            Thread[Select[Range[Length@X], pgonfn[#] <= 0&] -> 1],
+            {Length@X},
+            0]],
+        (Message[CorticalLabelMask::notlab]; $Failed)]],
+    True, (Message[CorticalLabelMask::notlab]; $Failed)],
+  BoundaryMeshQ[label] && RegionDimension[label] == 2, With[
+    {pgonfn = SignedRegionDistance[label],
+     X = VertexCoordinates[map]},
+    SparseArray[
+      Thread[Select[Range[Length@X], pgonfn[#] <= 0&] -> 1],
+      {Length@X},
+      0]],
+  True, (Message[CorticalLabelMask::notlab]; $Failed)];
+CorticalLabelMask[mesh_?CorticalMeshQ, label_] := Which[
+  VectorQ[label, IntegerQ], Which[
+    Length[Complement[label, VertexList[mesh]]] == 0, SparseArray[
+      Thread[VertexIndex[mesh, label] -> 1],
+      {VertexCount[mesh]},
+      0],
+    Length[label] == VertexCount[mesh] && Length[Complement[label, {1, 0}]] == 0, label,
+    True, (Message[CorticalLabelMask::notlab]; $Failed)],
+  ArrayQ[label, 1|2], Which[
+    Length[label] == VertexCount[mesh] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, label,
+    AllTrue[label, Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&], With[
+      {fix = ReplaceAll[label, UndirectedEdge -> List]},
+      If[And[Complement[Join @@ fix, VertexList[mesh]] == {},
+             FindCycle[Graph[fix], {Length[fix]}] != {}],
+        With[
+          {pgonfn = SignedRegionDistance[
+             Polygon[Part[VertexCoordinates[mesh], #]& /@ VertexIndex[mesh, fix]]],
+           X = VertexCoordinates[mesh]},
+          SparseArray[
+            Thread[Select[Range[Length@X], pgonfn[#] <= 0&] -> 1],
+            {Length@X},
+            0]],
+        (Message[CorticalLabelMask::notlab]; $Failed)]],
+    True, (Message[CorticalLabelMask::notlab]; $Failed)],
+  BoundaryMeshQ[label] && RegionDimension[label] == 2, With[
+    {pgonfn = SignedRegionDistance[label],
+     X = VertexCoordinates[mesh]},
+    SparseArray[
+      Thread[Select[Range[Length@X], pgonfn[#] <= 0&] -> 1],
+      {Length@X},
+      0]],
+  True, (Message[CorticalLabelMask::notlab]; $Failed)];
+
+(* #CorticalLabelVertexList ***********************************************************************)
+CorticalLabelVertexList[map_?CorticalMapQ, label_] := Which[
+  VectorQ[label, IntegerQ], Which[
+    Length[Complement[label, VertexList[map]]] == 0, label,
+    Length[label] == VertexCount[map] && Length[Complement[label, {1, 0}]] == 0, Pick[
+      VertexList[map], label, 1],
+    True, (Message[CorticalLabelVertexList::notlab]; $Failed)],
+  ArrayQ[label, 1|2], Which[
+    Length[label] == VertexCount[map] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, Pick[
+      VertexList[map], label, 1|1.0|True],
+    AllTrue[label, Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&], With[
+      {fix = ReplaceAll[label, UndirectedEdge -> List]},
+      If[And[Complement[Join @@ fix, VertexList[map]] == {},
+             FindCycle[Graph[fix], {Length[fix]}] != {}],
+        With[
+          {pgonfn = SignedRegionDistance[
+             Polygon[Part[VertexCoordinates[map], #]& /@ VertexIndex[map, fix]]],
+           X = VertexCoordinates[map]},
+          Pick[VertexList[map], X, x_ /; pgonfn[x] <= 0]],
+        (Message[CorticalLabelVertexList::notlab]; $Failed)]],
+    True, (Message[CorticalLabelVertexList::notlab]; $Failed)],
+  BoundaryMeshQ[label] && RegionDimension[label] == 2, With[
+    {pgonfn = SignedRegionDistance[label],
+     X = VertexCoordinates[map]},
+    Pick[VertexList[map], X, x_ /; pgonfn[x] <= 0]],
+  True, (Message[CorticalLabelVertexList::notlab]; $Failed)];
+CorticalLabelVertexList[mesh_?CorticalMeshQ, label_] := Which[
+  VectorQ[label, IntegerQ], Which[
+    Length[Complement[label, VertexList[mesh]]] == 0, label,
+    Length[label] == VertexCount[mesh] && Length[Complement[label, {1, 0}]] == 0, Pick[
+      VertexList[mesh], label, 1],
+    True, (Message[CorticalLabelVertexList::notlab]; $Failed)],
+  ArrayQ[label, 1|2], Which[
+    Length[label] == VertexCount[mesh] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, Pick[
+      VertexList[mesh], label, 1|1.0|True],
+    AllTrue[label, Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&], With[
+      {fix = ReplaceAll[label, UndirectedEdge -> List]},
+      If[And[Complement[Join @@ fix, VertexList[mesh]] == {},
+             FindCycle[Graph[fix], {Length[fix]}] != {}],
+        With[
+          {pgonfn = SignedRegionDistance[
+             Polygon[Part[VertexCoordinates[mesh], #]& /@ VertexIndex[mesh, fix]]],
+           X = VertexCoordinates[mesh]},
+          Pick[VertexList[mesh], X, x_ /; pgonfn[x] <= 0]],
+        (Message[CorticalLabelVertexList::notlab]; $Failed)]],
+    True, (Message[CorticalLabelVertexList::notlab]; $Failed)],
+  BoundaryMeshQ[label] && RegionDimension[label] == 2, With[
+    {pgonfn = SignedRegionDistance[label],
+     X = VertexCoordinates[mesh]},
+    Pick[VertexList[mesh], X, x_ /; pgonfn[x] <= 0]],
+  True, (Message[CorticalLabelVertexList::notlab]; $Failed)];
 
 (* #LabelVertexCoordinatesTr **********************************************************************)
 LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
