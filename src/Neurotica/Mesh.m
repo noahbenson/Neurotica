@@ -219,6 +219,14 @@ The following options may be provided:
   * Method: a Method option may specify Nearest (default) for nearest-neighbor interpolation, Interpolation, or List interpolation, for their respective functions. In the latter two cases, A list may be given instead of the argument such that the first argument is Interpolation or LitInterpolation and the remaining elements of the list are options to pass to these functions; e.g. Method -> {Interpolation, InterpolationOrder -> 4}.
   * Properties: a Properties argument specifies that the given property should be resampled; a list of properties may also be given, or All. If no property is given then All is the default value.";
 
+CorticalLabelQ::usage = "CorticalLabelQ[mesh, label] yields True if and only if label is a valid label for the given mesh; otherwise yields false. A label is valid for the given mesh if any of the following conditions are met:
+  * label is a list of valid vertices in mesh;
+  * label is a list or sparse array with a length equal to the vertex count of mesh in which every value is in the set {True, False, 1, 0, 1.0, 0.0};
+  * mesh is 2D and label is a list of edge pairs or edges that form a cycle;
+  * mesh is 3D and label is a list whose first element is a vertex u and whose remaining elements are a list of edge pairs or edges that form a cycle such that u is not in the list of edges; in this case, u is by definition on the inside of the label;
+  * mesh is 2D and label is a BoundaryMeshRegion whose RegionDimension is 2;
+  * mesh is 3D and label is a BoundaryMeshRegion whose RegionDimension is 3.";
+
 LabelVertexCoordinates::usage = "LabelVertexCoordinates[sub, mesh, hemi, name] yields the vertex coordinates for the given subject, mesh, and hemisphere of the vertices that lie in the label with the given name.
 Note that if you are defining a new subject modality, you should define LabelVertexList[] instead of LabelVertexCoordinates.";
 LabelVertexCoordinatesTr::usage = "LabelVertexCoordinatesTr[sub, mesh, hemi, name] is equivalent to Transpose[LabelVertexCoordinates[sub, mesh, hemi, name]].
@@ -2864,6 +2872,17 @@ CortexResample[a_?CorticalMeshQ, b_?CorticalMeshQ, opts:OptionsPattern[]] := Cat
 CortexResample[Rule[a_?CorticalMeshQ, b_?CorticalMeshQ], opts:OptionsPattern[]] := CortexResample[
   b, a, opts];
 Protect[CortexResample];
+
+(* #CorticalLabelQ ********************************************************************************)
+CorticalLabelQ[mesh_?CorticalObjectQ, label_] := False;
+(*
+CorticalLabelQ[mesh_?CorticalObjectQ, label_ /; ArrayQ[label, 1]] := Which[
+  Length[label] == VertexCount[mesh], AllTrue[label, Or[BooleanQ[#], N[#] == 1.0, N[#] == 0.0]&],
+  Length[label] <= VertexCount[mesh], And[
+    AllTrue[label, IntegerQ],,
+    AllTrue[VertexIndex[mesh, label], And[IntegerQ[#], Positive[#]]&]],
+  True, False];
+*)
 
 (* #LabelVertexCoordinatesTr **********************************************************************)
 LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
