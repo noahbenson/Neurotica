@@ -88,6 +88,14 @@ CortexGradientPlot::usage = "CortexGradientPlot[mesh, functions] yields a plot o
   * PlotStyle (default: Automatic) should be a list of style instructions for the arrows of the gradients; these are cycled across the potential functions as in ListPlot.
   * Scaled (default: Automatic) indicates the absolute plotting length of the largest single gradient vector for any of the vertices; effectively, all gradients are scaled such that the largest gradient is equal to this value. If Automatic is given, then the value used is 75% of the mean edge length.";
 
+MapTangledQ::usage = "MapTangledQ[map] yields True if and only if the given cortical map is tangled (has faces that are inverted); otherwise yields False.
+MapTangledQ[map, X] is identical to MapTangledQ[map] except that it uses the coordinates given in X.";
+MapTangles::usage = "MapTangles[map] yields a list of the vertices in the given cortical map that are tangles (their neighbors are not in the correct counter-clockwise ordering).
+MapTangles[map, X] uses the coordinates given in X for the map.";
+MapUntangle::usage = "MapUntangle[map] attempts to untangle the map given by repeatedly moving tangled vertices to their centroids (with respect to their neighbors); this may not succeed, but will return the coordinates regardless after 50 such attempts.
+MapUntangle[map, X] uses the coordinates X as the map coordinates.
+MapUntangle[map, X, max] attempts at most max times to untangle the map.";
+
 Begin["`Private`"];
 
 (* #CorticalPotentialFunction *********************************************************************)
@@ -223,7 +231,11 @@ CalculateHarmonicAnglePotential3D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      0.5 * Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
+      With[
+        {sqrt = Chop @ Sqrt[l01 * l02]},
+        With[
+          {unit = Unitize[sqrt]},
+          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt - unit + 1)] - th0)^2]]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient3D = Compile[
@@ -234,17 +246,27 @@ CalculateHarmonicAngleGradient3D = Compile[
     With[
       {u1 = {x1 - x0, y1 - y0, z1 - z0}, u2 = {x2 - x0, y2 - y0, z2 - z0}},
       With[
-        {d1 = Sqrt[Total[u1^2]], d2 = Sqrt[Total[u2^2]]},
+        {d1 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u1^2]],
+         d2 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u2^2]]},
         With[
-          {th = ArcCos[Total[u1*u2] / (d1*d2)],
+          {cos = ConstantArray[Total[u1*u2] / (d1*d2), Length[u1]],
            n1 = u1 / ConstantArray[d1, Length[u1]],
            n2 = u2 / ConstantArray[d2, Length[u2]]},
           With[
-            {cos = ConstantArray[Cos[th], Length[u1]], sin = Sin[th]},
+            {th = Re@ArcCos[cos[[1]]], 
+             sin = Sqrt[1 - cos[[1]]^2],
+             unit = Unitize[Chop[1-cos]]},
             With[
-              {f1 = (cos*n1 - n2) * ConstantArray[(th - th0) / (d1 * sin), Length[u1]],
-               f2 = (cos*n2 - n1) * ConstantArray[(th - th0) / (d2 * sin), Length[u1]]},
-              {-(f1 + f2), f1, f2}]]]]],
+             {sin1 = Chop[d1 * sin],
+              sin2 = Chop[d2 * sin]},
+              With[
+                {f1 = unit * (cos*n1 - n2) * ConstantArray[
+                   (th - th0) / (sin1 + (1 - Unitize[sin1])),
+                   Length[u1]],
+                 f2 = unit * (cos*n2 - n1) * ConstantArray[
+                   (th - th0) / (sin2 + (1 - Unitize[sin2])),
+                   Length[u1]]},
+                {-(f1 + f2), f1, f2}]]]]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
     Parallelization -> True];
 Protect[CalculateHarmonicAnglePotential3D, CalculateHarmonicAngleGradient3D];
@@ -264,7 +286,7 @@ CalculateHarmonicAnglePotential2D = Compile[
         {sqrt = Chop @ Sqrt[l01 * l02]},
         With[
           {unit = Unitize[sqrt]},
-          0.5 * Total[unit * (ArcCos[Total[u01 * u02] / (sqrt - unit + 1)] - th0)^2]]]]],
+          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt - unit + 1)] - th0)^2]]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient2D = Compile[
@@ -275,48 +297,29 @@ CalculateHarmonicAngleGradient2D = Compile[
     With[
       {u1 = {x1 - x0, y1 - y0}, u2 = {x2 - x0, y2 - y0}},
       With[
-        {d1 = (# + 1 - Unitize[#])& @ Chop @ Sqrt[Total[u1^2]],
-         d2 = (# + 1 - Unitize[#])& @ Chop @ Sqrt[Total[u2^2]]},
+        {d1 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u1^2]],
+         d2 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u2^2]]},
         With[
           {cos = ConstantArray[Total[u1*u2] / (d1*d2), Length[u1]],
            n1 = u1 / ConstantArray[d1, Length[u1]],
            n2 = u2 / ConstantArray[d2, Length[u2]]},
           With[
-            {th = ArcCos[cos[[1]]], sin = Sqrt[1 - cos[[1]]^2]},
+            {th = Re@ArcCos[cos[[1]]], 
+             sin = Sqrt[1 - cos[[1]]^2],
+             unit = Unitize[Chop[1-cos]]},
             With[
-              {f1 = Unitize[Chop[1-cos]] * (cos*n1 - n2) * ConstantArray[
-                 (th - th0) / (# + 1 - Unitize[#])&[Chop[d1 * sin]],
-                 Length[u1]],
-               f2 = Unitize[Chop[1-cos]] * (cos*n2 - n1) * ConstantArray[
-                 (th - th0) / (# + 1 - Unitize[#])&[Chop[d2 * sin]],
-                 Length[u1]]},
-              {-(f1 + f2), f1, f2}]]]]],
+             {sin1 = Chop[d1 * sin],
+              sin2 = Chop[d2 * sin]},
+              With[
+                {f1 = unit * (cos*n1 - n2) * ConstantArray[
+                   (th - th0) / (sin1 + (1 - Unitize[sin1])),
+                   Length[u1]],
+                 f2 = unit * (cos*n2 - n1) * ConstantArray[
+                   (th - th0) / (sin2 + (1 - Unitize[sin2])),
+                   Length[u1]]},
+                {-(f1 + f2), f1, f2}]]]]]],
     RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
     Parallelization -> True];
-(*
-CalculateHarmonicAngleGradient2D = ReplacePart[
-  Hold[
-    {{x0, _Real, 1}, {y0, _Real, 1},
-     {x1, _Real, 1}, {y1, _Real, 1},
-     {x2, _Real, 1}, {y2, _Real, 1},
-     {th0, _Real, 1}},
-    Evaluate @ Block[
-      {x0, y0, x1, y1, x2, y2, th0},
-      With[
-        {grad = Grad[
-           Simplify[
-             (ArcCos[
-                Dot[
-                  Normalize[{x1 - x0, y1 - y0}],
-                  Normalize[{x2 - x0, y2 - y0}]]] - th0)^2,
-             Assumptions -> Element[{x0, y0, x1, y1, x2, y2}, Reals]],
-           {x0, y0, x1, y1, x2, y2}]},
-        Hold[grad, 2]]],
-    RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-    Parallelization -> True],
-  {{2,0} -> Partition,
-   {0}   -> Compile}];
-*)
 Protect[CalculateHarmonicAnglePotential2D, CalculateHarmonicAngleGradient2D];
 
 (* And here we compile functions for calculating cosine angle potentials *)
@@ -854,8 +857,8 @@ CortexGradientPlot[Rule[X_ /; ArrayQ[X, 2, NumericQ], mesh_?CorticalMapQ],
 Protect[CortexGradientPlot];
 
 (* #MapTangledQ ***********************************************************************************)
-MapTangledQ[map_?MapQ, X_] := With[
-  {nei = NeighborhoodList[map]},
+MapTangledQ[map_?CorticalMapQ, X_] := With[
+  {nei = VertexIndex[map, NeighborhoodList[map]]},
   Catch[
     MapThread[
       Function[{x, n},
@@ -870,15 +873,16 @@ MapTangledQ[map_?MapQ, X_] := With[
                   Throw[True]]]]]]],
       {X, nei}];
     False]];
-MapTangledQ[map_?MapQ] := MapTangledQ[map, VertexList[map]];
+MapTangledQ[map_?CorticalMapQ] := MapTangledQ[map, VertexCoordinates[map]];
 Protect[MapTangledQ];
 
 (* #MapTangles ************************************************************************************)
-MapTangles[map_?MapQ, X_] := With[
-  {nei = NeighborhoodList[map]},
+MapTangles[map_?CorticalMapQ, X_] := With[
+  {nei = VertexIndex[map, NeighborhoodList[map]]},
   Flatten@Last@Reap[
     MapThread[
-      Function[{x, n, k},
+      Function @ With[
+        {x = #1, n = #2, k = #3},
         If[Length[n] > 2,
           With[
             {xnei = X[[#]] & /@ n},
@@ -889,42 +893,67 @@ MapTangles[map_?MapQ, X_] := With[
                If[Range[Length[rot]] != rot || !Graphics`Mesh`InPolygonQ[xnei, x],
                  Sow[k]]]]]]],
       {X, nei, Range[Length@X]}]]];
-MapTangles[map_?MapQ] := MapTangles[map, VertexList[map]];
+MapTangles[map_?CorticalMapQ] := MapTangles[map, VertexCoordinates[map]];
 Protect[MapTangles];
 
 (* #MapUntangle ***********************************************************************************)
-Options[MapUntangle] = {Hold -> None};
-MapUntangle[map_?MapQ, Xtangled_, max_: 50, OptionsPattern[]] := With[
+Options[MapUntangle] = {MaxIterations -> 50};
+MapUntangle[map_?CorticalMapQ, Xtang_?MatrixQ, OptionsPattern[]] := With[
+  {nei = VertexIndex[map, NeighborhoodList[map]],
+   max = OptionValue[MaxIterations]},
+  NestWhile[
+   Function@With[
+     {tangles = Flatten[Join[#, nei[[#]] & /@ #]]& @ MapTangles[map, #],
+      X = #},
+     ReplacePart[X, Thread[tangles -> Map[Mean[X[[nei[[#]]]]]&, tangles]]]],
+    Xtang,
+    MapTangledQ[map, #]&,
+    1,
+    max]];
+MapUntangle[map_?CorticalMapQ, opts:OptionsPattern[]] := MapUntangle[
+  map,
+  VertexCoordinates[map],
+  opts];
+Protect[MapUntangle];
+(*
+With[
   {P = HarmonicEdgePotential[map] + HarmonicAnglePotential[map],
    hold = Replace[OptionValue[Hold], None->{}],
-   nei = NeighborhoodList[map]},
+   nei = VertexIndex[map, NeighborhoodList[map]]},
   NestWhile[
-    Function[{X0},
+    Function @ With[
+      {X0 = #,
+       X0t = Transpose[#]},
       With[
         {tangles = With[
            {t0 = MapTangles[map, X0]},
            Complement[Union[Flatten[{t0, nei[[#]] & /@ t0}]], hold]]},
-        Block[{X, f, g},
-          f[x_List] := P[ReplacePart[X0, Thread[tangles -> x]], tangles];
-          g[x_List] := Grad[P, ReplacePart[X0, Thread[tangles -> x]], tangles];
-          ReplacePart[
-            X0,
-            Thread[
-              tangles -> Quiet[
-                First@FindArgMin[
-                  f[X],
-                  {X, X0[[tangles]]},
-                  Gradient :> g[X],
-                  Method -> {"QuasiNewton",
-                    "StepControl" -> {"LineSearch", "CurvatureFactor" -> 1.0}},
-                  AccuracyGoal -> 6,
-                  MaxIterations -> 100],
-                {FindArgMin::cvmit, FindArgMin::lstol}]]]]]],
+        With[
+          {gradpart = Join[tangles, tangles + Length[X0]]},
+          Block[
+            {X, f, g},
+            f[x_List] := P[MapThread[ReplacePart[#1, Thread[tangles -> #2]]&, {X0t, x}]];
+            g[x_List] := Part[
+              Grad[P, MapThread[ReplacePart[#1, Thread[tangles -> #2]]&, {X0t, x}]],
+              gradpart];
+            ReplacePart[
+              X0,
+              Thread[
+                tangles -> Quiet[
+                  First@FindArgMin[
+                    f[X],
+                    {X, X0t[[All, tangles]]},
+                    Gradient :> g[X],
+                    Method -> {"QuasiNewton",
+                               "StepControl" -> {"LineSearch", "CurvatureFactor" -> 1.0}},
+                    AccuracyGoal -> 6,
+                    MaxIterations -> 100],
+                  {FindArgMin::cvmit, FindArgMin::lstol}]]]]]]],
     Xtangled,
     MapTangledQ[map, #] &,
     1,
     max]];
-Protect[MapUntangle];
+*)
 
 
 End[];
