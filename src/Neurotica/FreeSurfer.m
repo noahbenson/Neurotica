@@ -1771,7 +1771,7 @@ DefineImmutable[
           ][hemi]},
        SetProperty[
          {mesh, VertexList},
-         {Curvature :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
+         {Curvature|"Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
           "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
           "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
           "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
