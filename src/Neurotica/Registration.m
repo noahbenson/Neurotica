@@ -260,7 +260,11 @@ CalculateHarmonicAnglePotential2D = Compile[
     With[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
-      0.5 * Total[(ArcCos[Total[u01 * u02] / Sqrt[l01 * l02]] - th0)^2]]],
+      With[
+        {sqrt = Chop @ Sqrt[l01 * l02]},
+        With[
+          {unit = Unitize[sqrt]},
+          0.5 * Total[unit * (ArcCos[Total[u01 * u02] / (sqrt - unit + 1)] - th0)^2]]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient2D = Compile[

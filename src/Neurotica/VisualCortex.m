@@ -1036,11 +1036,11 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
    eccen = VertexPropertyValues[map, "Eccentricity"],
    weights = Replace[
      OptionValue[VertexWeight],
-     {list_ /; ArrayQ[list, 1] && Length[list] == VertexCount[map] :> list,
+     {list_ /; VectorQ[list] && Length[list] == VertexCount[map] :> list,
       list:{(_Integer -> _)..} /; Length[list] == VertexCount[map] :> SparseArray[
         Select[VertexIndex[map, list[[All,1]]] -> list[[All, 2]], NumericQ[#[[2]]]&],
         VertexCount[map]],
-      s_ /; ArrayQ[VertexPropertyValues[map, s], 1] :> VertexPropertyValues[map, s],
+      s_ /; VectorQ[VertexPropertyValues[map, s]] :> VertexPropertyValues[map, s],
       Automatic :> ConstantArray[1, VertexCount[map]],
       _ :> Message[GaussianSchiraPotential::badarg, "Unrecognized VertexWeight option"]}]},
   With[
@@ -1052,9 +1052,9 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
        stddev = Replace[
          OptionValue[StandardDeviation],
          {x_?NumericQ :> ConstantArray[x, Length[idcs]],
-          x_ /; ArrayQ[x,1] && Length[x] == VertexCount[map] :> x[[idcs]],
-          x_ /; ArrayQ[x,1] && Length[x] == Length[idcs] :> x,
-          s_ /; ArrayQ[VertexPropertyValues[map, s], 1] :> Part[
+          x_ /; VectorQ[x] && Length[x] == VertexCount[map] :> x[[idcs]],
+          x_ /; VectorQ[x] && Length[x] == Length[idcs] :> x,
+          s_ /; VectorQ[VertexPropertyValues[map, s]] :> Part[
             VertexPropertyValues[map, s]
             idcs],
           _ :> Message[
@@ -1067,7 +1067,7 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
         Length[idcs] == 0, Message[
           GaussianSchiraPotential::badarg,
           "No vertices selected"]; $Failed,
-        !ArrayQ[stddev, 1, NumericQ[#] && Positive[#]&], Message[
+        !VectorQ[stddev, NumericQ[#] && Positive[#]&], Message[
           GaussianSchiraPotential::badarg,
           "standard deviations contains non-positive or non-numeric quantities"]; $Failed,
         True, With[
