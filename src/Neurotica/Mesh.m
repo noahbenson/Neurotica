@@ -1085,7 +1085,7 @@ DefineImmutable[
        If[id == 0, $Failed, id]],
      VertexIndex[mesh, is_List] := With[
        {idx = VertexIndexArray[mesh]},
-       ReplaceAll[Map[Part[idx, #]&, is, {-2}], 0 -> $Failed]]
+       ReplaceAll[Map[Part[idx, #]&, is, {-2}], 0 -> $Failed]],
 
      (* extensions of the opposite indices; edge/face lists *)
      VertexEdgeList[mesh, i_Integer] := Part[VertexEdgeList[mesh], VertexIndex[mesh, i]],
