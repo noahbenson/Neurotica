@@ -232,10 +232,10 @@ CalculateHarmonicAnglePotential3D = Compile[
       {l01 = Total[u01^2],
        l02 = Total[u02^2]},
       With[
-        {sqrt = Chop @ Sqrt[l01 * l02]},
+        {sqrt = Chop @ Re @ Sqrt[l01 * l02]},
         With[
           {unit = Unitize[sqrt]},
-          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt - unit + 1)] - th0)^2]]]]],
+          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt + (1 - unit))] - th0)^2]]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient3D = Compile[
@@ -246,16 +246,16 @@ CalculateHarmonicAngleGradient3D = Compile[
     With[
       {u1 = {x1 - x0, y1 - y0, z1 - z0}, u2 = {x2 - x0, y2 - y0, z2 - z0}},
       With[
-        {d1 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u1^2]],
-         d2 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u2^2]]},
+        {d1 = (# + (1 - Unitize[#]))& @ Chop @ Re @ Sqrt[Total[u1^2]],
+         d2 = (# + (1 - Unitize[#]))& @ Chop @ Re @ Sqrt[Total[u2^2]]},
         With[
           {cos = ConstantArray[Total[u1*u2] / (d1*d2), Length[u1]],
            n1 = u1 / ConstantArray[d1, Length[u1]],
            n2 = u2 / ConstantArray[d2, Length[u2]]},
           With[
             {th = Re@ArcCos[cos[[1]]], 
-             sin = Sqrt[1 - cos[[1]]^2],
-             unit = Unitize[Chop[1-cos]]},
+             sin = Re @ Sqrt[1 - cos[[1]]^2],
+             unit = Unitize[Chop[1-Abs[cos]]]},
             With[
              {sin1 = Chop[d1 * sin],
               sin2 = Chop[d2 * sin]},
@@ -286,7 +286,7 @@ CalculateHarmonicAnglePotential2D = Compile[
         {sqrt = Chop @ Sqrt[l01 * l02]},
         With[
           {unit = Unitize[sqrt]},
-          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt - unit + 1)] - th0)^2]]]]],
+          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt + (1 - unit))] - th0)^2]]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
 CalculateHarmonicAngleGradient2D = Compile[
@@ -304,9 +304,9 @@ CalculateHarmonicAngleGradient2D = Compile[
            n1 = u1 / ConstantArray[d1, Length[u1]],
            n2 = u2 / ConstantArray[d2, Length[u2]]},
           With[
-            {th = Re@ArcCos[cos[[1]]], 
-             sin = Sqrt[1 - cos[[1]]^2],
-             unit = Unitize[Chop[1-cos]]},
+            {th = Re@ArcCos[cos[[1]]],
+             sin = Re@Sqrt[1 - cos[[1]]^2],
+             unit = Unitize[Chop[1-Abs[cos]]]},
             With[
              {sin1 = Chop[d1 * sin],
               sin2 = Chop[d2 * sin]},

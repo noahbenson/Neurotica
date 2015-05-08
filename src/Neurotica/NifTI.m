@@ -785,7 +785,7 @@ InterpretGifTIData[xmlData_] := Check[
               label[[#]]& /@ labels]
             MetaInformation -> {"GifTIData" -> q}],
           (* exactly one other data type; we want to yield just the data *)
-          Lengh[Join[points, faces, overlays, masks, labels]] == 1, First @ Which[
+          Length[Join[points, faces, overlays, masks, labels]] == 1, First @ Which[
             Length[points] > 0, points,
             Length[faces] > 0, faces,
             Length[overlays] > 0, overlays,

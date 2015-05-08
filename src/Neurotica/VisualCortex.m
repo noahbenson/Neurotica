@@ -728,9 +728,7 @@ PolarAngleLegend[hemi : (LH|RH), opts___Rule] := DensityPlot[
   opts,
   RegionFunction -> If[hemi === LH, (Norm[{#1, #2}] < 90 &), (Norm[{90 - #1, #2}] < 90 &)],
   ColorFunctionScaling -> False,
-  ColorFunction -> With[
-    {f = ColorCortex["PolarAngle"]},
-    (f[{0,0,0}, 1, {"PolarAngle" -> 90.0 - #*180.0/Pi}]) &],
+  ColorFunction -> Function[CorticalColorData["PolarAngle"][<|"PolarAngle" -> 90.0 - #*180.0/Pi|>]],
   Frame -> False,
   Axes -> False,
   BaseStyle -> Directive[10, FontFamily -> "Arial"],
@@ -745,9 +743,7 @@ EccentricityLegend[hemi : (LH | RH), max_?NumericQ /; 0 < max <= 90, opts___Rule
   opts,
   RegionFunction -> If[hemi === LH, (Norm[{#1, #2}] < max &), (Norm[{max - #1, #2}] < max &)],
   ColorFunctionScaling -> False,
-  ColorFunction -> With[
-    {f = ColorCortex["Eccentricity"]},
-    f[{0,0,0}, 1, {"Eccentricity" -> #}]&],
+  ColorFunction -> Function[CorticalColorData["Eccentricity"][<|"Eccentricity" -> #|>]],
   Frame -> False,
   Axes -> False,
   BaseStyle -> Directive[10, FontFamily -> "Arial"],

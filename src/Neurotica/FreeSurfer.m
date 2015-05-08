@@ -254,7 +254,11 @@ ImportMGHFrames[stream_InputStream, opts___] := "Frames" -> Catch[
                   ") seems unreasonable; run with option \"SanityChecks\" -> False",
                   " to ignore this error"]];
               Throw[$Failed]]];
-            SetStreamPosition[stream, $MGHHeaderSize];
+          SetStreamPosition[stream, $MGHHeaderSize];
+          If[Count[dims, Except[1]] == 1,
+            Table[
+              BinaryReadList[stream, type, volsz],
+              {nframes}],
             Table[
               Map[
                 Reverse,
@@ -264,7 +268,7 @@ ImportMGHFrames[stream_InputStream, opts___] := "Frames" -> Catch[
                     dims[[1]]],
                   dims[[2]]],
                 {0,1}],
-              {nframes}]]]]]];
+              {nframes}]]]]]]];
 ImportMGHFooter[stream_InputStream, opts___] := "OptionalData" -> Catch[
   Block[
     {$ByteOrdering = 1,
@@ -358,7 +362,7 @@ ImportMGHData[stream_InputStream, opts___] := "Data" -> With[
        ImportMGHMetaInformation[stream, "Header" -> header, opts]},
       l_List /; Position[l, $Failed] != {} -> $Failed]]];
 MGHInterpret[data_] := With[
-  {frames = Transpose["Frames" /. data, {4,1,2,3}],
+  {frames = If[ArrayQ[#, 4], Transpose[#, {4,1,2,3}], #]&["Frames" /. data],
    header = "MetaInformation" /. data},
   With[
     {dims = Dimensions[frames],
@@ -398,8 +402,9 @@ ExportMGH[filename_, data_, opts___] := Block[
     {datExtr = Which[
        ImageQ[data] && Head[data] === Image3D, ImageData[data],
        MRImageQ[data], ImageData[data],
-       ListQ[data] && ArrayQ[data, 3|4, NumericQ], data,
-       ListQ[data] && ArrayQ[data, 1, NumericQ], {{data}},
+       ArrayQ[data, 3|4, NumericQ], Normal[data],
+       VectorQ[data, NumericQ], {{Normal[data]}},
+       MatrixQ[data, NumericQ], {{Normal[data]}},
        True, Message[
          ExportMGH::badfmt,
          "Export data for MGH must be a list, MRImage, or Image3D"]],
@@ -441,7 +446,12 @@ ExportMGH[filename_, data_, opts___] := Block[
              BinaryWrite[fl, Join@@Transpose@Part["VOXToRASMatrix" /. meta, 1;;3, All], "Real32"];
              BinaryWrite[fl, Table[0, {$MGHHeaderSize - StreamPosition[fl]}], "Integer8"];
              (* write frames... *)
-             BinaryWrite[fl, Flatten[Map[Reverse, dat, {1,2}]], outtype];
+             BinaryWrite[
+               fl,
+               Switch[Count[Dimensions[dat], Except[1]],
+                 1|2, Flatten@dat,
+                 _, Flatten[Map[Reverse, dat, {1,2}]]],
+               outtype];
              (* Optional data is not currently supported; zeros are written *)
              Scan[BinaryWrite[fl, 0, #[[2]]]&, $MGHOptionalData];
              True]},
@@ -1772,6 +1782,7 @@ DefineImmutable[
        SetProperty[
          {mesh, VertexList},
          {Curvature :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
+          "Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
           "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
           "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
           "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],

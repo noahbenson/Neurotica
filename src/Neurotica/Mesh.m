@@ -1265,7 +1265,9 @@ DefineImmutable[
                 First],
               First],
             All, All, 2]},
-         MapThread[NeighborhoodSort3DCompiled, {X, neivecs, neis, X[[#]] & /@ neis}]]],
+         MapThread[
+           NeighborhoodSort3DCompiled,
+           {X, neivecs, neis, X[[#]] & /@ VertexIndex[mesh, neis]}]]],
      (* #NeighborhoodVectors [private] *)
      NeighborhoodVectors[mesh] := With[
        {Xt = VertexNormalsTr[mesh]},
@@ -1860,7 +1862,9 @@ DefineImmutable[
                 First],
               First],
             All, All, 2]},
-         MapThread[NeighborhoodSort2DCompiled, {X, neis, X[[#]] & /@ neis}]]],
+         MapThread[
+           NeighborhoodSort2DCompiled,
+           {X, neis, X[[#]] & /@ VertexIndex[map, neis]}]]],
      (* #NeighborhoodAngles *)
      NeighborhoodAngles[map] :> With[
        {X = VertexCoordinates[map],
@@ -2845,7 +2849,7 @@ CortexResample[a_?CorticalMeshQ, b_?CorticalMeshQ, opts:OptionsPattern[]] := Cat
     If[VertexCoordinates[a] == VertexCoordinates[b],
       SetProperty[
         {surf, VertexList}, 
-        Map[(# -> PropertyValue[{b, VertexList}, #])&, PropertyList[{b, VertexList}]]],
+        Map[(# -> PropertyValue[{b, VertexList}, #])&, propNames]],
       Replace[
         Replace[method, x:Except[_List] :> {x}],
         {{"Nearest"|"NearestNeighbor"|Nearest} :> With[
@@ -2859,14 +2863,13 @@ CortexResample[a_?CorticalMeshQ, b_?CorticalMeshQ, opts:OptionsPattern[]] := Cat
             {interp = Interpolation[
                MapThread[
                  List,
-                 {VertexCoordinates[b], VertexPropertyValues[b, VertexPropertyList[b]]}],
-               args],
-             props = VertexPropertyList[b]},
+                 {VertexCoordinates[b], VertexPropertyValues[b, propNames]}],
+               args]},
             With[
               {resampled = Map[Apply[interp, #]&, VertexCoordinates[a]]},
               SetProperty[
                 {surf, VertexList},
-                Thread[props -> resampled]]]],
+                Thread[propNames -> resampled]]]],
          _ :> Throw[
            Message[
              SurfResample::badarg,
