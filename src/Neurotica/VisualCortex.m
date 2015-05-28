@@ -799,6 +799,7 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
      {optseq = Sequence @@ FilterRules[{opts}, Options[ParametricPlot][[All,1]]],
       optseqShow = Sequence @@ FilterRules[{opts}, Options[Show][[All,1]]],
       rhoTrans = Function[90.0*#^3.5],
+      rhoTransInv = Function[(#/90.0)^(1/3.5)],
       thetaLower = If[range[[1, 1]] > 90,
         None,
         {range[[1, 1]], Min[{90, range[[1, 2]]}]}],
@@ -806,49 +807,52 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
         None,
         {Max[{90, range[[1, 1]]}], range[[1, 2]]}]},
      With[
-       {graphics = Map[
-          Function[
-            With[
-              {k = Which[# == -4, 4, # == 4, 5, True, Abs[#]],
-               thetaMinIdeal = If[# == 4 || # < 0, thetaLower[[1]], thetaUpper[[1]]],
-               thetaMaxIdeal = If[# == -4 || # > 0, thetaUpper[[2]], thetaLower[[2]]]},
-              With[
-                {thetaMin = If[# == 2 || # == 3, 
-                   Max[{thetaMinIdeal, 90.0 + epsilon}],
-                   thetaMinIdeal],
-                 thetaMax = If[# == -3 || # == -2,
-                   Min[{thetaMaxIdeal, 90.0 - epsilon}],
-                   thetaMaxIdeal]},
-                Quiet[
-                  ParametricPlot[
-                    Part[f[theta, rhoTrans[rho]], k],
-                    {theta, thetaMin, thetaMax},
-                    {rho, 0, 1},
-                    PlotRange -> plotRangeArg,
-                    ColorFunction -> If[
-                      Or[colorFun === Automatic,
-                         colorFun === None,
-                         colorFun === False,
-                         StringQ[colorFun]],
-                      colorFun,
-                      If[colorFunSc === False,
-                        Function[colorFun[#1,#2,#3,rhoTrans[#4]]],
-                        Function[colorFun[#1,#2,#3,rhoTrans[#4]/90.0]]]],
-                    optseq],
-                  {CompiledFunction::cfsa}]]]],
-          areas]},
+       {rMin = rhoTransInv[range[[2,1]]],
+        rMax = rhoTransInv[range[[2,2]]]},
        With[
-         {plotRange = With[
-            {ranges = Cases[
-               AbsoluteOptions[#,PlotRange]& /@ graphics,
-               (PlotRange -> r_) :> r,
-               {2}]},
-           {{Min[ranges[[All, 1, 1]]], Max[ranges[[All, 1, 2]]]},
-            {Min[ranges[[All, 2, 1]]], Max[ranges[[All, 2, 2]]]}}]},
-         Show[
-           graphics,
-           PlotRange -> plotRange, 
-           optseqShow]]]]]];
+         {graphics = Map[
+            Function[
+              With[
+                {k = Which[# == -4, 4, # == 4, 5, True, Abs[#]],
+                 thetaMinIdeal = If[# == 4 || # < 0, thetaLower[[1]], thetaUpper[[1]]],
+                 thetaMaxIdeal = If[# == -4 || # > 0, thetaUpper[[2]], thetaLower[[2]]]},
+                With[
+                  {thetaMin = If[# == 2 || # == 3, 
+                     Max[{thetaMinIdeal, 90.0 + epsilon}],
+                     thetaMinIdeal],
+                   thetaMax = If[# == -3 || # == -2,
+                     Min[{thetaMaxIdeal, 90.0 - epsilon}],
+                     thetaMaxIdeal]},
+                  Quiet[
+                    ParametricPlot[
+                      Part[f[theta, rhoTrans[rho]], k],
+                      {theta, thetaMin, thetaMax},
+                      {rho, rMin, rMax},
+                      PlotRange -> plotRangeArg,
+                      ColorFunction -> If[
+                        Or[colorFun === Automatic,
+                           colorFun === None,
+                           colorFun === False,
+                           StringQ[colorFun]],
+                        colorFun,
+                        If[colorFunSc === False,
+                          Function[colorFun[#1,#2,#3,rhoTrans[#4]]],
+                          Function[colorFun[#1,#2,#3,rhoTrans[#4]/90.0]]]],
+                      optseq],
+                    {CompiledFunction::cfsa}]]]],
+            areas]},
+         With[
+           {plotRange = With[
+              {ranges = Cases[
+                 AbsoluteOptions[#,PlotRange]& /@ graphics,
+                 (PlotRange -> r_) :> r,
+                 {2}]},
+              {{Min[ranges[[All, 1, 1]]], Max[ranges[[All, 1, 2]]]},
+               {Min[ranges[[All, 2, 1]]], Max[ranges[[All, 2, 2]]]}}]},
+           Show[
+             graphics,
+             PlotRange -> plotRange, 
+             optseqShow]]]]]]];
 
 
 (* #SchiraLinePlot ********************************************************************************)
