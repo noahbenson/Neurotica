@@ -20,8 +20,7 @@
 (**************************************************************************************************)
 BeginPackage[
   "Neurotica`FreeSurfer`",
-  {"ComputerArithmetic`",
-   "Neurotica`Global`",
+  {"Neurotica`Global`",
    "Neurotica`Util`",
    "Neurotica`Mesh`",
    "Neurotica`MRImage`"}];
