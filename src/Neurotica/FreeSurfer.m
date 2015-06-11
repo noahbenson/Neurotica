@@ -20,7 +20,8 @@
 (**************************************************************************************************)
 BeginPackage[
   "Neurotica`FreeSurfer`",
-  {"Neurotica`Global`",
+  {"ComputerArithmetic`",
+   "Neurotica`Global`",
    "Neurotica`Util`",
    "Neurotica`Mesh`",
    "Neurotica`MRImage`"}];
@@ -400,14 +401,14 @@ ExportMGH[filename_, data_, opts___] := Block[
   (* Make sure we have all the data we need... *)
   With[
     {datExtr = Which[
-       ImageQ[data] && Head[data] === Image3D, ImageData[data],
-       MRImageQ[data], ImageData[data],
-       ArrayQ[data, 3|4, NumericQ], Normal[data],
-       VectorQ[data, NumericQ], {{Normal[data]}},
-       MatrixQ[data, NumericQ], {{Normal[data]}},
-       True, Message[
-         ExportMGH::badfmt,
-         "Export data for MGH must be a list, MRImage, or Image3D"]],
+         ImageQ[data] && Head[data] === Image3D, ImageData[data],
+         MRImageQ[data], ImageData[data],
+         ArrayQ[data, 3|4], Normal[data],
+         VectorQ[data], {{Normal[data]}},
+         MatrixQ[data], {{Normal[data]}},
+         True, Message[
+           ExportMGH::badfmt,
+           "Export data for MGH must be a list, MRImage, or Image3D"]],
      meta = Join[
        Replace[
          Cases[{opts}, Rule[(MetaInformation|"MetaInformation"), info_] :> info, {1}],
