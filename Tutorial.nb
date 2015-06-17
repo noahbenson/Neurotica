@@ -1,0 +1,498 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 10.1' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     18541,        489]
+NotebookOptionsPosition[     16657,        422]
+NotebookOutlinePosition[     17033,        439]
+CellTagsIndexPosition[     16990,        436]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["Neurotica Tutorial Notebook", "Title",
+ CellChangeTimes->{{3.643557425324668*^9, 3.64355743585394*^9}}],
+
+Cell["Author: Noah C. Benson <nben@nyu.edu>", "Subtitle",
+ CellChangeTimes->{{3.6435574619204473`*^9, 3.643557479594146*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[TextData[{
+ 
+ CounterBox["Chapter"],
+ ". Introduction"
+}], "Chapter",
+ CellChangeTimes->{{3.64355751686607*^9, 3.643557527148156*^9}, {
+  3.643557583129756*^9, 3.643557611095809*^9}, {3.64355764376658*^9, 
+  3.643557658054234*^9}}],
+
+Cell[CellGroupData[{
+
+Cell["This Notebook\[CloseCurlyQuote]s Mission", "Subchapter",
+ CellChangeTimes->{{3.643557613013329*^9, 3.6435576150221252`*^9}, {
+  3.64355767925988*^9, 3.643557705742556*^9}, {3.643558119676399*^9, 
+  3.643558122365286*^9}}],
+
+Cell[TextData[{
+ "This notebook is designed to be a demonstration of an introduction to the \
+usage of the Neurotica neuroscience library for ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ ". It is intended for ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ " users with a reasonable level of experience with the Wolfram Language. If \
+you are new to ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ ", it is the author\[CloseCurlyQuote]s suggestion that you begin by learning \
+the basics of the language. A few links to relevant ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ " tutorials are listed below."
+}], "Text",
+ CellChangeTimes->{{3.643557711221219*^9, 3.643557877890922*^9}},
+ FontSize->18],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+Wolfram Language Tutorial for \
+Programmers:\[LineSeparator]https://www.wolfram.com/language/fast-\
+introduction-for-programmers/\
+\>", "Item",
+ CellChangeTimes->{{3.643557944223893*^9, 3.6435579551119537`*^9}},
+ FontSize->16],
+
+Cell["\<\
+Wolfram\[CloseCurlyQuote]s \[OpenCurlyDoubleQuote]Getting Started\
+\[CloseCurlyDoubleQuote] \
+Guide:\[LineSeparator]https://reference.wolfram.com/language/tutorial/\
+GettingStartedOverview.html\
+\>", "Item",
+ CellChangeTimes->{{3.643557996027964*^9, 3.643558004961792*^9}, {
+  3.64355804999445*^9, 3.6435580499968023`*^9}},
+ FontSize->16],
+
+Cell["\<\
+Wolfram\[CloseCurlyQuote]s Core Language \
+Reference:\[LineSeparator]http://reference.wolfram.com/language/\
+\>", "Item",
+ CellChangeTimes->{{3.643557996027964*^9, 3.643558004961792*^9}, {
+  3.64355804999445*^9, 3.6435580690420113`*^9}},
+ FontSize->16]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["What is Neurotica?", "Subchapter",
+ CellChangeTimes->{{3.64356327200663*^9, 3.6435632749990377`*^9}}],
+
+Cell["\<\
+Neurotica is a general purpose library for the analysis of Neuroscientific \
+data. It has grown out of actual Neuroscience use cases encountered by the \
+library\[CloseCurlyQuote]s author. As a result, it is largely incomplete and \
+fixates on particular problems and areas. Neurotica is *not* an all-inclusive \
+analysis suite (at least not yet), and, as of the writing of this tutorial \
+notebook, is geared primarily toward the following application domains:\
+\>", "Text",
+ CellChangeTimes->{{3.6435632770464373`*^9, 3.6435632779917107`*^9}, {
+  3.6435633178288193`*^9, 3.643563407873608*^9}, {3.6435634467319317`*^9, 
+  3.643563448554137*^9}},
+ FontSize->18],
+
+Cell[CellGroupData[{
+
+Cell[TextData[{
+ StyleBox["Visual Cortex and Vision.",
+  FontWeight->"Bold"],
+ "\[LineSeparator]Neurotica\[CloseCurlyQuote]s author is a vision scientists \
+who studies, among other things, the retinotopic organization of the visual \
+cortex. Neurotica includes an entire namespace, Neurotica`VisualCortex` that \
+includes tools specific to retinotopy and the visual field."
+}], "Item",
+ CellChangeTimes->{{3.643563451118621*^9, 3.6435635061447697`*^9}, {
+  3.643563600958765*^9, 3.6435636423380613`*^9}, {3.643564585416007*^9, 
+  3.643564588689893*^9}},
+ FontSize->16],
+
+Cell[TextData[{
+ StyleBox["MRI Data.",
+  FontWeight->"Bold"],
+ "\[LineSeparator]Neurotica includes the Neurotica`MRImage` package, which is \
+specifically designed to (a) import and represent MRI data in a ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ "-friendly way and (b) to extend ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ "\[CloseCurlyQuote]s many 3D image-processing techniques to MR images. \
+Neurotica\[CloseCurlyQuote]s MRImage3D type behaves almost identically to ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ "\[CloseCurlyQuote]s native Image3D type but stores several additional \
+pieces of data that track MRI-specific information (such as how to transform \
+the image into a RAS space)."
+}], "Item",
+ CellChangeTimes->{{3.643563451118621*^9, 3.6435635061447697`*^9}, {
+  3.643563600958765*^9, 3.643563731638525*^9}, {3.643563815282773*^9, 
+  3.643563871324237*^9}, {3.643564216122059*^9, 3.64356432954523*^9}},
+ FontSize->16],
+
+Cell[TextData[{
+ StyleBox["FreeSurfer.",
+  FontWeight->"Bold"],
+ "\[LineSeparator]This library originally grew out of a library called \
+MmaSurfer, which bears a strong resemblance to Neurotica. MmaSurfer was \
+designed specifically to represent FreeSurfer subject data as a data \
+structure in ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ ", and Neurotica represents a significant improvement over MmaSurfer\
+\[CloseCurlyQuote]s original goal. Neurotica supports importing most \
+FreeSurfer file formats (including label files, annotation files, curv files, \
+w files, and mgh/mgz files) and exporting some of these as well. \
+Additionally, FreeSurfer subjects can be treated as data structures rather \
+than having to import their data manually."
+}], "Item",
+ CellChangeTimes->{{3.643563451118621*^9, 3.6435635061447697`*^9}, {
+  3.643563600958765*^9, 3.643563731638525*^9}, {3.643563815282773*^9, 
+  3.64356403934448*^9}},
+ FontSize->16],
+
+Cell[TextData[{
+ StyleBox["Cortical Meshes.\[LineSeparator]",
+  FontWeight->"Bold"],
+ "Although originally designed for use specifically with FreeSurfer, \
+Neurotica\[CloseCurlyQuote]s CorticalMesh immutable data type is a very \
+extensive and flexible representation of the cortical surface mesh. Cortical \
+meshes are simultaneously (and automatically) interpreted as ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ " Graph instances (with edges composed from the mesh\[CloseCurlyQuote]s \
+triangles) and as both MeshRegion and BoundaryMeshRegion instances."
+}], "Item",
+ CellChangeTimes->{{3.643563451118621*^9, 3.6435635061447697`*^9}, {
+  3.643563600958765*^9, 3.643563731638525*^9}, {3.643563815282773*^9, 
+  3.643564204602068*^9}, {3.6435643380721893`*^9, 3.643564338080044*^9}},
+ FontSize->16],
+
+Cell[TextData[{
+ StyleBox["NifTI Support.",
+  FontWeight->"Bold"],
+ "\[LineSeparator]The Neurotica`NifTI` package contains weak support for \
+handling NifTI files. Both NiftI-1 and NifTI-2 files can be imported, \
+including the CifTI sub-format. The GifTI format is also supported. None of \
+these may not be exported yet, however."
+}], "Item",
+ CellChangeTimes->{{3.643563451118621*^9, 3.6435635061447697`*^9}, {
+  3.643563600958765*^9, 3.643563731638525*^9}, {3.643563815282773*^9, 
+  3.643564204602068*^9}, {3.6435643380721893`*^9, 3.6435644431954823`*^9}},
+ FontSize->16],
+
+Cell[TextData[{
+ StyleBox["Miscellaneous Utilities.",
+  FontWeight->"Bold"],
+ "\[LineSeparator]The Neurotica`Util` package contains a number of \
+miscellaneous but useful utilities that may be useful even to \
+non-neuroscientists. These tools are detailed in Section 2: Utilities."
+}], "Item",
+ CellChangeTimes->{{3.643563451118621*^9, 3.6435635061447697`*^9}, {
+  3.643563600958765*^9, 3.643563731638525*^9}, {3.643563815282773*^9, 
+  3.643564204602068*^9}, {3.6435643380721893`*^9, 3.6435644534981194`*^9}, {
+  3.643564522000098*^9, 3.6435645681135807`*^9}},
+ FontSize->16]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Neurotica Installation Instructions", "Subchapter",
+ CellChangeTimes->{{3.643558140601664*^9, 3.6435581442578793`*^9}, {
+  3.6435621815167313`*^9, 3.643562212364477*^9}}],
+
+Cell["\<\
+In order for the example code in this notebook to run correctly, you will \
+need to make sure that Neurotica is installed on your system and that it is \
+able to discover your FreeSurfer subjects\[CloseCurlyQuote] directory. The \
+check-list included below formalizes these requirements:\
+\>", "Text",
+ CellChangeTimes->{{3.643558146282806*^9, 3.643558216730669*^9}, {
+  3.6435583545212717`*^9, 3.6435583572101088`*^9}, {3.643559525989612*^9, 
+  3.643559555126445*^9}, {3.643559604345469*^9, 3.643559605560419*^9}, {
+  3.6435596383317957`*^9, 3.6435596428093224`*^9}},
+ FontSize->18],
+
+Cell[TextData[{
+ StyleBox["Neurotica must be installed.\[LineSeparator]",
+  FontWeight->"Bold"],
+ "To install Neurotica, you will need to make sure that ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ " can find a copy of it in its library directories. On Linux/Unix systems, \
+the local library directory is \
+\[OpenCurlyDoubleQuote]~/.Mathematica/Applications\[CloseCurlyDoubleQuote]; \
+on Mac OSX, it is \[OpenCurlyDoubleQuote]~/Library/Mathematica/Applications\
+\[CloseCurlyDoubleQuote]; and in Windows it is \
+\[OpenCurlyDoubleQuote]C:\\Users\\<username>\\AppData\\Roaming\\Mathematica\\\
+Applications\[CloseCurlyDoubleQuote]. To obtain the \
+library\[CloseCurlyQuote]s code itself, you can download the library from \
+GitHub: https://github.com/noahbenson/Neurotica. The recommended installation \
+method is to clone this github repository then to make a symbolic link to ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ "\[CloseCurlyQuote]s library directory for the file src/Neurotica.m and the \
+directory src/Neurotica. The following code demonstrates how this \
+installation occurs on Mac OSX from the Terminal:"
+}], "Item",
+ CellChangeTimes->{{3.643560237937209*^9, 3.64356027908918*^9}, {
+  3.6435603174187317`*^9, 3.643560590709784*^9}, {3.6435606300121193`*^9, 
+  3.643560648743683*^9}}],
+
+Cell[TextData[{
+ StyleBox["~$ cd Code\n~/Code$ git clone \
+https://github.com/noahbenson/Neurotica\n",
+  FontWeight->"Bold"],
+ "Cloning into 'Neurotica'...\nremote: Counting objects : 726, done.\nremote: \
+Compressing objects : 100% (14/14), done.\nremote: Total 726 (delta 4), \
+reused 0 (delta 0), pack - reused 712\nReceiving objects : 100% (726/726), \
+422.29 KiB | 0 bytes/s, done.\nResolving deltas : 100% (427/427), done.\n\
+Checking connectivity ... done.\n",
+ StyleBox["~/Code$ cd Neurotica\n~/Code/Neurotica$ ls\n",
+  FontWeight->"Bold"],
+ "LICENSE     README.md   Tutorial.nb src\n",
+ StyleBox["~/Code/Neurotica$ cd src\n~/Code/Neurotica/src$ \n",
+  FontWeight->"Bold"],
+ "Neurotica   Neurotica.m",
+ StyleBox["\n~/Code/Neurotica/src$ cd ~/Library/Mathematica/Applications\n\
+~/Library/Mathematica/Applications$ ln -s ~/Code/Neurotica/Neurotica.m .\n\
+~/Library/Mathematica/Applications$ ln -s ~/Code/Neurotica/Neurotica/ .\n\
+~/Library/Mathematica/Applications$ ls Neurotica/\n",
+  FontWeight->"Bold"],
+ "Coordinates.m  Global.m       Mesh.m         Registration.m VisualCortex.m\n\
+FreeSurfer.m   MRImage.m      NifTI.m        Util.m\n\n# After this \
+installation is complete, you can include the entire Neurotica library\n# \
+into Mathematica by using the typical <<Neurotica` syntax. Additionally, you \
+can\n# upgrade the library by typing 'git pull' from the ~/Code/Neurotica \
+directory."
+}], "Program",
+ CellChangeTimes->{{3.643560237937209*^9, 3.64356027908918*^9}, {
+  3.6435603174187317`*^9, 3.64356068793869*^9}, {3.643560720961048*^9, 
+  3.6435609717882967`*^9}, {3.6435610652086353`*^9, 3.643561131077612*^9}, {
+  3.64356116796738*^9, 3.64356127746353*^9}}],
+
+Cell[TextData[{
+ StyleBox["Neurotica needs to be able to find your FreeSurfer Subjects\
+\[CloseCurlyQuote] directory ($SUBJECTS_DIR).\[LineSeparator]",
+  FontWeight->"Bold"],
+ "You don\[CloseCurlyQuote]t need to have FreeSurfer installed to use \
+Neurotica, but in order to execute the examples in this tutorial, you\
+\[CloseCurlyQuote]ll need to have a subjects directory containing, at the \
+least, the fsaverage, fsaverage_sym, and bert subjects. (The subject \
+\[OpenCurlyQuote]bert\[CloseCurlyQuote] is an example subject that is \
+distributed with FreeSurfer). If you do not have FreeSurfer or FreeSurfer\
+\[CloseCurlyQuote]s default subject directory, please visit \
+http://freesurfer.net/ to obtain these."
+}], "Item",
+ CellChangeTimes->{{3.6435612131465263`*^9, 3.643561215475378*^9}, {
+   3.643561297499597*^9, 3.643561408503685*^9}, {3.643561941509377*^9, 
+   3.6435619839332047`*^9}, {3.643562036223572*^9, 3.6435621683993473`*^9}, 
+   3.6435644882735653`*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Neurotica Configuration", "Subchapter",
+ CellChangeTimes->{{3.6435621902131042`*^9, 3.6435622187995787`*^9}}],
+
+Cell[TextData[{
+ "Once Neurotica is properly installed, the entire library can be included \
+into your ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ " context with the following instruction:"
+}], "Text",
+ CellChangeTimes->{{3.643562220801908*^9, 3.6435622509184017`*^9}, 
+   3.643564498600913*^9},
+ FontSize->18],
+
+Cell[BoxData[
+ RowBox[{"<<", "Neurotica`"}]], "Input",
+ CellChangeTimes->{{3.643562252050975*^9, 3.6435622534162073`*^9}}],
+
+Cell["\<\
+If you want to only include part of the library, for example only the Util \
+namespace, you can use a line like this:\
+\>", "Text",
+ CellChangeTimes->{{3.643562286154069*^9, 3.6435623110498877`*^9}},
+ FontSize->18],
+
+Cell[BoxData[
+ RowBox[{"<<", "Neurotica`Util`"}]], "Input",
+ Evaluatable->False,
+ CellChangeTimes->{{3.643562317705761*^9, 3.643562320837759*^9}, {
+  3.643562626817573*^9, 3.64356262911395*^9}}],
+
+Cell["\<\
+Once Neurotica has been included, there are a few variables that may need to \
+be configured; these are the FreeSurfer subjects directory and the fsaverage \
+and fsaverage_sym directories. If your fsaverage and fsaverage_sym \
+directories are in your subjects directory, then you need only set the \
+subjects directory itself. Note that Neurotica can track multiple subjects \
+directories, so the function to register one is \
+AddFreeSurferSubjectsDirectory[]; to remove a directory, \
+RemoveFreeSurferSubjectsDirectory[] can be used.\
+\>", "Text",
+ CellChangeTimes->{{3.643562338117373*^9, 3.6435623621701403`*^9}, {
+  3.643562410995273*^9, 3.643562475930751*^9}, {3.643562568777233*^9, 
+  3.6435625822141113`*^9}},
+ FontSize->18],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+  "AddFreeSurferSubjectsDirectory", "[", 
+   "\"\</Applications/freesurfer/subjects\>\"", "]"}], ";"}]], "Input",
+ CellChangeTimes->{{3.6435623647429647`*^9, 3.64356240745368*^9}, {
+  3.643562477607808*^9, 3.643562496575081*^9}}],
+
+Cell["\<\
+To see the list of subject directories, we can examine the variable \
+$FreeSurferSubjectsDirectories:\
+\>", "Text",
+ CellChangeTimes->{{3.6435625841783447`*^9, 3.643562595799893*^9}},
+ FontSize->18],
+
+Cell[CellGroupData[{
+
+Cell[BoxData["$FreeSurferSubjectsDirectories"], "Input",
+ CellChangeTimes->{{3.64356260007992*^9, 3.6435626000805683`*^9}}],
+
+Cell[BoxData[
+ RowBox[{"{", "\<\"/Applications/freesurfer/subjects\"\>", "}"}]], "Output",
+ CellChangeTimes->{3.643562600986229*^9, 3.6435626346544847`*^9, 
+  3.643562671851061*^9}]
+}, Open  ]],
+
+Cell["\<\
+Additionally, one occasionally wants to examine a FreeSurfer subjects \
+directory that lies in a different location that the fsaverage or \
+fsaverage_sym directories; in these cases, you can explicitly set the \
+fsaverage and fsaverage_sym paths:\
+\>", "Text",
+ CellChangeTimes->{{3.6435626955765247`*^9, 3.643562716940549*^9}, {
+  3.6435632249934683`*^9, 3.643563245951589*^9}},
+ FontSize->18],
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{
+  "$FSAverage", "=", "\"\</Applications/freesurfer/subjects/fsaverage\>\""}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+  "$FSAverageSym", "=", 
+   "\"\</Applications/freesurfer/subjects/fsaverage_sym\>\""}], 
+  ";"}]}], "Input",
+ CellChangeTimes->{{3.643564604292852*^9, 3.64356462521937*^9}}]
+}, Open  ]]
+}, Closed]],
+
+Cell[TextData[{
+ 
+ CounterBox["Chapter"],
+ ". Utilities"
+}], "Chapter",
+ CellChangeTimes->{{3.643557632866323*^9, 3.643557671981203*^9}, {
+  3.6435621740472403`*^9, 3.64356217576805*^9}, {3.643564650926221*^9, 
+  3.643564652005076*^9}}]
+}, Open  ]]
+},
+Evaluator->"Local",
+WindowSize->{808, 911},
+WindowMargins->{{431, Automatic}, {Automatic, 30}},
+FrontEndVersion->"10.1 for Mac OS X x86 (32-bit, 64-bit Kernel) (March 23, \
+2015)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 109, 1, 92, "Title"],
+Cell[692, 25, 125, 1, 51, "Subtitle"],
+Cell[CellGroupData[{
+Cell[842, 30, 236, 7, 65, "Chapter"],
+Cell[CellGroupData[{
+Cell[1103, 41, 227, 3, 62, "Subchapter"],
+Cell[1333, 46, 723, 19, 131, "Text"],
+Cell[CellGroupData[{
+Cell[2081, 69, 236, 6, 51, "Item"],
+Cell[2320, 77, 348, 8, 51, "Item"],
+Cell[2671, 87, 262, 6, 51, "Item"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[2982, 99, 107, 1, 62, "Subchapter"],
+Cell[3092, 102, 672, 11, 155, "Text"],
+Cell[CellGroupData[{
+Cell[3789, 117, 569, 11, 91, "Item"],
+Cell[4361, 130, 964, 21, 151, "Item"],
+Cell[5328, 153, 948, 19, 171, "Item"],
+Cell[6279, 174, 806, 15, 131, "Item"],
+Cell[7088, 191, 575, 11, 91, "Item"],
+Cell[7666, 204, 575, 11, 71, "Item"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[8290, 221, 176, 2, 62, "Subchapter"],
+Cell[8469, 225, 593, 10, 107, "Text"],
+Cell[9065, 237, 1311, 24, 164, "Item"],
+Cell[10379, 263, 1682, 30, 382, "Program"],
+Cell[12064, 295, 972, 16, 96, "Item"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[13073, 316, 115, 1, 62, "Subchapter"],
+Cell[13191, 319, 319, 9, 59, "Text"],
+Cell[13513, 330, 122, 2, 28, "Input"],
+Cell[13638, 334, 224, 5, 59, "Text"],
+Cell[13865, 341, 194, 4, 28, "Input",
+ Evaluatable->False],
+Cell[14062, 347, 741, 13, 179, "Text"],
+Cell[14806, 362, 264, 6, 28, "Input"],
+Cell[15073, 370, 208, 5, 59, "Text"],
+Cell[CellGroupData[{
+Cell[15306, 379, 123, 1, 28, "Input"],
+Cell[15432, 382, 181, 3, 28, "Output"]
+}, Open  ]],
+Cell[15628, 388, 404, 8, 83, "Text"],
+Cell[16035, 398, 343, 10, 46, "Input"]
+}, Open  ]]
+}, Closed]],
+Cell[16405, 412, 236, 7, 54, "Chapter"]
+}, Open  ]]
+}
+]
+*)
+
+(* End of internal cache information *)
