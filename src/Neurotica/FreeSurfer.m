@@ -150,6 +150,10 @@ FSAverageSymSubject::usage = "FSAverageSymSubject yields the subject data for th
 FreeSurferSaveConfiguration::usage = "FreeSurferSaveConfiguration[] yields True if the FreeSurfer configuration (the FreeSurfer home directories and subject directories) are successfully saved as part of the Neurotica permanent data association.";
 FreeSurferClearConfiguration::usage = "FreeSurferClearConfiguration[] yields True if the FreeSurfer configuration (the FreeSurfer home directories and subject directories) are successfully removed from the Neurotica permanent data association.";
 
+RibbonToCortex::usage = "RibbonToCortex[sub, hemi, data] converts the 3D image data (must be an MRImage3D, an Image3D, or a 3D array the same size as the subject's ribbon) to a list of vertex data the same size as the subject's given hemisphere's VertexList. The option Method may be passed and must be a function such as Mean or Median that determines how to aggregate competing data.";
+RibbonToCortex::badarg = "Bad argument given to RibbonToCortex: `1`";
+CortexToRibbon::usage = "CortexToRibbon[sub, hemi, data] converts the given list of cortical surface data (which must be the same size as the subject's given hemisphere's VertexList) to an MRImage3D object by replacing the data in the subject's ribbon with that of the vertex closest to the given ribbon element.";
+
 (**************************************************************************************************)
 Begin["`Private`"];
 
@@ -1903,9 +1907,19 @@ DefineImmutable[
                 xyz]}]]]],
      $Failed],
    FreeSurferSubjectVertexVoxelMapping[sub, hemi:(LH|RH)] := Check[
-     GroupBy[
-       Normal @ VoxelToVertexMap[sub, hemi],
-       Last -> First],
+     With[
+       {surf = Cortex[sub, "Middle", hemi],
+        ribbon = Association[sub]["Ribbon"][hemi]},
+       With[
+         {idcs = Position[ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
+         Association @ MapThread[
+           (#1 -> #2[[1]]) &,
+           {VertexList[surf],
+            Nearest[
+              MapThread[
+                Rule,
+                {VoxelIndexToCoordinate[ribbon, idcs], idcs}],
+              VertexCoordinates[surf]]}]]],
      $Failed],
    VertexToVoxelMaps[sub] :> Association[
      {LH -> FreeSurferSubjectVertexVoxelMapping[sub, LH],
@@ -1996,11 +2010,45 @@ FSAverageSymOP := With[
       FSAverageSymOP,
       First[Ordering[V[[All, 2]], 1]]]]];
 
-(* #SurfaceToRibbon *******************************************************************************)
-CortexToRibbon[sub_, hemi:(LH|RH), dat_List] := Null;
+(* #CortexToRibbon ********************************************************************************)
+Options[CortexToRibbon] = {Filling -> 0};
+CortexToRibbon[sub_, hemi:(LH|RH), dat_List, OptionsPattern[]] := With[
+  {vtx2vox = VertexToVoxelMap[sub, hemi],
+   ribbon = Association[sub]["Ribbon"][hemi],
+   pial = Cortex[sub, "Pial", hemi],
+   fill = OptionValue[Filling]},
+  MRImage3D[
+    ribbon,
+    ImageData -> ReplacePart[
+      ImageData[ribbon],
+      With[
+        {rules = MapThread[
+           (vtx2vox[#1] -> If[NumericQ[#2], #2, fill])&,
+           {VertexList[pial], dat}]},
+        If[MatchQ[Dimensions@ImageData[ribbon], {_,_,_,1}],
+          Map[(Append[#[[1]],1] -> #[[2]])&, rules],
+          rules]]]]];
+Protect[CortexToRibbon];
 
-(* #RibbonToSurface *******************************************************************************)
-
+(* #RibbonToCortex ********************************************************************************)
+Options[RibbonToCortex] = {Method -> Mean};
+RibbonToCortex[sub_, hemi:(LH|RH), img_] := With[
+  {vox2vtx = VoxelToVertexMap[sub, hemi],
+   pial = Cortex[sub, "Pial", hemi],
+   aggf = OptionValue[Method],
+   ribbon = Association[sub]["Ribbon"][hemi]},
+  With[
+    {dat = Which[
+       MRImageQ[img] && ImageDimensions[img] == ImageDimensions[ribbon], ImageData[img],
+       ImageQ[img] && ImageDimensions[img] == ImageDimensions[ribbon], ImageData[img],
+       ArrayQ[img, 3] && Dimensions[img] == ImageDimensions[ribbon], img,
+       True, Message[
+         RibbonToCortex::badarg,
+         "image must be an MRImage, an Image3D, or a 3D array the same size as sub's ribbon"]]},
+  Map[
+    aggf[Extract[dat, vox2vtx[#]]]&,
+    VertexList[pial]]]];
+Protect[RibbonToCortex];
 
 End[];
 EndPackage[];

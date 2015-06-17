@@ -652,9 +652,13 @@ MRImage3D[img_Image3D, opts___Rule] := MRImage3D[
   ImageData[img],
   opts,
   Sequence@@Options[img]];
-MRImage3D[img_MRImage3D, opts___Rule] := Clone[
-  img,
-  Options -> Join[{opts}, Options[img]]];
+MRImage3D[img_MRImage3D, opts___Rule] := With[
+  {settables = FilterRules[{opts}, {ImageData}],
+   options = DeleteCases[{opts}, HoldPattern[ImageData -> _], {1}]},
+  Clone[
+    img,
+    Sequence @@ settables,
+    Options -> Join[options, Options[img]]]];
 DefineImmutable[
   MRImage3D[data_List, OptionsPattern[]] :> img,
   Evaluate[
@@ -662,7 +666,9 @@ DefineImmutable[
       $MRImageSharedMethods,
       Hold[
         (* Retreive (or edit) the raw image data *)
-        ImageData[img] = N[data],
+        ImageData[img] = N @ If[Length@Dimensions@data == 4 && Last@Dimensions@data == 1,
+          data[[All,All,All,1]],
+          data],
         (* Access the scale factors of min and max for the data *)
         MRImageStatistics[img] -> Fold[
           Function @ If[AssociationQ[#1],
