@@ -46,6 +46,9 @@ LabelVertexList::usage = "LabelVertexList[sub, hemi, name] is defined by subject
 Note that the labels supported will vary by subject modality; use SubjectLabels to see the supported labels.";
 LabelVertexList::nolab = "No such label for given subject: `1`";
 
+VertexToVoxelMap::usage = "VertexToVoxelMap[sub, hemi] yields a mapping of vertices to voxels for the given subject. This is defined by each subject modality so may not be identical depending on how the subject is loaded.";
+VoxelToVertexMap::usage = "VoxelToVertexMap[sub, hemi] yields a mapping of voxels to vertices for the given subject. This is defined by each subject modality so may not be identical depending on how the subject is loaded.";
+
 If[!ValueQ[Radius],
   (Radius::usage = "Radius is a keyword that is used to specify the distance from the center of a cortical map projection that should be included in the map projection.";
    Protect[Radius])];
@@ -54,7 +57,8 @@ Begin["`Private`"];
 
 Protect[RH, LH, Anterior, Posterior, Inferior, Superior, 
         PolarAngle, Eccentricity, VisualArea,
-        Curvature, OccipitalPoleIndex, LabelVertexList, SubjectLabels];
+        Curvature, OccipitalPoleIndex, LabelVertexList, SubjectLabels,
+        VertexToVoxelMap, VoxelToVertexMap];
 
 (* #Cortex ****************************************************************************************)
 Cortex[sub_, hemi_] := Cortex[sub, Automatic, hemi];

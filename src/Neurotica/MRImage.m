@@ -701,10 +701,13 @@ DefineImmutable[
           {rv = RightDirectionVector[img],
            av = AnteriorDirectionVector[img],
            sv = SuperiorDirectionVector[img],
-           x0 = Center[img]},
-          If[rv === Indeterminate || av === Indeterminate || sv === Indeterminate,
-            Indeterminate,
-            Append[MapThread[Append, {{rv, av, sv}, -x0}], {0,0,0,1}]]],
+           x0 = (*Center[img]*)ImageDimensions[img] / 2,
+           vol2xyz = {{0,0,1}, {0,-1,0}, {-1,0,0}}},
+          With[
+            {mtx = {rv, av, sv} . vol2xyz},
+            If[rv === Indeterminate || av === Indeterminate || sv === Indeterminate,
+              Indeterminate,
+              Append[MapThread[Append, {mtx, mtx . (-x0)}], {0,0,0,1}]]]],
         CoordinateToVoxelIndexMatrix[img] :> With[
           {mtx = VoxelIndexToCoordinateMatrix[img]},
           If[mtx === Indeterminate || mtx === $Failed, mtx, Inverse[mtx]]],
@@ -763,7 +766,7 @@ DefineImmutable[
               If[stats[Missing] == 0,
                 ImageData[img], 
                 ImageData[img] /. {
-                  Indeterminate -> (If[KeyExistsQ[stats, #], stats[#], #]& @ (Indeterminate /. opts)),
+                  Indeterminate -> (If[KeyExistsQ[stats, #], stats[#], #]&@(Indeterminate /. opts)),
                   None -> (If[KeyExistsQ[stats, #], stats[#], #]& @ (None /. opts))}],
               {stats[Min], stats[Max]}],
             Sequence@@FilterRules[opts, Options[Image3D][[All,1]]]]],
@@ -907,16 +910,27 @@ Protect[MRIOrientTransform];
 
 (* Here, we want to do all the coordinate transformations... *)
 
+(* #$VoxelIndexToCoordinateMatrix *****************************************************************)
+$VoxelIndexToCoordinateMatrix = {
+  { 0,  0,  1},
+  { 0, -1,  0},
+  {-1,  0,  0}};
+Protect[$VoxelIndexToCoordinateMatrix];
+
 (* #VoxelIndexToCoordinateMatrix ******************************************************************)
 VoxelIndexToCoordinateMatrix[img_?MRImageQ, spec_List] := Check[
   With[
-    {mtx = MRIOrientMatrix[img, spec, ImageDimensions[img]]},
-    If[!ListQ[mtx],
-      mtx,
+    {mtx0 = MRIOrientMatrix[img, spec, ImageDimensions[img]]},
+    If[!ListQ[mtx0],
+      mtx0,
       (* This matrix needs to be modified only in that it needs to center things at 0 *)
-      Append[
-        MapThread[Append, {mtx[[1;;3, 1;;3]], -Center[img]}],
-        {0,0,0,1}]]],
+      With[
+        {mtx = mtx0[[1;;3, 1;;3]]},
+        Append[
+          MapThread[
+            Append,
+            {mtx, ImageDimensions[img]/2}],
+          {0,0,0,1}]]]],
   $Failed];
 Protect[VoxelIndexToCoordinateMatrix];
 (* #VoxelIndexToCoordinateTransform ***************************************************************)
@@ -925,7 +939,7 @@ VoxelIndexToCoordinateTransform[img_?MRImageQ, spec_List] := Check[
     {mtx = VoxelIndexToCoordinateMatrix[img, spec]},
     If[!ListQ[mtx],
       mtx,
-      AffineTransform[{mtx[[1;;3,1;;3]], mtx[[4,1;;4]]}]]],
+      AffineTransform[{mtx[[1;;3,1;;3]], mtx[[4,1;;3]]}]]],
   $Failed];
 Protect[VoxelIndexToCoordinateTransform];  
 
@@ -936,8 +950,10 @@ VoxelIndexToCoordinateTr[
   spec:{_,_,_}
  ] := Check[
   With[
-    {mtx = VoxelIndexToCoordinateMatrix[img, spec]},
-    If[!ListQ[mtx], mtx, Dot[mtx, Append[coords, ConstantArray[1, Length[coords[[1]]]]]]]],
+    {mtx = Most@VoxelIndexToCoordinateMatrix[img, spec],
+     x0 = ImageDimensions[img] / 2},
+    (*If[!ListQ[mtx], mtx, Dot[mtx, Append[coords, ConstantArray[1, Length[coords[[1]]]]]]]],*)
+    If[!ListQ[mtx], mtx, Dot[mtx[[1;;3, 1;;3]], (coords - x0)]]],
   $Failed];
 VoxelIndexToCoordinateTr[img_?MRImageQ, coords:{_List,_List,_List}] := VoxelIndexToCoordinateTr[
   img,
@@ -1001,39 +1017,41 @@ CoordinateToVoxelIndex[img_?MRImageQ, coords_] := CoordinateToVoxelIndex[
 Protect[CoordinateToVoxelIndex];
 
 (* #MRITransformation *****************************************************************************)
-MRITransformation[img_?MRImageQ, tx_, opts___Rule] := Check[
+MRITransformation[img_?MRImageQ, tx0_, opts___Rule] := Check[
   With[
-    {res = Check[
-       ImageTransformation[
-         Image3D[img],
-         InverseFunction @ If[MatrixQ[tx],
-           Switch[Dimensions[tx],
-             {3,3}, AffineTransform[tx],
-             {3,4}, AffineTransform[{tx[[All, 1;;3]], tx[[All, 4]]}],
-             {4,4}, AffineTransform[{tx[[1;;3, 1;;3]], tx[[1;;3, 4]]}],
-             _, Message[MRITransformation::badtx]],
-           tx],
-         opts,
-         DataRange -> Map[{-#/2, #/2}&, ImageDimensions[img]]],
-       $Failed],
-     stats = MRImageStatistics[img]},
-    If[res === $Failed, 
-      res,
-      With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res],
-         (* Transformation items must be preserved... *)
-         rv = RightDirectionVector[img],
-         av = AnteriorDirectionVector[img],
-         sv = SuperiorDirectionVector[img],
-         c = Center[img]},
-        MRImage3D[
-          newdat,
-          RightDirectionVector -> If[ListQ[rv], tx[rv], rv],
-          AnteriorDirectionVector -> If[ListQ[av], tx[av], av],
-          SuperiorDirectionVector -> If[ListQ[sv], tx[sv], sv],
-          Center -> tx[c],
-          Sequence@@theOpts]]]],
+    {tx = If[MatrixQ[tx0],
+       Switch[Dimensions[tx0],
+         {3,3}, AffineTransform[tx0],
+         {3,4}, AffineTransform[{tx0[[All, 1;;3]],  tx0[[All, 4]]}],
+         {4,4}, AffineTransform[{tx0[[1;;3, 1;;3]], tx0[[1;;3, 4]]}],
+         _, Message[MRITransformation::badtx]],
+       tx0]},
+    With[
+      {res = Check[
+         ImageTransformation[
+           Image3D[img],
+           InverseFunction @ tx,
+           opts,
+           DataRange -> Map[{-#/2, #/2}&, ImageDimensions[img]]],
+         $Failed],
+       stats = MRImageStatistics[img]},
+      If[res === $Failed,
+        res,
+        With[
+          {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
+           theOpts = Options[res],
+           (* Transformation items must be preserved... *)
+           rv = RightDirectionVector[img],
+           av = AnteriorDirectionVector[img],
+           sv = SuperiorDirectionVector[img],
+           c = Center[img]},
+          MRImage3D[
+            newdat,
+            RightDirectionVector -> If[ListQ[rv], tx[rv], rv],
+            AnteriorDirectionVector -> If[ListQ[av], tx[av], av],
+            SuperiorDirectionVector -> If[ListQ[sv], tx[sv], sv],
+            Center -> tx[c],
+            Sequence@@theOpts]]]]],
   $Failed];
 Protect[MRITransformation];
 

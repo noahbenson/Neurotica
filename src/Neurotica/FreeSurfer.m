@@ -134,6 +134,9 @@ FreeSurferSubjectV2Label::usage = "FreeSurferSubjectV1Label[sub, hemi] yields an
 FreeSurferSubjectMTThresholdedLabel::usage = "FreeSurferSubjectV1ThresholdedLabel[sub, hemi] yields a binary (1/0) mask of the location of V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
 FreeSurferSubjectMTLabel::usage = "FreeSurferSubjectV1Label[sub, hemi] yields an overlay of the probability of each vertex belonging to V1, according to FreeSurfer, for all vertices in the given FreeSurfer subject's given hemisphere.";
 
+FreeSurferSubjectVertexVoxelMapping::usage = "FreeSurferSubjectVertexVoxelMapping[sub, hemi] yields a list with one element for each vertex in the given hemisphere's surfaces of the given FreeSurfer subject, sub, containing a list of the voxel indices (for the native orientation of the subject's ribbon) for the voxels that are aligned with the given vertex.";
+FreeSurferSubjectVoxelVertexMapping::usage = "FreeSurferSubjectVertexVoxelMapping[sub, hemi] yields the inverse of the FreeSurferSubjectVertexVoxelMapping; the result is an Associative array mapping each voxel index in the ribbon to the vertex assigned to that voxel.";
+
 FreeSurfer::nolabel = "The FreeSurferColorLUT.txt file could not be found. This file is normally in your FreeSurfer home directory. Try adding a FreeSurfer home directory (via AddFreeSurferHome[]) and re-evaluating.";
 FreeSurfer::notfound = "Data not found: `1`";
 Protect[FreeSurfer];
@@ -372,7 +375,7 @@ MGHInterpret[data_] := With[
       Flatten[frames],
       MRImage3D[
         frames,
-        Center -> (mtx[[4, 1;;3]] + Dimensions[frames][[1;;3]]/2),
+        Center -> Most @ Dot[mtx, Append[-Dimensions[frames][[1;;3]]/2, 1]],
         RightDirectionVector -> mtx[[1, 1;;3]],
         AnteriorDirectionVector -> mtx[[2, 1;;3]],
         SuperiorDirectionVector -> mtx[[3, 1;;3]],
@@ -577,7 +580,10 @@ ImportSurfaceData[stream_, opts___] := "Data" -> Catch[
          "MetaInformation" :> ("MetaInformation" /. ImportSurfaceMetaInformation[stream,opts])]]},
     {"MetaInformation" -> header,
      "VertexCoordinates" -> Replace[
-       "VertexCoordinates" /. ImportSurfaceVertexCoordinates[stream, "MetaInformation" -> header, opts],
+       "VertexCoordinates" /. ImportSurfaceVertexCoordinates[
+         stream,
+         "MetaInformation" -> header,
+         opts],
        $Failed :> Throw[$Failed]],
      "FaceList" -> Replace[
        "FaceList" /. ImportSurfaceFaceList[stream, "MetaInformation" -> header, opts],
@@ -592,7 +598,8 @@ ImportSurfaceObject[stream_, opts___] := Catch[
       "FaceList" /. dat,
       MetaInformation -> ("MetaInformation" /. dat)]]];
 ImportSurface[filename_String, opts___] := Import[filename, "FreeSurferSurface", opts];
-Protect[ImportSurface, ImportSurfaceMetaInformation, ImportSurfaceVertexCoordinates, ImportSurfaceFaces, ImportSurfaceData, ImportSurfaceObject];
+Protect[ImportSurface, ImportSurfaceMetaInformation, ImportSurfaceVertexCoordinates,
+        ImportSurfaceFaces, ImportSurfaceData, ImportSurfaceObject];
 (* Register the importer *)
 ImportExport`RegisterImport[
   "FreeSurferSurface",
@@ -1644,6 +1651,40 @@ Protect[FreeSurferSubjectJacobian, FreeSurferSubjectCurvature,
 
 
 (* #FreeSurferSubject immutable *******************************************************************)
+
+(* These are meta-data about the various surfaces *)
+$FreeSurferSurfaceData = Association[
+  {"WhiteSurface" -> <|
+     "Pattern" -> "white"|"whitemesh"|"inner"|"innersurface"|"innermesh",
+     "MapSurface" -> "SphereSurface"|>,
+   "MiddleSurface" -> <|
+     "Pattern" -> "mid"|"middle"|"middlemesh"|"midgray"|"midgraysurface"|"midgraymesh",
+     "MapSurface" -> "SphereSurface"|>,
+   "PialSurface" -> <|
+     "Pattern" -> "pial"|"pialmesh"|"outer"|"outersurface"|"outermesh",
+     "MapSurface" -> "SphereSurface"|>,
+   "InflatedSurface" -> <|
+     "Pattern" -> "inflated"|"inflatedmesh",
+     "MapSurface" -> "SphereSurface"|>,
+   "SphereSurface" -> <|
+     "Pattern" -> "sphere"|"spheremesh"|"sphericalsurface"|"sphericalmesh",
+     "MapSurface" -> "Sphere"|>,
+   "RegisteredSurface" -> <|
+     "Pattern" -> ("reg"|"fsaverage"|"fs"|"fsaveragemesh"|"fsaveragesurface"|"registered"
+                   |"registeredmesh"),
+     "MapSurface" -> "RegisteredSurface"|>,
+   "SymRegisteredSurface" -> <|
+     "Pattern" -> ("sym"|"symregistered"|"fsaveragesym"|"fsaverage_sym"|"fsaveragesymsurface"
+                   |"fsaveragesymmesh"|"symsurface"|"symmesh"|"symregisteredmesh"|"symmetric"
+                   |"symmetricsurface"|"symmetricmesh"|"symmetricregistered"
+                   |"symmetricregisteredsurface"|"symmetricregisteredmesh"),
+     "MapSurface" -> "SymRegisteredSurface"|>,
+   "OriginalSurface" -> <|
+     "Pattern" -> "orig"|"original"|"originalmesh",
+     "MapSurface" -> "SphereSurface"|>}];
+Protect[$FreeSurferSurfaceData];
+
+
 DefineImmutable[
   FreeSurferSubject[path_?FreeSurferSubjectQ] :> sub,
   {(* Path gives the subject's directory *)
@@ -1694,7 +1735,7 @@ DefineImmutable[
        "InflatedSurface"         -> {LH  :> FreeSurferSubjectInflatedSurface[path, LH],
                                      RH  :> FreeSurferSubjectInflatedSurface[path, RH],
                                      RHX :> FreeSurferSubjectInflatedSurface[path, RHX]},
-       "SphericalSurface"        -> {LH  :> FreeSurferSubjectSphereSurface[path, LH],
+       "SphereSurface"           -> {LH  :> FreeSurferSubjectSphereSurface[path, LH],
                                      RH  :> FreeSurferSubjectSphereSurface[path, RH],
                                      RHX :> FreeSurferSubjectSphereSurface[path, RHX]},
        "RegisteredSurface"       -> {LH  :> FreeSurferSubjectRegisteredSurface[path, LH],
@@ -1764,37 +1805,40 @@ DefineImmutable[
 
    (* Now we make some accessors for this subject *)
    Cortex[sub, name_, hemi:(LH|RH|RHX)] := With[
-     {assoc = Association[sub]},
+     {assoc = Association[sub],
+      id = ToLowerCase[name] // Function @ FirstCase[
+        Normal @ $FreeSurferSurfaceData,
+        (r_Rule /; (MatchQ[#, ToLowerCase[r[[1]]] | r[[2]]["Pattern"]])) :> r[[1]]]},
      With[
-       {mesh = assoc[
-          Replace[
-            If[name === Automatic, "middle", ToLowerCase[name]],
-            {("white"|"whitesurface"|"whitemesh") ->"WhiteSurface",
-             ("mid"|"middle"|"middlesurface"|"middlemesh") ->"MiddleSurface",
-             ("pial"|"pialsurface"|"pialmesh") ->"PialSurface",
-             ("inflated"|"inflatedsurface"|"inflatedmesh") ->"InflatedSurface",
-             ("sphere"|"spheresurface"|"spheremesh") ->"SphericalSurface",
-             ("reg"|"registered"|"registeredsurface"|"registeredmesh") ->"RegisteredSurface",
-             ("sym"|"symregistered"|"symsurface"|"symmesh") ->"SymRegisteredSurface",
-             ("orig"|"original"|"originalsurface"|"originalmesh") -> "OriginalSurface",
-             _ :> Message[FreeSurferSubject::badarg, "unrecognized surface: " <> name]}]
-          ][hemi]},
-       SetProperty[
-         {mesh, VertexList},
-         {Curvature :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
-          "Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
-          "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
-          "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
-          "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
-          "Parcellation" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed],
-          "V1Label" :> Quiet@Check[assoc["V1Label"][hemi], $Failed],
-          "V2Label" :> Quiet@Check[assoc["V2Label"][hemi], $Failed],
-          "MTLabel" :> Quiet@Check[assoc["MTLabel"][hemi], $Failed],
-          "BrodmannLabels" :> Quiet@Check[assoc["BrodmannLabels"][hemi], $Failed],
-          "V1Probability" :> Quiet@Check[assoc["V1Probability"][hemi], $Failed],
-          "V2Probability" :> Quiet@Check[assoc["V2Probability"][hemi], $Failed],
-          "MTProbability" :> Quiet@Check[assoc["MTProbability"][hemi], $Failed],
-          "BrodmannThresholds" :> Quiet@Check[assoc["BrodmannProbabilities"][hemi], $Failed]}]]],
+       {mapMeshName = $FreeSurferSurfaceData[id]["MapSurface"]},
+       With[
+         {mesh = assoc[id][hemi] // CorticalMesh[
+            #,
+            MetaInformation -> Join[
+              Options[#, MetaInformation],
+              {"CorticalMap" -> {
+                 Method -> "Mollweide",
+                 Center :> OccipitalPole[sub, mapMeshName, hemi],
+                 Radius -> Full},
+               "SphericalMesh" :> Cortex[sub, mapMeshName, hemi]}]] &},
+         SetVertexProperties[
+           mesh,
+           {Curvature :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
+            "Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
+            "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
+            "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
+            "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
+            "Parcellation" :> Quiet@Check[assoc["Parcellation2009"][hemi], $Failed],
+            "Parcellation2005" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed],
+            "RibbonIndices" :> Quiet@Check[Normal[VertexToVoxelMap[sub, hemi]][[All,2]], $Failed],
+            "V1Label" :> Quiet@Check[assoc["V1Label"][hemi], $Failed],
+            "V2Label" :> Quiet@Check[assoc["V2Label"][hemi], $Failed],
+            "MTLabel" :> Quiet@Check[assoc["MTLabel"][hemi], $Failed],
+            "BrodmannLabels" :> Quiet@Check[assoc["BrodmannLabels"][hemi], $Failed],
+            "V1Probability" :> Quiet@Check[assoc["V1Probability"][hemi], $Failed],
+            "V2Probability" :> Quiet@Check[assoc["V2Probability"][hemi], $Failed],
+            "MTProbability" :> Quiet@Check[assoc["MTProbability"][hemi], $Failed],
+            "BrodmannThresholds" :> Quiet@Check[assoc["BrodmannProbabilities"][hemi], $Failed]}]]]],
    (* We can also get the occipital pole in a similar way... *)
    OccipitalPoleIndex[sub, hemi:(LH|RH|RHX)] := Check[
      FreeSurferSubjectOP[Path[sub], hemi],
@@ -1836,7 +1880,41 @@ DefineImmutable[
               {hem, {"lh","rh"}}]},
            If[FileExistsQ[files[[1]]] && FileExistsQ[files[[2]]], #, None]],
          {"V1","V2","MT"}],
-       StringQ]]},
+       StringQ]],
+
+   (* We want to be able to grab vertex/voxel mappings as well... *)
+   FreeSurferSubjectVoxelVertexMapping[sub, hemi:(LH|RH)] := Check[
+     With[
+       {white = Cortex[sub, "White", hemi],
+        pial = Cortex[sub, "Pial", hemi],
+        ribbon = Association[sub]["Ribbon"][hemi]},
+       With[
+         {idcs = Position[ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
+         With[
+           {xyz = VoxelIndexToCoordinate[ribbon, idcs]},
+           Association @ MapThread[
+             (#1 -> #2[[1]]) &,
+             {idcs,
+              Nearest[
+                MapThread[
+                  Rule,
+                  {Join[VertexCoordinates[white], VertexCoordinates[pial]],
+                   Join[#, #]& @ VertexList[white]}],
+                xyz]}]]]],
+     $Failed],
+   FreeSurferSubjectVertexVoxelMapping[sub, hemi:(LH|RH)] := Check[
+     GroupBy[
+       Normal @ VoxelToVertexMap[sub, hemi],
+       Last -> First],
+     $Failed],
+   VertexToVoxelMaps[sub] :> Association[
+     {LH -> FreeSurferSubjectVertexVoxelMapping[sub, LH],
+      RH -> FreeSurferSubjectVertexVoxelMapping[sub, RH]}],
+   VertexToVoxelMap[sub, hemi:(LH|RH)] := VertexToVoxelMaps[sub][hemi],
+   VoxelToVertexMaps[sub] :> Association[
+     {LH -> FreeSurferSubjectVoxelVertexMapping[sub, LH],
+      RH -> FreeSurferSubjectVoxelVertexMapping[sub, RH]}],
+   VoxelToVertexMap[sub, hemi:(LH|RH)] := VoxelToVertexMaps[sub][hemi]},
   SetSafe -> True,
   Symbol -> FreeSurferSubjectData];
 
@@ -1855,14 +1933,19 @@ MakeBoxes[s_FreeSurferSubjectData, form_] := MakeBoxes[#]&[
            Alignment -> {{Center}}]]},
       BaseStyle -> Darker[Gray]]]];
 
+Protect[FreeSurferSubjectVoxelVertexMapping, FreeSurferSubjectVertexVoxelMapping];
+
+
 (* FSAverage and FSAverageSym *********************************************************************)
 $FSAverage := With[
-  {possibles = Select[$FreeSurferSubjects, (Last[StringSplit[#, $PathnameSeparator]] == "fsaverage")&]},
+  {possibles = Select[
+     $FreeSurferSubjects,
+     (Last[StringSplit[#, $PathnameSeparator]] == "fsaverage")&]},
   If[possibles == {},
     (Message[
        FreeSurfer::notfound,
        "no fsaverage subject found; you may beed to add freesurfer homes or subjects, or set" <> 
-        " $FSAverage to the fsaverage subject directory manually."];
+       " $FSAverage to the fsaverage subject directory manually."];
      $Failed),
     Set[$FSAverage, First[possibles]]]];
 FSAverageSubject := With[
@@ -1877,7 +1960,9 @@ FSAverageSubject := With[
      res)]];
 
 $FSAverageSym := With[
-  {possibles = Select[$FreeSurferSubjects, (Last[StringSplit[#, $PathnameSeparator]] == "fsaverage_sym")&]},
+  {possibles = Select[
+     $FreeSurferSubjects,
+     (Last[StringSplit[#, $PathnameSeparator]] == "fsaverage_sym")&]},
   If[possibles == {},
     (Message[
        FreeSurfer::notfound,
@@ -1910,6 +1995,11 @@ FSAverageSymOP := With[
     Set[
       FSAverageSymOP,
       First[Ordering[V[[All, 2]], 1]]]]];
+
+(* #SurfaceToRibbon *******************************************************************************)
+CortexToRibbon[sub_, hemi:(LH|RH), dat_List] := Null;
+
+(* #RibbonToSurface *******************************************************************************)
 
 
 End[];

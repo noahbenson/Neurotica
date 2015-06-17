@@ -61,7 +61,7 @@ CorticalMeshQ::usage = "CorticalMeshQ[mesh] yields True if and only if mesh is a
 
 CorticalMap::usage = "CorticalMap[mesh] yields a 2D flattened cortical projection of the given cortical mesh. The following options may be given:
   * Method (default: \"Equirectangular\") specifies the projection method to be used in projecting the cortical surface to a flat map. Possible values for Method include:
-    * \"Mollenweide\", a Mollenweide projection, parameters: Center
+    * \"Mollweide\", a Mollweide projection, parameters: Center
     * \"Equirectangular\", a rectangular projection, parameters: Center
     * \"Mercator\", the Mercator projection, parameters: Center
     * \"Orthographic\", a projection as viewed from an infinite distance, parameters: Center
@@ -170,7 +170,9 @@ Inclusions::usage = "Inclusions[map] yields a list of the {vertexIndives, edgeIn
 
 CortexPlot3D::usage = "CortexPlot3D[mesh] yields a 3D Graphics form for the given CorticalMesh3D mesh. All options available to Graphics3D may be passed to CortexPlot3D. Note that some of the default options for Graphics3D have been altered in CortexPlot3D, and 3D graphics options that have been attached to the mesh will be used as well. See ?CorticalMesh for more details.";
 
-CortexPlot::usage = "CortexPlot[mesh] yields a Graphics form for the given CorticalMesh2D or CorticalMesh3D mesh. If the given mesh is a 3D mesh, then the options accepted by CorticalMap are used to create the projection (Method, Center, etc.). All options available to Graphics may be passed to CortexPlot. Note that some of the default options for Graphics have been altered in CortexPlot, and 2D graphics options that have been attached to the mesh will be used as well. See ?CorticalMap for more details.";
+CortexPlot::usage = "CortexPlot[mesh] yields a Graphics form for the given CorticalMesh2D or CorticalMesh3D mesh. If the given mesh is a 3D mesh, then the options accepted by CorticalMap are used to create the projection (Method, Center, etc.). All options available to Graphics may be passed to CortexPlot. Note that some of the default options for Graphics have been altered in CortexPlot, and 2D graphics options that have been attached to the mesh will be used as well. See ?CorticalMap for more details.
+
+If a CorticalMesh3D is passed to CortexPlot, the function attempts to convert it into a map. If the mesh's MetaInformation includes a rule with the head \"CorticalMap\", then the tail must be a list and must contain valid options which are passed to CorticalMap.";
 
 CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature c in a CortexPlot or CortexPlot3D; c may be a list or a single value.";
 CorticalCurvatureVertexColors::usage = "CorticalCurvatureVertexColors[m] yields the colors for each vertex in the given mesh m according to CorticalCurvatureColor[c] for the curvature c of each vertex; if there is no curvature proeprty defined, then Gray is used for each vertex.";
@@ -597,7 +599,7 @@ CorticalMapAutomaticExclusions[mesh_, method_, center_, excl_, prad_] := With[
    Ft = FacePairsTr[mesh]},
   Switch[
     If[StringQ[method], ToLowerCase[method], method],
-    "mollenweide"|"equirectangular"|"mercator", Pick[
+    "mollweide"|"equirectangular"|"mercator", Pick[
       Transpose @ EPt,
       Plus[
         Sign[X0t[[1, EPt[[1]]]]],
@@ -655,7 +657,7 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
          {{Range[VertexCount[mesh]], Range[EdgeCount[mesh]], Range[FaceCount[mesh]]},
           excl0}]},
       With[
-        {incl = If[prad === Full || prad === All,
+        {incl = If[prad === Full || prad === All || prad === Automatic,
            incl0,
            ReplacePart[
              incl0,
@@ -676,7 +678,7 @@ CorticalMapTranslateExclusions[mesh_, method_, center_, excl_, prad_] := Check[
                       Normalize @ center[[1]]}]],
                   -1],
                (* we have a radius requirement; find everything with a small shortest path dist *)
-               True, Intersection[
+               Intersection[
                  incl0[[1]],
                  CorticalMeshNeighborhood[
                    mesh,
@@ -715,7 +717,7 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
           these should accept a list of vertices (already centered such that the center lies at 
           (1,0,0) and the orient point lies in the <positive X, Y> half-plane) and should return
           the 2D coordinates (while ignoring the orient point). *)
-       "mollenweide", {
+       "mollweide", {
          Function[{X},
            With[
              {S = Transpose @ ConvertCoordinates[Transpose@X, Cartesian -> {Longitude, Latitude}],
@@ -2733,12 +2735,15 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
           Join[{opts}, Options[mesh], $CortexPlotOptions],
           Options[Graphics][[All,1]]]]]]];
 CortexPlot[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
-  {map = CorticalMap @@ Prepend[
-     Map[
-       Function[# -> OptionValue[#]],
-       Intersection[Options[CorticalMap][[All,1]], Options[CortexPlot][[All,1]]]],
-     map]},
-  If[!CorticalMapQ[map], $Failed, CortexPlot[map, opts]]];
+  {mopts = "CorticalMap" /. Append[Options[mesh, MetaInformation], "CorticalMap" -> {}],
+   usemesh = "SphericalMesh" /. Append[Options[mesh, MetaInformation], "SphericalMesh" -> mesh]},
+  With[
+    {map = CorticalMap @@ Prepend[
+       Join[
+         FilterRules[{opts}, Options[CorticalMap]],
+         mopts],
+       usemesh]},
+    If[!CorticalMapQ[map], $Failed, CortexPlot[map, opts]]]];
 Protect[CortexPlot];
 
 
