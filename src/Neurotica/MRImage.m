@@ -42,7 +42,7 @@ MRImageMean::usage = "MRImageMean[mrimg] yields the mean value of all voxels in 
 MRImageMedian::usage = "MRImageMedian[mrimg] yields the median value of all voxels in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
 MRImageVariance::usage = "MRImageVariance[mrimg] yields the variance of all voxels in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
 MRImageCount::usage = "MRImageCount[mrimg] yields the number of valid (numerical) values, including separate frames of the image, in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
-MRImageMissing::usage = "MRImageMissing[mrimg] yields the number of invalid (Indeterminate or None) values, including separate frames of the image, in the given MRImage object mrimg. This value ignores Ideterminate and None values.";
+MRImageMissing::usage = "MRImageMissing[mrimg] yields the number of invalid (Indeterminate or None) values, including separate frames of the image, in the given MRImage object mrimg.";
 
 MRImageQ::usage = "MRImageQ[img] yields True if img is a valid MRImage3D object and yields False otherwise.";
 MRImageSliceQ::usage = "MRImageSliceQ[img] yields True if img is a valid MRImage object and yields False otherwise.";

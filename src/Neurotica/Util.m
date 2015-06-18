@@ -26,11 +26,8 @@ $CacheDirectory::usage = "$CacheDirectory is the directory in which cached data 
 
 $AutoCreateCacheDirectory::usage = "$AutoCreateCacheDirectory is True if and only if the $CacheDirectory should be automatically created when AutoCache requires it.";
 
-RefreshOnChange::usage = "RefreshOnChange is an option to AutoCache that, if true, instructs AutoCache that it should refresh the cache if the cache file is older than the last time of modification of the evaluating cell. If false, then the cache is never refreshed due to modification of the cell.";
-
 AutoCache::usage = "AutoCache[name, body] checks first to see if a cache file exist for the file named by the given name and yields its contents if so. Otherwise, yields the result of evaluating body and caches it in the given filename. If the cache file is out of date relative to the evaluating cell, the contents are erased and recalculated. If the given filename is an absolute path, it is used as such, otherwise it is localized to the cache directory. Note that the mx extension is added automatically if not included.
 The following options may be used:
- * RefreshOnChange (default: True) prevents the function from overwriting the cache file when the cell is changed if False.
  * Quiet (default: False) prevents the function from producing messages when updating or overwriting the cache file if False.
  * Check (default: True) if True instructs AutoCache to yield $Failed and not generate the cache file whenever messages are produced during the execution of body.
  * Directory (default: Automatic) names the directory in which the cache file should go; if Automatic, then uses $CacheDirectory.
@@ -69,12 +66,9 @@ DefineImmutable::badarg = "Bad argument given to DefineImmutable: `1`";
 Clone::usage = "Clone[immutable, edits...] yields an immutable object (created via a constructor defined by the DefineImmutable interface) identical to the given object immutable with the changes given by the sequence of edits. Each edit must take the form accessor -> value where accessor is the function name for a member assigned using an = form in the DefineImmutable function and value is the new value it should take.";
 Clone::badarg = "Bad argument given to Clone: `1`";
 
-MimicAssociation::usage = "MimicAssociation[...] is identical to Association[...] if the Mathematica version is at least 10.0; otherwise, it yields a symbol that imitates an association for most basic intents and purposes.";
-MimicAssociation::badarg = "Bad argument given to MimicAssociation: `1`";
-
 NormalizeRows::usage = "NormalizeRows[X] yields a transformation of the matrix X in which each row of X has been normalized; this is the equivalent of (Normalize /@ X) but is significantly optimized.";
 NormalizeColumns::usage = "NormalizeColumns[X] yields a transformation of the matrix X in which each column of X has been normalized. This is equivalent to Transpose[Normalze /@ Transpose[X]], but has been significantly optimized.";
-RowNorms::usage = "RowNorms[X] yields the equivalent of Norm /@ X but has been optimized for speed.";
+RowNorms::usage = "RowNorms[X] yields the equivalent of Norm /@ X.";
 ColumnNorms::usage = "ColumnNorms[X] yields the equivalent of Norm /@ Transpose[X] but has been optimized for speed.";
 
 QuaternionToRotationMatrix::usage = "QuaternionToRotationMatrix[{x,y,z,w}] yields the rotation matrix associated with the quaternion {x,y,z,w}.
@@ -110,12 +104,8 @@ $AutoCreateCacheDirectory /: Set[$AutoCreateCacheDirectory, b:(True|False)] := (
   b);
 Protect[$AutoCreateCacheDirectory];
 
-(* #RefreshOnChange *******************************************************************************)
-Protect[RefreshOnChange];
-
 (* #AutoCache *************************************************************************************)
 Options[AutoCache] = {
-  RefreshOnChange -> True,
   Quiet -> False,
   Check -> True,
   Directory -> Automatic,
@@ -131,8 +121,7 @@ AutoCache[name_String, body_, OptionsPattern[]] := Catch[
           Message[AutoCache::badopt, "CreateDirectory must be True, False, or Automatic"];
           Throw[$Failed])}],
      quiet = TrueQ[OptionValue[Quiet]],
-     check = TrueQ[OptionValue[Check]],
-     refresh = TrueQ[OptionValue[RefreshOnChange]]},
+     check = TrueQ[OptionValue[Check]]},
     With[
       {dir = Replace[
          OptionValue[Directory],
@@ -156,32 +145,18 @@ AutoCache[name_String, body_, OptionsPattern[]] := Catch[
                 True, (Message[AutoCache::nomkdir, dir]; Throw[None])],
               file}]]},
         With[
-          {fileDate = Which[
-             !refresh, 0,
-             fileName === None, 0,
-             !FileExistsQ[FileNameJoin[{dir, file}]], 0,
-             True, AbsoluteTime[FileNameJoin[{dir, file}], TimeZone -> 0]],
-           cellDate = If[refresh,
-             Last@Replace[
-               CellChangeTimes /. AbsoluteOptions[EvaluationCell[]],
-               {t0_, t1_} :> t1,
-               {1}],
-             0]},
+          {cachedRes = If[FileExistsQ[FileNameJoin[{dir, file}]], 
+             Block[{Global`data = None}, Get[fileName]; Global`data],
+             None]},
           With[
-            {cachedRes = Which[
-               refresh && fileDate == 0, None,
-               refresh && cellDate >= fileDate, (Message[AutoCache::expired]; None),
-               !refresh && !FileExistsQ[FileNameJoin[{dir, file}]], None,
-               True, Block[{Global`data = None}, Get[fileName]; Global`data]]},
-            With[
-              {theRes = If[cachedRes === None || cachedRes === $Failed,
-                  If[check,
-                    Check[body, $Failed],
-                    body],
-                  cachedRes]},
-              If[cachedRes === None || cachedRes == $Failed,
-                Block[{Global`data = theRes}, DumpSave[fileName, Global`data]]];
-              theRes]]]]]]];
+            {theRes = If[cachedRes === None || cachedRes === $Failed,
+               If[check,
+                 Check[body, $Failed],
+                 body],
+               cachedRes]},
+            If[cachedRes === None || cachedRes == $Failed,
+              Block[{Global`data = theRes}, DumpSave[fileName, Global`data]]];
+            theRes]]]]]];
 Protect[AutoCache];
 
 (* #SetSafe ***************************************************************************************)
@@ -570,32 +545,6 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                 True]]]]]]]],
   $Failed];
 
-(* #MimicAssociation ******************************************************************************)
-If[$MathematicaVersion >= 10.0,
-  (MimicAssociation[args___] := Association[args]),
-  (MimicAssociation[args___] := With[
-     {sym = Unique["association"],
-      assocs = Flatten[{args}]},
-     If[!MatchQ[assocs, {_Rule...}],
-       Message[
-         MimicAssociation::badarg,
-         "MimicAssociation must be given a list or sequence of rules"],
-       (Scan[
-          Function[sym /: sym[#[[1]]] = #[[2]]];
-          assocs];
-        sym /: sym[k_] := Missing["KeyAbsent", k];
-        sym /: Lookup[sym, k_] := sym[k];
-        sym /: Lookup[sym, k_, dflt_] := With[
-          {tmp = sym[k]},
-          If[tmp == Missing["KeyAbsent", k],
-            dflt,
-            tmp]];
-        sym /: Keys[sym] = assocs[[All,1]];
-        sym /: Values[sym] = assocs[[All,2]];
-        sym /: KeyExistsQ[sym, k] = sym[k] != Missing["KeyAbsent", k];
-        sym)]])];
-Protect[MimicAssociation];
-
 (* #NormalizeRows *********************************************************************************)
 NormalizeRows[X_] := With[
   {tr = Transpose[X]},
@@ -608,7 +557,7 @@ NormalizeColumns[{}] = {};
 Protect[NormalizeRows, NormalizeColumns];
 
 (* #RowNorms **************************************************************************************)
-RowNorms[X_] := With[{tr = Transpose[X]}, Sqrt @ Total[tr^2]];
+RowNorms[X_] := Norm /@ X;
 RowNorms[{}] = {};
 Protext[RowNorms];
 
@@ -627,7 +576,8 @@ QuaternionToRotationMatrix[{b_, c_, d_}] := QuaternionToRotationMatrix[
 Protect[QuaternionToRotationMatrix];
 
 (* #BinaryStringFix *******************************************************************************)
-BinaryStringFix[clist_] := StringJoin[TakeWhile[clist, ToCharacterCode[#] != {0}&]];
+BinaryStringFix[clist:{_String..}] := StringJoin[TakeWhile[clist, ToCharacterCode[#] != {0}&]];
+BinaryStringFix[clist:{_Integer..}] := FromCharacterCode @ TakeWhile[clist, # != 0&];
 Protect[BinaryStringFix];
 
 (* #ReadBinaryStructure ***************************************************************************)
