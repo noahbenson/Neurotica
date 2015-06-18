@@ -1874,25 +1874,27 @@ DefineImmutable[
             "MTProbability" :> Quiet@Check[assoc["MTProbability"][hemi], $Failed],
             "BrodmannThresholds" :> Quiet@Check[assoc["BrodmannProbabilities"][hemi], $Failed]}]]]],
    (* We also want an accessor for MRImages *)
-   Image[sub, name_, hemi:(None|LH|RH|RHX)] := With[
+   MRImage[sub, name_, hemi:(None|LH|RH|RHX)] := With[
      {assoc = Association[sub],
       id = ToLowerCase[name] // Function @ FirstCase[
         Normal @ $FreeSurferImageData,
-        (r_Rule /; And[
-           MatchQ[#, ToLowerCase[r[[1]]] | r[[2]]["Pattern"]],
-           MatchQ[hemi, r[[2]]["Hemispheres"]]]
-          ) :> r[[1]]]},
+        (r_Rule /; MatchQ[#, ToLowerCase[r[[1]]] | r[[2]]["Pattern"]]) :> r[[1]]]},
      With[
        {vol0 = assoc[id]},
        With[
          {vol = Which[
+            AssociationQ[vol0], If[hemi === None,
+              If[KeyExistsQ[vol0, Full], 
+                vol0[Full],
+                ImageAdd[vol0[LH], vol0[RH]]],
+              vol0[hemi]],
             ListQ[vol0], If[hemi === None,
               (Full /. vol0) /. Full :> ImageAdd[LH /. vol0, RH /. vol0],
               hemi /. vol0],
             MRImageQ[vol0], If[hemi === None,
               vol0,
               ImageMultiply[vol0, Image3D@assoc["FilledMaskImage"][hemi]]],
-            True, Message[FreeSurferSubject::baddata, "Image not found for given FreeSurfer subject"]]},
+            True, Message[FreeSurferSubject::baddata, Path[sub], "Image not found for given FreeSurfer subject"]]},
          MRImage3D[
            vol,
            MetaInformation -> Join[
