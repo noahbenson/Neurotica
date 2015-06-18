@@ -2546,7 +2546,7 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
              $CortexPlotDefaultColorSchemas,
              ArrayQ[PropertyValue[{mesh, VertexList}, #[[1]]], 1, NumericQ]&,
              None]},
-          If[Head[sel] === None, 
+          If[sel === None, 
             ConstantArray[Gray, VertexCount[mesh]],
             (sel[[2]])[mesh]]],
         None -> None,
