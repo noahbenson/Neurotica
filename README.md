@@ -32,6 +32,10 @@ provides several basic functionalities:
 This library is currently undergoing many rapid changes; please be patient and 
 expect the contents to change over the next couple of months.
 
+The notebook Tutorial.nb, included in the root directory of this repository, is
+the best place to start learning the library. It includes many examples and
+documents all currently supported public functions.
+
 ## License #####################################################################
 
 This README file is part of the Neurotica library.
