@@ -62,7 +62,7 @@ $MGHHeaderSize::usage = "$MGHHeaderSize is the number of bytes in the header of 
 $MGHOptionalData::usage = "$MGHOptionalData is a list of the optional pieces of data that may be stored at the end of an MGH file.";
 
 $FreeSurferSubjectsDirectories::usage = "$FreeSurferSubjectsDirectories is a list of potential FreeSurfer subjects directories; it is obtained at runtime from the $SUBJECTS_DIR environment variable as well as by scanning common FreeSurfer paths.";
-$FreeSurferSubjects::usage = "$FreeSurferSubjects is a list of potential FreeSurfer subjects (named by their directories). If you wish to add an arbitrary subject to FreeSurfer, use AddSubject.";
+$FreeSurferSubjects::usage = "$FreeSurferSubjects is an association containing potential FreeSurfer subjects. If you wish to add an arbitrary subject to FreeSurfer, use AddFreeSurferSubject; otherwise, this association will contain, as keys, the subject names (named by the last element of their directory, e.g. 'bert' for $SUBJECTS_DIR/bert) AND the ful directory paths of any subject found in the $FreeSurferSubjectsDirectories list (see AddFreeSurferSubjectsDirectory), and, as values, lazily-loaded FreeSurfer subject objects..";
 $FreeSurferHomes::usage = "$FreeSurferHomes is a list of potential home directories for FreeSurfer. Homes may be added with AddFreeSurferHome.";
 $FreeSurferColorLUT::usage = "$FreeSurferColorLUT is a dispatch table that will replace either an integer or string volume label and yield the remaining data (i.e., a list of the string or integer label, whichever was not given, and a color.";
 
@@ -73,8 +73,8 @@ AddFreeSurferHome::usage = "AddFreeSurferHome[dir] adds the directory dir to the
 RemoveFreeSurferHome::usage = "RemoveFreeSurferHome[dir] removes the directories matching the pattern dir from the FreeSurfer subject directories structures.";
 AddFreeSurferSubjectsDirectory::usage = "AddSubjectsDir[dir] adds the directory dir to the FreeSurfer home structures.";
 RemoveFreeSurferSubjectsDirectory::usage = "RemoveFreeSurferHome[dir] removes the directories matching the pattern dir from the FreeSurfer subject directories structures.";
-AddFreeSurferSubject::usage = "AddSubject[dir] adds the directory dir to the FreeSurfer subject structures.";
-RemoveFreeSurferSubject::usage = "RemoveSurbject[dir] removes the directories matching the pattern dir from the FreeSurfer subject structures.";
+AddFreeSurferSubject::usage = "AddFreeSurferSubject[dir] adds the directory dir to the FreeSurfer subject structures.";
+RemoveFreeSurferSubject::usage = "RemoveFreeSurferSurbject[dir] removes the directories matching the pattern dir from the FreeSurfer subject structures.";
 
 FreeSurferSubject::usage = "FreeSurferSubject[directory] represents a FreeSurfer subject whose data is stored in the directory named by directory.";
 FreeSurferSubject::notfound = "FreeSurferSubject directory `1` does not seem to exist";
@@ -1061,20 +1061,28 @@ $FreeSurferSubjectsDirectories = Union[
       Reap[
         Replace[
           Prepend[
-            Map[(# <> "/subjects")&, $FreeSurferHomes],
+            Map[FileNameJoin[{#, "subjects"}]&, $FreeSurferHomes],
             Environment["SUBJECTS_DIR"]],
           s_String /; DirectoryQ[s] :> Sow[s],
           {1}]]]]];
 Protect[$FreeSurferSubjectsDirectories];
 
-$FreeSurferSubjects = Union[
-  Flatten[
-    Map[
-      Function[
-        Select[
-          FileNames[# <> "/*"],
-          DirectoryQ]],
-      $FreeSurferSubjectsDirectories]]];
+AutoFindFreeSurferSubjects[] := With[
+  {subs = Union @ Flatten @ Map[
+     Function @ If[DirectoryQ[#],
+       Select[
+         FileNames[FileNameJoin[{#, "*"}]],
+         DirectoryQ]],
+     $FreeSurferSubjectsDirectories]},
+  Association @ Flatten @ Map[
+    Function @ With[
+      {sym = TemporarySymbol["fssub"]},
+      sym := (sym = FreeSurferSubject[#]);
+      {# :> sym, Last@FileNameSplit[#] :> sym}],
+    subs]];
+Protect[AutoFindFreeSurferSubjects];
+
+$FreeSurferSubjects = AutoFindFreeSurferSubjects[];
 Protect[$FreeSurferSubjects];
 
 UpdateSubjectsDirectories[] := (
@@ -1086,26 +1094,23 @@ UpdateSubjectsDirectories[] := (
           Replace[
             Append[
               Join[
-                Map[(# <> "/subjects")&, $FreeSurferHomes],
+                Map[FileNameJoin[{#, "subjects"}]&, $FreeSurferHomes],
                 $FreeSurferSubjectsDirectories],
               Environment["SUBJECTS_DIR"]],
             s_String /; DirectoryQ[s] :> Sow[s],
             {1}]]]]];
   Protect[$FreeSurferSubjectsDirectories]);
-UpdateSubjects[] := (
+UpdateSubjects[] := With[
+  {cur = $FreeSurferSubjects,
+   auto = AutoFindFreeSurferSubjects[]},
   Unprotect[$FreeSurferSubjects];
-  $FreeSurferSubjects = First/@Gather[
-    Flatten[
-      Join[
-        Map[
-          Function[
-            Select[
-              FileNames[# <> "/*"],
-              DirectoryQ]],
-          $FreeSurferSubjectsDirectories],
-        $FreeSurferSubjects]]];
-  Protect[$FreeSurferSubjects]);
-
+  $FreeSurferSubjects = Fold[
+    If[KeyExistsQ[#1, #2[[1]]], #1, Association[#1, #2]]&,
+    cur,
+    Normal[auto]];
+  Protect[$FreeSurferSubjects];
+  $FreeSurferSubjects];
+Protect[UpdateSubjects];
 
 AddFreeSurferHome[s_String] := (
   Unprotect[$FreeSurferHomes];
@@ -2002,7 +2007,7 @@ MakeBoxes[s_FreeSurferSubjectData, form_] := MakeBoxes[#]&[
        FontFamily -> "Arial",
        FontWeight -> "Thin"}},
     Row[
-      {"FreeSurferSubejct"[
+      {"FreeSurferSubject"[
          Panel @ Grid[
            {{Style[Path[s], Sequence@@style]}}, 
            Alignment -> {{Center}}]]},

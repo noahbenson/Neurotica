@@ -24,7 +24,9 @@ Unprotect["Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 ClearAll[ "Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 
 CorticalPotentialFunction::usage = "CorticalPotentialFunction[{F, G}, X] yields a cortical potential function object with potential F and gradient G in terms of the coordinate matrix X, which is assumed to be a 2 or 3 by n matrix when the potential is evaluated. The following options may be given:
-  * Name (default: Subscript[\"F\", \"Potential\"]) specifies what symbol should be used to display the potential function.";
+  * Print (default: Subscript[\"F\", \"Potential\"]) specifies what symbol should be used to display the potential function.
+  * MetaInformation (default: {}) specifies any optional meta-information to attach to the potential function.
+  * CorticalMesh (default: None) specifies the (optional) cortical mesh for which this potential function was defined.";
 PotentialFunction::usage = "PotentialFunction[f] yields a pure functional form of the cortical potential function instance, f.";
 GradientFunction::usage = "GradientFunction[f] yields a pure functional form of the gradient of the cortical potential function instance, f.";
 
@@ -88,6 +90,8 @@ CortexGradientPlot::usage = "CortexGradientPlot[mesh, functions] yields a plot o
   * PlotStyle (default: Automatic) should be a list of style instructions for the arrows of the gradients; these are cycled across the potential functions as in ListPlot.
   * Scaled (default: Automatic) indicates the absolute plotting length of the largest single gradient vector for any of the vertices; effectively, all gradients are scaled such that the largest gradient is equal to this value. If Automatic is given, then the value used is 75% of the mean edge length.";
 
+CurvaturePotential::usage = "CurvaturePotential[mesh, template, sigma] yields a cortical potential function that enforces an aligment of the curvature in the cortical mesh, mesh, to the curvature in the cortical mesh, template, using a Gaussian smoothing function with shape parameter sigma over the cortical surface.";
+
 MapTangledQ::usage = "MapTangledQ[map] yields True if and only if the given cortical map is tangled (has faces that are inverted); otherwise yields False.
 MapTangledQ[map, X] is identical to MapTangledQ[map] except that it uses the coordinates given in X.";
 MapTangles::usage = "MapTangles[map] yields a list of the vertices in the given cortical map that are tangles (their neighbors are not in the correct counter-clockwise ordering).
@@ -143,7 +147,7 @@ Unprotect[CorticalPotentialFunctionInstance];
 (* The call form for the potential is here, where it can be defined: *)
 (CPF:CorticalPotentialFunctionInstance[__])[X_ /; ArrayQ[X, 2, NumericQ]] := With[
    {f = PotentialFunction[CPF]},
-   If[Length[X] <= Length[X[[1]]], f[X], f[Transpose @ X]]];
+   If[Length[X] <= Length[X[[1]]], f[X], Transpose @ f[Transpose @ X]]];
 (CPF:CorticalPotentialFunctionInstance[__])[X_Symbol] := With[
    {tmp = TemporarySymbol["CPF"],
     f = PotentialFunction[CPF]},
