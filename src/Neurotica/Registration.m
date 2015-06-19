@@ -812,9 +812,6 @@ HarmonicPerimeterPotential[map_?CorticalMapQ, OptionsPattern[]] := With[
 Protect[HarmonicPerimeterPotential];
 
 (* #CortexGradientPlot ****************************************************************************)
-Unprotect[CortexGradientPlot];
-ClearAll[CortexGradientPlot];
-
 Options[CortexGradientPlot] = Join[
   {Arrowheads -> Small,
    PlotStyle -> Automatic,
