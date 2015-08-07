@@ -1063,7 +1063,7 @@ $FreeSurferSubjectsDirectories = Union[
           Prepend[
             Map[FileNameJoin[{#, "subjects"}]&, $FreeSurferHomes],
             Environment["SUBJECTS_DIR"]],
-          s_String /; DirectoryQ[s] :> Sow[s],
+          s_String /; FreeSurferSubjectQ[s] :> Sow[s],
           {1}]]]]];
 Protect[$FreeSurferSubjectsDirectories];
 
@@ -1072,7 +1072,7 @@ AutoFindFreeSurferSubjects[] := With[
      Function @ If[DirectoryQ[#],
        Select[
          FileNames[FileNameJoin[{#, "*"}]],
-         DirectoryQ]],
+         FreeSurferSubjectQ]],
      $FreeSurferSubjectsDirectories]},
   Association @ Flatten @ Map[
     Function @ With[
@@ -1097,7 +1097,7 @@ UpdateSubjectsDirectories[] := (
                 Map[FileNameJoin[{#, "subjects"}]&, $FreeSurferHomes],
                 $FreeSurferSubjectsDirectories],
               Environment["SUBJECTS_DIR"]],
-            s_String /; DirectoryQ[s] :> Sow[s],
+            s_String /; FreeSurferSubjectQ[s] :> Sow[s],
             {1}]]]]];
   Protect[$FreeSurferSubjectsDirectories]);
 UpdateSubjects[] := With[
@@ -1538,7 +1538,8 @@ FreeSurferSubjectVertexVolume[sub_String, hemi:(LH|RH|RHX)] := Check[
 FreeSurferSubjectParcellation[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleAnnot[sub, hemi, "aparc.a2009s.annot"],
   $Failed];
-FreeSurferSubjectParcellation2009[sub_String, hemi:(LH|RH|RHX)] := FreeSurferSubjectParcellation[sub, hemi];;
+FreeSurferSubjectParcellation2009[sub_String, hemi:(LH|RH|RHX)] := FreeSurferSubjectParcellation[
+  sub, hemi];
 FreeSurferSubjectParcellation2005[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleAnnot[sub, hemi, "aparc.annot"],
   $Failed];
@@ -1842,9 +1843,10 @@ DefineImmutable[
    (* Now we make some accessors for this subject *)
    Cortex[sub, name_, hemi:(LH|RH|RHX)] := With[
      {assoc = Association[sub],
-      id = ToLowerCase[name] // Function @ FirstCase[
+      id = If[name === Automatic, "Sphere", ToLowerCase[name]] // Function @ FirstCase[
         Normal @ $FreeSurferSurfaceData,
-        (r_Rule /; (MatchQ[#, ToLowerCase[r[[1]]] | r[[2]]["Pattern"]])) :> r[[1]]]},
+        (r_Rule /; Or[MatchQ[ToLowerCase[#], ToLowerCase[r[[1]]]],
+                      MatchQ[ToLowerCase[#], r[[2]]["Pattern"]]]) :> r[[1]]]},
      With[
        {mapMeshName = $FreeSurferSurfaceData[id]["MapSurface"]},
        With[
@@ -1883,7 +1885,8 @@ DefineImmutable[
      {assoc = Association[sub],
       id = ToLowerCase[name] // Function @ FirstCase[
         Normal @ $FreeSurferImageData,
-        (r_Rule /; MatchQ[#, ToLowerCase[r[[1]]] | r[[2]]["Pattern"]]) :> r[[1]]]},
+        (r_Rule /; Or[MatchQ[#, ToLowerCase[r[[1]]]],
+                      MatchQ[#, r[[2]]["Pattern"]]] :> r[[1]])]},
      With[
        {vol0 = assoc[id]},
        With[
@@ -1907,7 +1910,7 @@ DefineImmutable[
              {"Subject" -> sub,
               "Hemisphere" -> hemi,
               "ImageName" -> id}]]]]],
-   Image[sub, name_] := Image[sub, name, None],
+   MRImage[sub, name_] := MRImage[sub, name, None],
                
    (* We can also get the occipital pole in a similar way... *)
    OccipitalPoleIndex[sub, hemi:(LH|RH|RHX)] := Check[
@@ -1957,7 +1960,7 @@ DefineImmutable[
      With[
        {white = Cortex[sub, "White", hemi],
         pial = Cortex[sub, "Pial", hemi],
-        ribbon = Association[sub]["Ribbon"][hemi]},
+        ribbon = MRImage[sub, "Ribbon", hemi]},
        With[
          {idcs = Position[ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
          With[
@@ -1975,7 +1978,7 @@ DefineImmutable[
    FreeSurferSubjectVertexVoxelMapping[sub, hemi:(LH|RH)] := Check[
      With[
        {surf = Cortex[sub, "Middle", hemi],
-        ribbon = Association[sub]["Ribbon"][hemi]},
+        ribbon = MRImage[sub, "Ribbon", hemi]},
        With[
          {idcs = Position[ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
          Association @ MapThread[
@@ -2019,7 +2022,7 @@ Protect[FreeSurferSubjectVoxelVertexMapping, FreeSurferSubjectVertexVoxelMapping
 (* FSAverage and FSAverageSym *********************************************************************)
 $FSAverage := With[
   {possibles = Select[
-     $FreeSurferSubjects,
+     Keys[$FreeSurferSubjects],
      (Last[StringSplit[#, $PathnameSeparator]] == "fsaverage")&]},
   If[possibles == {},
     (Message[
@@ -2041,7 +2044,7 @@ FSAverageSubject := With[
 
 $FSAverageSym := With[
   {possibles = Select[
-     $FreeSurferSubjects,
+     Keys[$FreeSurferSubjects],
      (Last[StringSplit[#, $PathnameSeparator]] == "fsaverage_sym")&]},
   If[possibles == {},
     (Message[
@@ -2080,7 +2083,7 @@ FSAverageSymOP := With[
 Options[CortexToRibbon] = {Filling -> 0};
 CortexToRibbon[sub_, hemi:(LH|RH), dat_List, OptionsPattern[]] := With[
   {vtx2vox = VertexToVoxelMap[sub, hemi],
-   ribbon = Association[sub]["Ribbon"][hemi],
+   ribbon = MRImage[sub, "Ribbon", hemi],
    pial = Cortex[sub, "Pial", hemi],
    fill = OptionValue[Filling]},
   MRImage3D[
@@ -2102,7 +2105,7 @@ RibbonToCortex[sub_, hemi:(LH|RH), img_] := With[
   {vox2vtx = VoxelToVertexMap[sub, hemi],
    pial = Cortex[sub, "Pial", hemi],
    aggf = OptionValue[Method],
-   ribbon = Association[sub]["Ribbon"][hemi]},
+   ribbon = MRImage[sub, "Ribbon", hemi]},
   With[
     {dat = Which[
        MRImageQ[img] && ImageDimensions[img] == ImageDimensions[ribbon], ImageData[img],

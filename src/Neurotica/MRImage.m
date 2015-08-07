@@ -163,6 +163,11 @@ $MRImageSharedMethods = Hold[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
          theOpts = Options[res]},
         MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+  ImageAdd[img, imgs__] := With[
+    {res = Check[
+       ImageData[img] + Total[If[NumberQ[#] || ArrayQ[#], #, ImageData[#]]& /@ {imgs}],
+       $Failed]},
+    If[res === $Failed, res, MRImage3D[res, Sequence @@ Options[img]]]],
   ImageConvolve[img, opts___] := With[
     {res = Check[ImageConvolve[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
