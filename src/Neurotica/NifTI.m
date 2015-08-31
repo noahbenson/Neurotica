@@ -301,8 +301,6 @@ Protect[$NifTIExtensionCodeCifTI];
    char magic[4] ;      /*!< MUST be "ni1\0" or "n+1\0". */                                       *)
 (* ============================================================================================== *)
 
-flipInteger32Endiannes[k_Integer] := FromDigits[Reverse@IntegerDigits[k, 256, 4], 256]
-
 $NifTI1HeaderSize = 348;
 $NifTI2HeaderSize = 540;
 $MinNifTI1Offset = 352;
@@ -508,8 +506,12 @@ ImportNifTIHeader[stream_, opts___Rule] := Check[
   With[
     {sz = BinaryRead[stream, "Integer32"]},
     Which[
-      sz == $NifTI1HeaderSize || sz == flipInteger32Endiannes[$NifTI1HeaderSize], ImportNifTI1Header[stream, opts],
-      sz == $NifTI2HeaderSize || sz == flipInteger32Endiannes[$NifTI2HeaderSize], ImportNifTI2Header[stream, opts],
+      (* could be a nifti-1 file *)
+      sz == $NifTI1HeaderSize || sz == FlipIntegerBytes[$NifTI1HeaderSize, "Integer32"],
+      ImportNifTI1Header[stream, opts],
+      (* or a nifti-2 file *)
+      sz == $NifTI2HeaderSize || sz == FlipIntegerBytes[$NifTI2HeaderSize, "Integer32"],
+      ImportNifTI2Header[stream, opts],
       True, Message[ImportNifTI::badfmt, "Header size is invalid!"]]],
   $Failed];
 

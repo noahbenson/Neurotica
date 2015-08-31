@@ -66,6 +66,13 @@ DefineImmutable::badarg = "Bad argument given to DefineImmutable: `1`";
 Clone::usage = "Clone[immutable, edits...] yields an immutable object (created via a constructor defined by the DefineImmutable interface) identical to the given object immutable with the changes given by the sequence of edits. Each edit must take the form accessor -> value where accessor is the function name for a member assigned using an = form in the DefineImmutable function and value is the new value it should take.";
 Clone::badarg = "Bad argument given to Clone: `1`";
 
+Let::usage = "Let[{bindings...}, body] is similar to With, Module, and Block, but includes the following features:
+  * Each binding may refer to any binding that precedes it in the list of bindings.
+  * Bindings of the form symbol = form may be reassigned in the body (like a Module binding).
+  * Bindings of the form symbol -> form may not be reassigned in the body (like a With binding).
+  * Bindings of the form symbol := form may be reassigned but are initially assigned using SetDelayed.
+  * Bindings of the form symbol :> form may not be reassigned, but are not assigned until requested, then are memoized.";
+
 NormalizeRows::usage = "NormalizeRows[X] yields a transformation of the matrix X in which each row of X has been normalized; this is the equivalent of (Normalize /@ X) but is significantly optimized.";
 NormalizeColumns::usage = "NormalizeColumns[X] yields a transformation of the matrix X in which each column of X has been normalized. This is equivalent to Transpose[Normalze /@ Transpose[X]], but has been significantly optimized.";
 RowNorms::usage = "RowNorms[X] yields the equivalent of Norm /@ X.";
@@ -88,9 +95,34 @@ NeuroticaPermanentDatum::usage = "NeuroticaPermanentDatum[name, value] yields Nu
 If the value given in the second argument is None, then the datum is removed from the permanent cache.
 NeuroticaPermanentDatum[name] yields the value of the permanent datum with the given name; if no such datum is found, then None is returned.";
 
+FlipIntegerBytes::usage = "FlipIntegerBytes[i] yields a version of the integer i such that the bytes are interpreted in reverse order; i.e., switches between Big and Little Endian.
+FlipIntegerBytes[i, k] treats i as a k-byte integer; k may be a number (e.g., 4 for a 32-bit integer) or a data type (e.g., \"Integer32\" for a 32-bit integer).
+FlipIntegerBytes[i] is equivalent to FlipIntegerBytes[i, \"Integer32\"].";
+FlipIntegerBytes::badarg = "Bad argument given to FlipIntegerBytes: `1`";
+
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
 Begin["`Private`"];
+
+(* #FlipIntegerBytes ******************************************************************************)
+(* This code was adapted (by Noah C. Benson, <nben@nyu.edu>) from a pull request given by 
+   Szabolcs Horvát <szhorvat@gmail.com> in order to match the Neurotica library aesthetic *)
+FlipIntegerBytes[i_Integer, byteCount_Integer /; 0 < byteCount] := If[2^(8*byteCount) <= i,
+  Message[FlipIntegerBytes::badarg, "given integer is out of range for number of bytes"],
+  FromDigits[Reverse@IntegerDigits[i, 256, byteCount], 256]];
+FlipIntegerBytes[i_Integer, type_String] := Replace[
+  type,
+  {"Integer8"   :> FlipIntegerBytes[i, 1],
+   "Integer16"  :> FlipIntegerBytes[i, 2],
+   "Integer24"  :> FlipIntegerBytes[i, 3],
+   "Integer32"  :> FlipIntegerBytes[i, 4],
+   "Integer64"  :> FlipIntegerBytes[i, 8],
+   "Integer128" :> FlipIntegerBytes[i, 16],
+   _ :> Message[
+     FlipIntegerBytes::badarg, 
+     "type must be an integer or \"IntegerN\" where N is 8, 16, 32, ... 128."]}];
+FlipIntegerBytes[i_Integer] := FlipIntegerBytes[i, 4];
+Protect[FlipIntegerBytes];
 
 (* #$CacheDirectory *******************************************************************************)
 $CacheDirectory = FileNameJoin[{$UserBaseDirectory, "AutoCache"}];
@@ -545,16 +577,87 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                 True]]]]]]]],
   $Failed];
 
+(* #Let *******************************************************************************************)
+SetAttributes[Let, HoldAll];
+With[
+  {tagCompoundExpr = Unique["ComplexExpression"],
+   tagWith = Unique["With"]},
+  Let[
+    {variables:((_Symbol|((Set|SetDelayed|Rule|RuleDelayed)[_,_]))...)},
+    body_
+   ] := ReplaceRepeated[
+    Fold[
+     Function@Replace[
+       #2,
+       {Hold[s_Symbol] :> Hold[
+          tagWith,
+          {Set[s, Unique@ToString[s]]},
+          SetAttributes[s, Temporary],
+          #1],
+        Hold[Rule[s_Symbol, expr_]] :> Hold[tagWith, {Set[s, expr]}, #1],
+        Hold[Set[s_Symbol, expr_]] :> Hold[
+          tagWith,
+          {Set[s, Unique@ToString[s]]},
+          SetAttributes[s, Temporary],
+          s = expr,
+          #1],
+        Hold[RuleDelayed[s_Symbol, expr_]] :> Hold[
+          tagWith,
+          {Set[s, Unique@ToString[s]]},
+          SetAttributes[s, Temporary],
+          SetDelayed[s, Set[s, expr]],
+          #1],
+        Hold[SetDelayed[s_Symbol, expr_]] :> Hold[
+          tagWith,
+          {Set[s, Unique@ToString[s]]},
+          SetAttributes[s, Temporary],
+          SetDelayed[s, expr],
+          #1],
+        Hold[Rule[s_Symbol[args___], expr_]] :> Hold[
+          tagWith,
+          {Set[s, Unique@ToString@s]},
+          Set[s[args], expr],
+          SetAttributes[s, {Temporary, Protected}],
+          #1],
+        Hold[Set[s_Symbol[args___], expr_]] :> Hold[
+          tagWith,
+          {Set[s, Unique@ToString@Head[s]]},
+          SetAttributes[s, Temporary],
+          s[args] = expr,
+          #1],
+        Hold[RuleDelayed[s_Symbol[args___], expr_]] :> With[
+          {pattSym = Unique["patt"]},
+          Hold[
+           tagWith,
+           {Set[s, Unique@ToString[s]]},
+           SetAttributes[s, Temporary],
+           SetDelayed[pattSym : s[args], Set[pattSym, expr]],
+           #1]],
+        Hold[SetDelayed[s_Symbol[args___], expr_]] :> Hold[
+          tagWith,
+          {Set[s, Unique@ToString[s]]},
+          SetAttributes[s, Temporary],
+          SetDelayed[s[args], expr],
+          #1]}],
+     Hold[tagCompoundExpr, body],
+     Hold /@ Reverse@Hold[variables]],
+    {Hold[tagCompoundExpr, b__] :> CompoundExpression[b],
+     Hold[tagWith, v_, b_] :> With[v, b],
+     Hold[tagWith, v_, b_, bs__] :> With[v, CompoundExpression[b, bs]]}]];
+SyntaxInformation[Let] = {"ArgumentsPattern" -> {{__},_}};
+Protect[Let];
+
 (* #NormalizeRows *********************************************************************************)
 NormalizeRows[X_] := With[
   {tr = Transpose[X]},
   Transpose[tr / Table[#, {Length[tr]}]&@Sqrt@Total[tr^2]]];
 NormalizeRows[{}] = {};
+Protect[NormalizeRows];
 
 (* #NormalizeColumns ******************************************************************************)
 NormalizeColumns[X_] := X / Table[#, {Length[X]}]&@Sqrt@Total[X^2];
 NormalizeColumns[{}] = {};
-Protect[NormalizeRows, NormalizeColumns];
+Protect[NormalizeColumns];
 
 (* #RowNorms **************************************************************************************)
 RowNorms[X_] := Norm /@ X;
