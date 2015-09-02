@@ -1098,7 +1098,9 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
                          {res = zeros},
                          res[[All, idcs]] = grad;
                          res]]]],
-                 {i, 1, Length[preds]}]]},
+                 {i, 1, Length[preds]}]],
+             (* No hessian yet *)
+             None},
             X,
             Print -> OptionValue[Print],
             CorticalMesh -> map,

@@ -29,15 +29,18 @@ CorticalPotentialFunction::usage = "CorticalPotentialFunction[{F, G}, X] yields 
   * CorticalMesh (default: None) specifies the (optional) cortical mesh for which this potential function was defined.";
 PotentialFunction::usage = "PotentialFunction[f] yields a pure functional form of the cortical potential function instance, f.";
 GradientFunction::usage = "GradientFunction[f] yields a pure functional form of the gradient of the cortical potential function instance, f.";
+HessianFunction::usage = "HessianFunction[f] yields a pure functional form of the Hessian of the cortical potential function instance, f.";
+
+CalculateAngleIntermediateData::usage = "CalculateAngleIntermediateData[a,b,c] yields the numerical array equivalent to Flatten[{u1,u2,n1,n2,{d1,d2,cos}}, 1] where u1, u2, n1, and n2 are the vectors b - a, c - a, Normalize[b - a], and Normalize[c - a], respectively, and where d1 and d2 are the lengths of the b-a and c-a, respectively, and where cos is the cosine of the angle centered at a. Note that a, b, and c are expected to be 2 or 3 by n arrays where each column of the array corresponds to a single point.";
+CalculateAngle::usage = "CalculateAngle[a,b,c] yields the angle between the vectors b-a and c-a; the three arguments must be 2D arrays with length 2 or 3 (for 2d or 3d points) and the return value is a vector of angles, one for each column of a,b, and c."
+CalculateAngleGradient::usage = "CalculateAngleGradient[a,b,c] yields the gradient of the angle between the vectors b-a and c-a in terms of the vertices of a, b, and c; the three arguments must be 2D arrays with length 2 or 3 (for 2d or 3d points) and the return value is a 3x3xn or 3x2xn (for 3D or 2D points, respectively) matrix of gradients, one for each column of a,b, and c."
+CalculateAngleHessian::usage = "CalculateAngleHessian[a,b,c] yields the Hessian of the angle between the vectors b-a and c-a in terms of the vertices of a, b, and c; the three arguments must be 2D arrays with length 2 or 3 (for 2d or 3d points) and the return value is a 3x3x3x3xn or 3x2x3x2xn (for 3D or 2D points, respectively) matrix of Hessians, one for each column of a,b, and c."
 
 HarmonicEdgePotential::usage = "HarmonicEdgePotential[mesh] yields a function symbol f such that f[X] is the harmonic edge potential where X is a possible vertex coordinate list for the given cortical mesh. The potential is calculated as the total of (d - d0)^2 where d is the distance between two vertices in X and d0 is the distance in the coordinates of the given mesh. Note that Grad[f, X] yields the numerical gradient of the potential at the vertex configuration given in X.
 The potential function of a HarmonicEdgePotential is U[d] = 0.5 / n * (d - d0)^2 where d is the distance between a pair of vertices connected by an edge, n is the number of edges in the system, and d0 is the distance, in the initial mesh, between the two vertices.";
 
 HarmonicAnglePotential::usage = "HarmonicAnglePotential[mesh] yields a function symbol f such that f[X] is the harmonic angle potential where X is a possible vertex coordinate list for the given cortical mesh. The potential is calculated as the total of (a - a0)^2 where a is the angle of a face in X and a0 is the angle of the same face corner in the original mesh. Note that Grad[f, X] yields the numerical gradient of the potential at the vertex configuration given in X.
 The potential function of a HarmonicAnglePotential is U[a] = 0.5 / n * (a - a0)^2 where a is the angle of a corner of a face, n is the number of faces in the system, and a0 is the angle of the same face in the initial mesh.";
-
-CosineAnglePotential::usage = "CosineAnglePotential[mesh] yields a function symbol f such that f[X] is the cosine angle potential where X is a possible vertex coordinate list for the given cortical mesh. The potential is calculated as the total of (Cos[a] - Cos[a0])^2 where a is the angle of a face in X and a0 is the angle of the same face corner in the original mesh. Note that Grad[f, X] yields the numerical gradient of the potential at the vertex configuration given in X.
-The potential function of a HarmonicAnglePotential is U[a] = 0.5 / n * (Cos[a] - Cos[a0])^2 where a is the angle of a corner of a face, n is the number of faces in the system, and a0 is the angle of the same face in the initial mesh.";
 
 GaussianPotentialWell::usage = "GaussianPotentialWell[mesh, u -> {x0, std}] yields a function symbol f such that f[X] is the potential and Grad[f, X] is the gradient of an inverted Gaussian potential well that draws vertex u toward position x0 with the standard deviation std. In addition to the center and standard deviation, the following rules may be appended to the list on the right hand side of the rule:
   * \"FWHM\" (default: False) when True indicates that std should be interpreted as a full-width-half-max specification instead of the standard deviation.
@@ -108,7 +111,7 @@ Options[CorticalPotentialFunction] = {
   MetaInformation -> {},
   CorticalMesh -> None};
 DefineImmutable[
-  CorticalPotentialFunction[{F_, G_}, X_Symbol, OptionsPattern[]] :> P,
+  CorticalPotentialFunction[{F_, G_, H_}, X_Symbol, OptionsPattern[]] :> P,
   {(* Let's start with options! *)
    Options[P] = Map[# -> OptionValue[#]&, Options[CorticalPotentialFunction][[All,1]]],
    Options[P, opt_] := Replace[
@@ -130,12 +133,24 @@ DefineImmutable[
        Function @@ Join[
          Hold[{sym}],
          ReplacePart[Hold[G], (# -> sym)& /@ pos]]]],
+   HessianFunction[P]   -> Block[
+     {X},
+     With[
+       {pos = Position[Hold[H], X, Infinity],
+        sym = Unique["arg"]},
+       Function @@ Join[
+         Hold[{sym}],
+         ReplacePart[Hold[H], (# -> sym)& /@ pos]]]],
    (* And a call form for the gradient. *)
    Grad[P, M_ /; ArrayQ[M, 2, NumericQ]] := With[
      {f = GradientFunction[P]},
      Join @@ If[Length[M] <= Length[M[[1]]], f[M], Transpose[f[Transpose @ M]]]],
+   (* And a call form for the Hessian. *)
+   Hessian[P, M_ /; ArrayQ[M, 2, NumericQ]] := With[
+     {f = HessianFunction[P]},
+     If[Length[M] <= Length[M[[1]]], f[M], Transpose[f[Transpose @ M]]]],
    (* Finally, this one is private, but useful for combining potential functions *)
-   HeldArguments[P] -> {Hold[F], Hold[G], Hold[X]}},
+   HeldArguments[P] -> {Hold[F], Hold[G], Hold[H], Hold[X]}},
   SetSafe -> True,
   Symbol -> CorticalPotentialFunctionInstance];
 SetAttributes[CorticalPotentialFunction, HoldAll];
@@ -163,8 +178,9 @@ Quiet[
   AutoExtendCorticalPotential[
     patt_ -> res_,
     P0_Symbol -> P_Symbol, 
-    {F0_Symbol, G0_Symbol} -> {F_, G_}, X_Symbol
-    ] := TagSetDelayed[
+    {F0_Symbol, G0_Symbol, H0_Symbol} -> {F_, G_, H_},
+    X_Symbol
+   ] := TagSetDelayed[
       CorticalPotentialFunctionInstance,
       Evaluate[patt /. HoldPattern[P0] :> P0_CorticalPotentialFunctionInstance],
       With[
@@ -172,11 +188,11 @@ Quiet[
          args = HeldArguments[P0]},
         With[
           {fns = ReplaceAll[
-             Hold[{F, G}],
+             Hold[{F, G, H}],
              MapThread[
                RuleDelayed @@ Join[Hold@@{HoldPattern @@ #1}, #2] &,
-               {{Hold[F0], Hold[G0]},
-                ReplaceAll[args[[1;;2]], HoldPattern @@ args[[3]] :> X]}]]},
+               {{Hold[F0], Hold[G0], Hold[H0]},
+                ReplaceAll[args[[1;;3]], HoldPattern @@ args[[4]] :> X]}]]},
           CorticalPotentialFunction @@ Join[
             fns,
             Hold[X],
@@ -186,11 +202,11 @@ Protect[AutoExtendCorticalPotential];
 
 AutoExtendCorticalPotential[
   Plus[x_?NumericQ, P0, rest___] -> Plus[P, rest], P0 -> P,
-  {F0, G0} -> {x + F0, G0},
+  {F0, G0, H0} -> {x + F0, G0, H0},
   X];
 AutoExtendCorticalPotential[
   Times[x_?NumericQ, P0, rest___] -> Times[P, rest], P0 -> P,
-  {F0, G0} -> {x * F0, x * G0},
+  {F0, G0, H0} -> {x * F0, x * G0, x * H0},
   X];
 (* One weird one... *)
 CorticalPotentialFunctionInstance /: Plus[P0_CorticalPotentialFunctionInstance,
@@ -200,15 +216,16 @@ CorticalPotentialFunctionInstance /: Plus[P0_CorticalPotentialFunctionInstance,
     {args0 = HeldArguments[P0], args1 = HeldArguments[P1],
      opts0 = Options[P0], opts1 = Options[P1]},
     With[
-      {rule = RuleDelayed @@ Join[Hold @@ {HoldPattern @@ args1[[3]]}, args0[[3]]]},
+      {rule = RuleDelayed @@ Join[Hold @@ {HoldPattern @@ args1[[4]]}, args0[[4]]]},
       CorticalPotentialFunction @@ Join[
         Replace[
           Hold @@ {
             {Join[args0[[1]], ReplaceAll[args1[[1]], rule]],
-             Join[args0[[2]], ReplaceAll[args1[[2]], rule]]}},
+             Join[args0[[2]], ReplaceAll[args1[[2]], rule]],
+             Join[args0[[3]], ReplaceAll[args1[[3]], rule]]}},
           Hold[a__] :> Plus[a],
           {2}],
-        args0[[3]],
+        args0[[4]],
         Hold @@ {
           Print -> Row[{Print /. opts0, "+", Print /. opts1}],
           CorticalMesh -> With[
@@ -223,183 +240,288 @@ Protect[CorticalPotentialFunction, CorticalPotentialFunctionInstance];
 (* ====================================== Private Functions ===================================== *)
 (* ============================================================================================== *)
 
+(* Compute distance intermediate data *)
+CalculateDistance = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}},
+  Sqrt @ Total[(b - a)^2],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+CalculateDistanceGradient = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}},
+  With[
+    {ab = b - a},
+    With[
+      {r = Sqrt @ Total[ab^2]},
+      With[
+        {da = -ab / ConstantArray[r, Length[a]]},
+        {da, -da}]]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+CalculateDistanceHessian = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}},
+  With[
+    {ba = a - b,
+     dims = Length[a],
+     n = Length@First[a]},
+    With[
+      {r = Sqrt @ Total[ba^2]},
+      With[
+        {denom = ConstantArray[1/r^3, {2*dims, 2*dims}],
+         rdiag = With[
+           {r2 = r^2, zeros = ConstantArray[0, n]},
+           Table[If[i == j, r2, zeros], {i, 1, dims}, {j, 1, dims}]]},
+        With[
+          {raa = rdiag - Outer[Times, ba, ba, 1, 1],
+           rab = Outer[Times, ba, ba, 1, 1] - rdiag},
+          denom * Join[
+            MapThread[Join, {raa, rab}],
+            MapThread[Join, {Transpose@rab, raa}]]]]]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+  Parallelization -> True];
+Protect[CalculateDistance, CalculateDistanceGradient, CalculateDistanceHessian];
+
+(* Compute the gradient of the angles in terms of the vertices *)
+CalculateAngleIntermediateData = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}},
+  With[
+    {u1 = b - a, u2 = c - a, u3 = c - b,
+     dim = Length[a]},
+    With[
+      {d1 = (# + (1 - Unitize[#])) &@Chop@Re@Sqrt[Total[u1^2]],
+       d2 = (# + (1 - Unitize[#])) &@Chop@Re@Sqrt[Total[u2^2]],
+       d3 = (# + (1 - Unitize[#])) &@Chop@Re@Sqrt[Total[u3^2]]},
+      With[
+        {cos = Total[u1*u2]/(d1*d2),
+         n1 = u1/ConstantArray[d1, dim],
+         n2 = u2/ConstantArray[d2, dim],
+         n3 = u3/ConstantArray[d3, dim]},
+        Join[u1, u2, u3, n1, n2, n3, {d1, d2, d3, cos, Re@ArcCos[cos]}]]]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+Protect[CalculateAngleIntermediateData];
+CalculateAngle = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}},
+  With[
+    {data = CalculateAngleIntermediateData[a,b,c]},
+    Last[data]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+Protect[CalculateAngle];
+CalculateAngleGradientWithData = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {data, _Real, 2}},
+  With[
+    {dims = Length[a]},
+    With[
+      {uAB = data[[If[dims == 2, {1,2},   {1,2,3}]]],
+       uAC = data[[If[dims == 2, {3,4},   {4,5,6}]]],
+       uBC = data[[If[dims == 2, {5,6},   {7,8,9}]]],
+       nAB = data[[If[dims == 2, {7,8},   {10,11,12}]]],
+       nAC = data[[If[dims == 2, {9,10},  {13,14,15}]]],
+       nBC = data[[If[dims == 2, {11,12}, {16,17,18}]]],
+       dAB = data[[6*dims + 1]],
+       dAC = data[[6*dims + 2]],
+       dBC = data[[6*dims + 3]],
+       cos = data[[6*dims + 4]],
+       th  = data[[6*dims + 5]]},
+      With[
+        {sin = Re@Sqrt[1 - cos^2],
+         unit = ConstantArray[Unitize[Chop[1 - Abs[cos]]], dims]},
+        With[
+          {sinAB = Chop[dAB*sin],
+           sinAC = Chop[dAC*sin]},
+          With[
+            {f1 = Times[
+               unit,
+               ConstantArray[cos, dims]*nAB - nAC,
+               ConstantArray[1.0/(sinAB + (1 - Unitize[sinAB])), dims]],
+             f2 = Times[
+               unit,
+               ConstantArray[cos, dims]*nAC - nAB,
+               ConstantArray[1.0/(sinAC + (1 - Unitize[sinAC])), dims]]},
+            {-(f1 + f2), f1, f2}]]]]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+CalculateAngleGradient = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}},
+  CalculateAngleGradientWithData[a,b,c, CalculateAngleIntermediateData[a,b,c]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2},
+   {CalculateAngleGradientWithData[_,_,_,_], _Real, 3}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+Protect[CalculateAngleGradient, CalculateAngleGradientWithData];
+(* Used in calculating the Hessian... *)
+NormalizedVectorGradient = Compile[
+  {{u, _Real, 2}, {v, _Real, 2}},
+  (* Gives D[Normalize[v-u], {u}] == -D[Normalize[v-u], {v}] *)
+  With[
+    {diff = u - v},
+    With[
+      {norm = Sqrt@Total[diff^2]},
+      Divide[
+        Table[
+          If[i == j,
+            diff[[i]] * diff[[j]] - norm^2,
+            diff[[i]] * diff[[j]]],
+          {i,1,Length@u},
+          {j,1,Length@v}],
+        ConstantArray[norm^3, {Length@u, Length@v}]]]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+Protect[NormalizedVectorGradient];
+VectorNormalizationFactorGradient = Compile[
+  {{u, _Real, 2}, {v, _Real, 2}},
+  (* Gives D[1 / Norm[v-u], {u}] == -D[1 / Norm[v-u], {v}]*)
+  With[
+    {diff = v - u},
+    With[
+      {norm = Sqrt@Total[diff^2]},
+      diff / ConstantArray[norm^3, Length@diff]]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+Protect[VectorNormalizationFactorGradient];
+CalculateAngleHessianWithData = Function[{a,b,c,data},(*Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {data, _Real, 2}},*)
+  With[
+    {grad = CalculateAngleGradientWithData[a,b,c,data],
+     dims = Length[a]},
+    With[
+      {uAB = data[[If[dims == 2, {1,2},   {1,2,3}]]],
+       uAC = data[[If[dims == 2, {3,4},   {4,5,6}]]],
+       uBC = data[[If[dims == 2, {5,6},   {7,8,9}]]],
+       nAB = data[[If[dims == 2, {7,8},   {10,11,12}]]],
+       nAC = data[[If[dims == 2, {9,10},  {13,14,15}]]],
+       nBC = data[[If[dims == 2, {11,12}, {16,17,18}]]],
+       dAB = data[[6*dims + 1]],
+       dAC = data[[6*dims + 2]],
+       dBC = data[[6*dims + 3]],
+       cos = data[[6*dims + 4]],
+       th  = data[[6*dims + 5]]},
+      With[
+        {csc = ConstantArray[Csc[th], dims],
+         cot = ConstantArray[Cot[th], dims],
+         grAnAB = NormalizedVectorGradient[a, b],
+         grAnAC = NormalizedVectorGradient[a, c],
+         grBhBC = VectorNormalizationFactorGradient[b, c]},
+        With[
+          {commonBC = nAC * csc - nAB * cot,
+           commonCB = nAB * csc - nAC * cot,
+           dBCfull = ConstantArray[dBC, dims]},
+          With[
+            {thBA = ConstantArray[1/dBCfull, dims] * Plus[
+               -ConstantArray[csc, dims] * grAnAC,
+                ConstantArray[csc*cot, dims] * Outer[Times, grad[[1]], nAC, 1, 1],
+                ConstantArray[cot, dims] * grAnAB,
+               -ConstantArray[csc*csc, dims] * Outer[Times, grad[[1]], nAB, 1, 1]],
+             thBB = Plus[
+                ConstantArray[cot, dims] * Outer[Times, grBhBC, nAB, 1, 1],
+                ConstantArray[cot / dBCfull, dims] * (-grAnAB),
+               -ConstantArray[csc*csc / dBCfull, dims] * Outer[Times, grad[[2]], nAB, 1, 1],
+               -ConstantArray[csc, dims] * Outer[Times, grBhBC, nAC, 1, 1],
+                ConstantArray[csc*cot / dBCfull, dims] * Outer[Times, grad[[2]], nAC, 1, 1]],
+             thBC = Plus[
+               Outer[Times, -nBC / ConstantArray[dBC^2, dims], commonBC, 1, 1],
+               ConstantArray[dBC * csc[[1]], {dims, dims}] * Plus[
+                 -grAnAC,
+                 -Outer[Times, grad[[3]], cot * nAC, 1, 1],
+                 Outer[Times, grad[[3]], nAB * csc, 1, 1]]],
+             thCA = ConstantArray[1.0 / dBC, {dims, dims}] * Plus[
+               grAnAB * ConstantArray[csc, dims],
+               -ConstantArray[cot*csc, dims] * Outer[Times, nAB, grad[[1]], 1, 1],
+               -grAnAC*ConstantArray[cot, dims],
+               ConstantArray[csc^2, dims] * Outer[Times, nAC, grad[[1]], 1, 1]],
+             thCC = Plus[
+               Outer[Times, nBC / ConstantArray[dBC^2, dims], commonCB, 1, 1],
+               ConstantArray[1.0/dBC, {dims, dims}] * Plus[
+                 -Outer[Times, grad[[3]] * cot * csc, nAB, 1, 1],
+                 grAnAC * ConstantArray[cot, dims],
+                 Outer[Times, grad[[3]], nAC * csc^2, 1, 1]]]},
+            {{-(thBA + thCA), Transpose@thBA, Transpose@thCA},
+             {thBA, thBB, thBC},
+             {thCA, Transpose@thBC, thCC}}]]]]](*,
+  {{CalculateAngleGradientWithData[_,_,_,_], _Real, 3},
+   {NormalizedVectorGradient[_,_], _Real, 3},
+   {VectorNormalizationFactorGradient[_,_], _Real, 2}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True*)];
+CalculateAngleHessian = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}},
+  CalculateAngleHessianWithData[a,b,c, CalculateAngleIntermediateData[a,b,c]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2},
+   {CalculateAngleHessianWithData[_,_,_,_], _Real, 5}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+Protect[CalculateAngleHessian, CalculateAngleHessianWithData];
+
 (* Here we compile functions for calculating harmonic angle potentials *)
-CalculateHarmonicAnglePotential3D = Compile[
-  {{x0, _Real, 1}, {y0, _Real, 1}, {z0, _Real, 1},
-   {x1, _Real, 1}, {y1, _Real, 1}, {z1, _Real, 1},
-   {x2, _Real, 1}, {y2, _Real, 1}, {z2, _Real, 1},
-   {th0, _Real, 1}},
+CalculateHarmonicAnglePotential = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {th0, _Real, 1}},
   With[
-    {u01 = {x1 - x0, y1 - y0, z1 - z0},
-     u02 = {x2 - x0, y2 - y0, z2 - z0}},
-    With[
-      {l01 = Total[u01^2],
-       l02 = Total[u02^2]},
-      With[
-        {sqrt = Chop @ Re @ Sqrt[l01 * l02]},
-        With[
-          {unit = Unitize[sqrt]},
-          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt + (1 - unit))] - th0)^2]]]]],
-  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+    {data = CalculateAngleIntermediateData[a, b, c]},
+    Total[0.5 * (th0 - Last[data])^2]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
-CalculateHarmonicAngleGradient3D = Compile[
-    {{x0, _Real, 1}, {y0, _Real, 1}, {z0, _Real, 1},
-     {x1, _Real, 1}, {y1, _Real, 1}, {z1, _Real, 1},
-     {x2, _Real, 1}, {y2, _Real, 1}, {z2, _Real, 1},
-     {th0, _Real, 1}},
+CalculateHarmonicAngleGradient = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {th0, _Real, 1}},
+  With[
+    {data = CalculateAngleIntermediateData[a, b, c],
+     dims = Length[a]},
     With[
-      {u1 = {x1 - x0, y1 - y0, z1 - z0}, u2 = {x2 - x0, y2 - y0, z2 - z0}},
-      With[
-        {d1 = (# + (1 - Unitize[#]))& @ Chop @ Re @ Sqrt[Total[u1^2]],
-         d2 = (# + (1 - Unitize[#]))& @ Chop @ Re @ Sqrt[Total[u2^2]]},
-        With[
-          {cos = ConstantArray[Total[u1*u2] / (d1*d2), Length[u1]],
-           n1 = u1 / ConstantArray[d1, Length[u1]],
-           n2 = u2 / ConstantArray[d2, Length[u2]]},
-          With[
-            {th = Re@ArcCos[cos[[1]]], 
-             sin = Re @ Sqrt[1 - cos[[1]]^2],
-             unit = Unitize[Chop[1-Abs[cos]]]},
-            With[
-             {sin1 = Chop[d1 * sin],
-              sin2 = Chop[d2 * sin]},
-              With[
-                {f1 = unit * (cos*n1 - n2) * ConstantArray[
-                   (th - th0) / (sin1 + (1 - Unitize[sin1])),
-                   Length[u1]],
-                 f2 = unit * (cos*n2 - n1) * ConstantArray[
-                   (th - th0) / (sin2 + (1 - Unitize[sin2])),
-                   Length[u1]]},
-                {-(f1 + f2), f1, f2}]]]]]],
-    RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-    Parallelization -> True];
-Protect[CalculateHarmonicAnglePotential3D, CalculateHarmonicAngleGradient3D];
+      {th = Last[data],
+       dth = CalculateAngleGradientWithData[a, b, c, data]},
+      dth * ConstantArray[th - th0, {3, dims}]]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2},
+   {CalculateAngleGradientWithData[_,_,_,_], _Real, 3}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+CalculateHarmonicAngleHessian = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {th0, _Real, 1}},
+  -CalculateAngleHessian[a,b,c],
+  {{CalculateAngleHessian[_,_,_], _Real, 4}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
+  Parallelization -> True];
+Protect[CalculateHarmonicAnglePotential, CalculateHarmonicAngleGradient,
+        CalculateHarmonicAngleHessian];
 
-CalculateHarmonicAnglePotential2D = Compile[
-  {{x0, _Real, 1}, {y0, _Real, 1},
-   {x1, _Real, 1}, {y1, _Real, 1},
-   {x2, _Real, 1}, {y2, _Real, 1},
-   {th0, _Real, 1}},
+CalculateVDWAnglePotential = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {th0, _Real, 1}},
   With[
-    {u01 = {x1 - x0, y1 - y0},
-     u02 = {x2 - x0, y2 - y0}},
+    {data = CalculateAngleIntermediateData[a,b,c]},
     With[
-      {l01 = Total[u01^2],
-       l02 = Total[u02^2]},
-      With[
-        {sqrt = Chop @ Sqrt[l01 * l02]},
-        With[
-          {unit = Unitize[sqrt]},
-          0.5 * Total[unit * (Re@ArcCos[Total[u01 * u02] / (sqrt + (1 - unit))] - th0)^2]]]]],
+      {ratio = 2.0 * Last[data] / th0},
+      Total[0.25 + 1.0/ratio^2 - 1.0/ratio]]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
-CalculateHarmonicAngleGradient2D = Compile[
-    {{x0, _Real, 1}, {y0, _Real, 1},
-     {x1, _Real, 1}, {y1, _Real, 1},
-     {x2, _Real, 1}, {y2, _Real, 1},
-     {th0, _Real, 1}},
+CalculateVDWAngleGradient = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {th0, _Real, 1}},
+  With[
+    {data = CalculateAngleIntermediateData[a,b,c],
+     dims = Length[a]},
     With[
-      {u1 = {x1 - x0, y1 - y0}, u2 = {x2 - x0, y2 - y0}},
-      With[
-        {d1 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u1^2]],
-         d2 = (# + (1 - Unitize[#]))& @ Chop @ Sqrt[Total[u2^2]]},
-        With[
-          {cos = ConstantArray[Total[u1*u2] / (d1*d2), Length[u1]],
-           n1 = u1 / ConstantArray[d1, Length[u1]],
-           n2 = u2 / ConstantArray[d2, Length[u2]]},
-          With[
-            {th = Re@ArcCos[cos[[1]]],
-             sin = Re@Sqrt[1 - cos[[1]]^2],
-             unit = Unitize[Chop[1-Abs[cos]]]},
-            With[
-             {sin1 = Chop[d1 * sin],
-              sin2 = Chop[d2 * sin]},
-              With[
-                {f1 = unit * (cos*n1 - n2) * ConstantArray[
-                   (th - th0) / (sin1 + (1 - Unitize[sin1])),
-                   Length[u1]],
-                 f2 = unit * (cos*n2 - n1) * ConstantArray[
-                   (th - th0) / (sin2 + (1 - Unitize[sin2])),
-                   Length[u1]]},
-                {-(f1 + f2), f1, f2}]]]]]],
-    RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-    Parallelization -> True];
-Protect[CalculateHarmonicAnglePotential2D, CalculateHarmonicAngleGradient2D];
+      {th = Last[data]
+       dth = CalculateAngleGradientWithData[a,b,c,data]},
+      dth * ConstantArray[0.5 * (th0 / th^2 - th0^2 / th^3), {3, dims}]]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2},
+   {CalculateAngleGradientWithData[_,_,_,_], _Real, 3}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+  Parallelization -> True];
+CalculateVDWAngleHessian = Compile[
+  {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {th0, _Real, 1}},
+  With[
+    {data = CalculateAngleIntermediateData[a,b,c],
+     dims = Length[a]},
+    With[
+      {th = Last[data]
+       Hth = CalculateAngleHessianWithData[a,b,c,data]},
+      Hth * ConstantArray[0.5 * th0 * (3*th0 - 2*th) / th^4, {3, dims, 3, dims}]]],
+  {{CalculateAngleIntermediateData[_,_,_], _Real, 2},
+   {CalculateAngleGradientWithData[_,_,_,_], _Real, 3}},
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+  Parallelization -> True];
+Protect[CalculateVDWAnglePotential, CalculateVDWAngleGradient, CalculateVDWAngleHessian];
 
-(* And here we compile functions for calculating cosine angle potentials *)
-CalculateCosineAnglePotential3D = Compile[
-  {{x0, _Real, 1}, {y0, _Real, 1}, {z0, _Real, 1},
-   {x1, _Real, 1}, {y1, _Real, 1}, {z1, _Real, 1},
-   {x2, _Real, 1}, {y2, _Real, 1}, {z2, _Real, 1},
-   {cos0, _Real, 1}},
-  With[
-    {u01 = {x1 - x0, y1 - y0, z1 - z0},
-     u02 = {x2 - x0, y2 - y0, z2 - z0}},
-    With[
-      {l01 = Total[u01^2],
-       l02 = Total[u02^2]},
-      0.5 * Total[(Total[u01 * u02] / Sqrt[l01 * l02] - cos0)^2]]],
-  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-  Parallelization -> True];
-CalculateCosineAngleGradient3D = ReplacePart[
-  Hold[
-    {{x0, _Real, 1}, {y0, _Real, 1}, {z0, _Real, 1},
-     {x1, _Real, 1}, {y1, _Real, 1}, {z1, _Real, 1},
-     {x2, _Real, 1}, {y2, _Real, 1}, {z2, _Real, 1},
-     {cos0, _Real, 1}},
-    Evaluate @ Block[
-      {x0, y0, z0, x1, y1, z1, x2, y2, z2, cos0},
-      With[
-        {grad = Grad[
-           Simplify[
-             (Dot[
-                Normalize[{x1 - x0, y1 - y0, z1 - z0}],
-                Normalize[{x2 - x0, y2 - y0, z2 - z0}]] - cos0)^2 / 2,
-             Assumptions -> Element[{x0, y0, z0, x1, y1, z1, x2, y2, z2}, Reals]],
-           {x0, y0, z0, x1, y1, z1, x2, y2, z2}]},
-        Hold[grad, 2]]],
-    RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-    Parallelization -> True],
-  {{2,0} -> Partition,
-   {0}   -> Compile}];
-Protect[CalculateCosineAnglePotential3D, CalculateCosineAngleGradient3D];
-
-CalculateCosineAnglePotential2D = Compile[
-  {{x0, _Real, 1}, {y0, _Real, 1},
-   {x1, _Real, 1}, {y1, _Real, 1},
-   {x2, _Real, 1}, {y2, _Real, 1},
-   {cos0, _Real, 1}},
-  With[
-    {u01 = {x1 - x0, y1 - y0},
-     u02 = {x2 - x0, y2 - y0}},
-    With[
-      {l01 = Total[u01^2],
-       l02 = Total[u02^2]},
-      0.5 * Total[(Total[u01 * u02] / Sqrt[l01 * l02] - cos0)^2]]],
-  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-  Parallelization -> True];
-CalculateCosineAngleGradient2D = ReplacePart[
-  Hold[
-    {{x0, _Real, 1}, {y0, _Real, 1},
-     {x1, _Real, 1}, {y1, _Real, 1},
-     {x2, _Real, 1}, {y2, _Real, 1},
-     {cos0, _Real, 1}},
-    Evaluate @ Block[
-      {x0, y0, x1, y1, x2, y2, cos0},
-      With[
-        {grad = Grad[
-           Simplify[
-             (Dot[
-                Normalize[{x1 - x0, y1 - y0}],
-                Normalize[{x2 - x0, y2 - y0}]] - cos0)^2 / 2,
-             Assumptions -> Element[{x0, y0, x1, y1, x2, y2}, Reals]],
-           {x0, y0, x1, y1, x2, y2}]},
-        Hold[grad, 2]]],
-    RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
-    Parallelization -> True],
-  {{2,0} -> Partition,
-   {0}   -> Compile}];
-Protect[CalculateCosineAnglePotential2D, CalculateCosineAngleGradient2D];
 
 (* These functions are helpers for the Gaussian potential well functions *)
 Options[GaussianPotentialWellParseGaussian] = {
@@ -411,7 +533,8 @@ GaussianPotentialWellParseGaussian[x0_, sigma_, OptionsPattern[]] := With[
   {fwhm = OptionValue["FWHM"],
    normalize = OptionValue["Normalize"],
    shape = OptionValue["Shape"],
-   weight = OptionValue["Weight"]},
+   weight = OptionValue["Weight"],
+   dims = Length[x0]},
   With[
     {sig = If[TrueQ[fwhm], 2.0*Sqrt[2.0*Log[2.0]] * sigma, sigma]},
     Block[
@@ -420,7 +543,7 @@ GaussianPotentialWellParseGaussian[x0_, sigma_, OptionsPattern[]] := With[
          Hold[
            {{X, _Real, 2}},
            Evaluate @ Hold[
-             {distance = Sqrt @ Total[MapThread[Subtract, {X, x0}]^2]},
+             {distance = Sqrt @ Total[(X - x0)^2]},
              Evaluate @ Times[
                -weight * Exp[-(distance / sig)^shape / shape],
                If[TrueQ[normalize],
@@ -434,7 +557,7 @@ GaussianPotentialWellParseGaussian[x0_, sigma_, OptionsPattern[]] := With[
          Hold[
            {{X, _Real, 2}},
            Evaluate @ Hold[
-             {U = MapThread[Subtract, {x0, X}]},
+             {U = (x0 - X)},
              Evaluate @ Hold[
                {distance = Sqrt @ Total[U^2]},
                Evaluate @ Hold @ Evaluate[
@@ -447,10 +570,35 @@ GaussianPotentialWellParseGaussian[x0_, sigma_, OptionsPattern[]] := With[
                      1]]]]],
            RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
            Parallelization -> True],
-         {{2,2,2,0} -> Function[U * ConstantArray[#, Length[U]]],
+         {{2,2,2,0} -> Function[U * ConstantArray[#, dims]],
           {2,2,0}   -> With,
           {2,0}     -> With,
-          {0}       -> Compile}]}]]];
+          {0}       -> Compile}],
+       ReplacePart[ (* Hessian function *)
+         Hold[
+           {{X, _Real, 2}},
+           Evaluate @ Hold[ (* part {2,0}: With *)
+             {distance = Sqrt @ Total[(x0 - X)^2]},
+             Evaluate @ Hold[ (* part {2,2,0}: With *)
+               {F = Times[
+                  -weight * Exp[-(distance / sig)^shape / shape],
+                  If[TrueQ[normalize],
+                    1 / (2 * sig * Gamma[(shape + 1) / shape] * shape ^ (1 / shape)),
+                    1]]},
+               Evaluate @ Hold[ (* part {2,2,2,0}: Times *)
+                 (distance / sig)^shape  / distance^4,
+                 ConstantArray[F, {dims, dims}],
+                 Subtract[
+                   Times[
+                     ConstantArray[(2 - shape + (distance/sig)^2), {dims, dims}],
+                     Outer[Times, U, U, 1, 1]],
+                   Table[ConstantArray[If[i == j, distance^2, 0], dims]]]]]],
+           RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+           Parallelization -> True],
+         {{2,2,2,0} -> Times,
+          {2,2,0}   -> With,
+          {2,0}     -> With,
+          {0}         -> Compile}]}]]];
 Protect[GaussianPotentialWellParseGaussian];
 
 GaussianPotentialWellParseSpec[mesh_, Rule[idcsArg_, gaussArg_]] := Check[
@@ -497,6 +645,24 @@ CalculateGaussianGradient[{indices_, fns_}, Xt_] := Module[
   dXt];
 Protect[CalculateGaussianGradient];
 
+(* #CalculateGaussianHessian **********************************************************************)
+CalculateGaussianHessian[{indices_, fns_}, Xt_] := With[
+  {dims = Length[Xt],
+   n = Length[Xt[[1]]]},
+  SparseArray[
+    Join @@ #[[1]] -> Join @@ #[[2]]& @ Transpose @ MapThread[
+       Function @ With[
+         {idcs = #1, hessians = #2[[3]][Xt[[All, #1]]]},
+         {Transpose[
+            Flatten /@ {
+              Table[idcs + i*n, {i,0,dims-1}, {dims-1}],
+              Table[idcs + i*n, {dims-1}, {i,0,dims-1}]}],
+          Flatten[hessians, 2]}],
+      {indices, fns}],
+    {n*dims, n*dims},
+    0]];
+Protect[CalculateGaussianGradient];
+
 (* These functions are helpers for the Harmonic potential well functions *)
 Options[HarmonicPotentialWellParseHarmonic] = {
   "Width" -> 1,
@@ -513,20 +679,36 @@ HarmonicPotentialWellParseHarmonic[x0_, OptionsPattern[]] := With[
       {(* Potential function *)
        Compile[
          {{X, _Real, 2}},
-         const / shape * Sqrt[Total[MapThread[Subtract, {X, x0}]^2]]^shape,
+         const / shape * Sqrt[Total[(X - x0)^2]]^shape,
          RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
          Parallelization -> True],
        (* Gradient function *)
        Compile[
          {{X, _Real, 2}},
          With[
-           {U = MapThread[Subtract, {X, x0}]},
+           {U = (X - x0)},
            With[
              {distances = (# + (1 - Unitize[#]))& @ Chop @ Sqrt @ Total[U^2]},
              With[
                {magnitudes = const * distances^(shape - 1),
                 Unorm = U / ConstantArray[distances, Length[U]]},
                Unorm * ConstantArray[magnitudes, Length[U]]]]],
+         RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
+         Parallelization -> True],
+       (* Hessian function *)
+       Compile[
+         {{X, _Real, 2}},
+         With[
+           {U = X - x0,
+            dims = Length[X]},
+           With[
+             {r = (# + (1 - Unitize[#]))& @ Chop @ Sqrt @ Total[U^2]},
+             With[
+               {mag = ConstantArray[const / r^3, {dims, dims}],
+                rdiag = With[
+                  {r2 = r^2, zeros = ConstantArray[0, Length@First[X]]},
+                  Table[If[i == j, r2, zeros], {i,1,dims}, {j,1,dims}]]},
+               rdiag - Outer[Times, U, U, 1, 1]]]],
          RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
          Parallelization -> True]}]]];
 Protect[HarmonicPotentialWellParseHarmonic];
@@ -589,22 +771,69 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
   {X0 = VertexCoordinatesTr[mesh],
    D0 = EdgeLengths[mesh],
    E = VertexIndex[mesh, EdgePairsTr[mesh]],
-   m = EdgeCount[mesh]},
-  CorticalPotentialFunction[
-    {0.5 / m * Total[(EdgeLengthsTr[mesh, X] - D0)^2],
-     With[
-       {dX = X[[All, E[[2]]]] - X[[All, E[[1]]]]},
+   m = EdgeCount[mesh],
+   n = VertexCount[mesh],
+   dims = If[CorticalMeshQ[mesh], 3, 2]},
+  Module[
+    {hessEdgeIdcs, hessEdgeToVertexMtcs},
+    hessEdgeIdcs := hessEdgeIdcs = With[
+      {rm = Range[m]},
+      Transpose[
+        {Flatten @ Table[rm + i*m, {i, 0, 2*dims - 1}, {2*dims}],
+         Flatten @ Table[rm + i*m, {2*dims}, {i, 0, 2*dims - 1}]}]];
+    hessEdgeToVertexMtcs := hessEdgeToVertexMtcs = {Transpose[#], #}& @ SparseArray[
+      Rule[
+        Transpose[
+          {hessEdgeIdcs[[All, 1]],
+           Join @@ Join @@ Table[
+             If[i < dims, E[[1]], E[[2]]] + Mod[i, dims]*n, 
+             {2*dims},
+             {i, 0, 2*dims - 1}]}],
+        1],
+      {m*dims*2, n*dims},
+      0];
+    CorticalPotentialFunction[
+      {0.5 / m * Total[(EdgeLengthsTr[mesh, X] - D0)^2],
+       (* Gradient is easy: along the axis between the points *)
        With[
-         {norms = Sqrt[Total[dX^2]]},
+         {x1 = X[[All, E[[1]]]], 
+          x2 = X[[All, E[[2]]]]},
          With[
-           {magnitude = (D0 - norms) / (m * norms)},
+           {dX = CalculateDistanceGradient[x1, x2],
+            r = CalculateDistance[x1, x2]},
            SumOverEdgesDirectedTr[
              mesh,
-             dX * ConstantArray[magnitude, Length[dX]]]]]]},
-    X,
-    Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Edges",",",Length@X0}]],
-    CorticalMesh -> mesh,
-    MetaInformation -> OptionValue[MetaInformation]]];
+             ConstantArray[r, dims] * dX[[1]] / m]]],
+       (* This code produces the correct grad, but has been depricated:
+        With[
+          {dX = X[[All, E[[2]]]] - X[[All, E[[1]]]]},
+          With[
+            {norms = Sqrt[Total[dX^2]]},
+            With[
+              {magnitude = (D0 - norms) / (m * norms)},
+              SumOverEdgesDirectedTr[
+                mesh,
+                dX * ConstantArray[magnitude, Length[dX]]]]]]*)
+       (* Hessian is trickier *)
+       With[
+         {x1 = X[[All, E[[1]]]], 
+          x2 = X[[All, E[[2]]]]},
+         With[
+           {d2X = CalculateDistanceHessian[x1, x2],
+            dX = Join @@ CalculateDistanceGradient[x1, x2],
+            r = CalculateDistance[x1, x2]},
+           With[
+             {hess = Plus[
+                d2X * ConstantArray[r, {2*dims, 2*dims}],
+                Outer[Times, dX, dX, 1, 1]]},
+             Dot[
+               hessEdgeToVertexMtcs[[1]],
+               SparseArray[hessEdgeIdcs -> Flatten[hess]],
+               hessEdgeToVertexMtcs[[2]]]]]]},
+      X,
+      Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Edges",",",Length@X0}]],
+      CorticalMesh -> mesh,
+      MetaInformation -> OptionValue[MetaInformation]]]];
 Protect[HarmonicEdgePotential];
 
 (* #HarmonicAnglePotential ************************************************************************)
@@ -615,19 +844,15 @@ HarmonicAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
    A0 = FaceAnglesTr[mesh],
    n = 3 * FaceCount[mesh],
    dims = If[CorticalMeshQ[mesh], 3, 2],
-   pfun = If[CorticalMeshQ[mesh],
-     CalculateHarmonicAnglePotential3D,
-     CalculateHarmonicAnglePotential2D],
-   gfun = If[CorticalMeshQ[mesh],
-     CalculateHarmonicAngleGradient3D,
-     CalculateHarmonicAngleGradient2D]},
+   pfun = CalculateHarmonicAnglePotential,
+   gfun = CalculateHarmonicAngleGradient},
   With[
     {const = 1.0 / n},
     CorticalPotentialFunction[
       {With[
          {corners0 = X[[All, #]]& /@ Ft},
          const * Sum[
-           pfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
+           pfun @@ Append[RotateLeft[corners0, i], A0[[i+1]]],
            {i, 0, 2}]],
        With[
          {corners0 = X[[All, #]]& /@ Ft},
@@ -635,57 +860,18 @@ HarmonicAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
          With[
            {facesGrad = Sum[
               RotateRight[
-                gfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i + 1]]],
+                gfun @@ Append[RotateLeft[corners0, i], A0[[i + 1]]],
                 i],
               {i, 0, 2}]},
            (* facesGrad: same format as corners0 *)
-           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]]},
+           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]],
+       (* No hessian yet *)
+       None},
       X,
       Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Angles",",",Length@X0}]],
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]]];
 Protect[HarmonicAnglePotential];
-
-(* #CosineAnglePotential **************************************************************************)
-Options[CosineAnglePotential] = {MetaInformation -> {}};
-CosineAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
-  {X0 = VertexCoordinatesTr[mesh],
-   Ft = VertexIndex[mesh, FaceListTr[mesh]],
-   A0 = FaceAngleCosinesTr[mesh],
-   n = 3 * FaceCount[mesh],
-   dims = If[CorticalMeshQ[mesh], 3, 2],
-   pfun = If[CorticalMeshQ[mesh],
-     CalculateCosineAnglePotential3D,
-     CalculateCosineAnglePotential2D],
-   gfun = If[CorticalMeshQ[mesh],
-     CalculateCosineAngleGradient3D,
-     CalculateCosineAngleGradient2D]},
-  With[
-    {const = 1.0 / n},
-    CorticalPotentialFunction[
-      {With[
-         {corners0 = X[[All, #]]& /@ Ft},
-         const * Sum[
-           pfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
-           {i, 0, 2}]],
-       With[
-         {corners0 = X[[All, #]]& /@ Ft},
-         (* corners0: {v1, v2, v3} (3x3xn); vi: {x, y, z} (3 x n) *)
-         With[
-           {facesGrad = Sum[
-              RotateRight[
-                gfun @@ Append[Join @@ RotateLeft[corners0, i], A0[[i+1]]],
-                1],
-              {i, 0, 2}]},
-           (* facesGrad: same format as corners0 *)
-           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]]},
-      X,
-      Print -> Subscript[
-        Style["\[GothicCapitalH]",Bold],
-        Row[{Subscript["Angles", "Cosine"],",",Length@X0}]],
-      CorticalMesh -> mesh,
-      MetaInformation -> OptionValue[MetaInformation]]]];
-Protect[CosineAnglePotential];
 
 (* #GaussianPotentialWell *************************************************************************)
 Options[GaussianPotentialWell] = {MetaInformation -> {}};
@@ -693,7 +879,9 @@ GaussianPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
   With[
     {wells = Transpose @ ParseGaussianPotentialWells[mesh, spec]},
     CorticalPotentialFunction[
-      {CalculateGaussianGradient[wells, X], CalculateGaussianPotential[wells, X]},
+      {CalculateGaussianPotential[wells, X],
+       CalculateGaussianGradient[wells, X],
+       CalculateGaussianHessian[wells, X]},
       X,
       Print -> Subscript[Style["\[GothicCapitalC]",Bold], Row[{"Angles",",",Length@X0}]],
       CorticalMesh -> mesh,
@@ -709,7 +897,7 @@ HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_, OptionsPattern[]] := With[
   {wells = Transpose @ ParseHarmonicPotentialWells[mesh, spec],
    dims = If[CorticalMeshQ[mesh], 3, 2]},
   CorticalPotentialFunction[
-    {CalculateHarmonicPotential[wells, X], CalculateHarmonicGradient[wells, X]},
+    {CalculateHarmonicPotential[wells, X], CalculateHarmonicGradient[wells, X], None},
     X,
     MetaInformation -> OptionValue[MetaInformation],
     CorticalMesh -> mesh,
@@ -752,7 +940,8 @@ RegionDistancePotential[mesh_?CorticalObjectQ, reg_?RegionQ, {F_, G_}, OptionsPa
                {dists = ColumnNorms[dX]},
                dX * ConstantArray[
                  w * G[dists] / (W * (# + (1 - Unitize[#]))&[Chop @ dists]),
-                 Length[X]]]]]},
+                 Length[X]]]]],
+         None},
         X,
         Print -> OptionValue[Print],
         MetaInformation -> OptionValue[MetaInformation],
@@ -792,7 +981,8 @@ SignedRegionDistancePotential[mesh_?CorticalObjectQ,
              {dX = X - Transpose[nears]},
              With[
                {dists = distFn[Transpose @ X[[All, idcs]]]},
-               dX * ConstantArray[w * G[dists] / (W * dists), Length[X]]]]]},
+               dX * ConstantArray[w * G[dists] / (W * dists), Length[X]]]]],
+         None},
         X,
         Print -> OptionValue[Print],
         MetaInformation -> OptionValue[MetaInformation],
