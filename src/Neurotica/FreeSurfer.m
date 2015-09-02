@@ -1920,10 +1920,12 @@ DefineImmutable[
    LabelVertexList[sub, hemi:(LH|RH|RHX), name_] := Check[
      If[ListQ[name],
        (* custom label *)
-       Pick[
-         Range[Length@name],
-         Replace[name, {0.0|False -> 0, Except[0|0.0|False] -> 1}, {1}],
-         1],
+       If[Length@Union[name, {0.0, 0, 1, 1.0, True, False}] == 6,
+         Pick[
+           Range[Length@name],
+           Replace[name, {0.0|False -> 0, Except[0|0.0|False] -> 1}, {1}],
+           1],
+         name],
        (* builtin label *)
        With[
          {propAndPatt = Switch[
