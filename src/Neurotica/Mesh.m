@@ -1712,7 +1712,7 @@ DefineImmutable[
      VertexEdgeList[map, i_Integer] := Part[VertexEdgeList[map], VertexIndex[map, i]],
      VertexEdgeList[map, l_List] := With[
        {idx = VertexEdgeList[map]},
-       Map[Part[idx, #]&, VertexIndex[map, i], {-2}]],
+       Map[Part[idx, #]&, VertexIndex[map, l], {-2}]],
      VertexFaceList[map, i_Integer] := Part[VertexFaceList[map], VertexIndex[map, i]],
      VertexFaceList[map, l_List] := With[
        {idx = VertexFaceList[map]},
