@@ -30,6 +30,7 @@ CorticalPotentialFunction::usage = "CorticalPotentialFunction[{F, G}, X] yields 
 PotentialFunction::usage = "PotentialFunction[f] yields a pure functional form of the cortical potential function instance, f.";
 GradientFunction::usage = "GradientFunction[f] yields a pure functional form of the gradient of the cortical potential function instance, f.";
 HessianFunction::usage = "HessianFunction[f] yields a pure functional form of the Hessian of the cortical potential function instance, f.";
+CorticalPotentialFunctionInstance::usage = "CorticalPotentialFunctionInstance is the head given to CorticalPotentialFunction objects.";
 
 CalculateAngleIntermediateData::usage = "CalculateAngleIntermediateData[a,b,c] yields the numerical array equivalent to Flatten[{u1,u2,n1,n2,{d1,d2,cos}}, 1] where u1, u2, n1, and n2 are the vectors b - a, c - a, Normalize[b - a], and Normalize[c - a], respectively, and where d1 and d2 are the lengths of the b-a and c-a, respectively, and where cos is the cosine of the angle centered at a. Note that a, b, and c are expected to be 2 or 3 by n arrays where each column of the array corresponds to a single point.";
 CalculateAngle::usage = "CalculateAngle[a,b,c] yields the angle between the vectors b-a and c-a; the three arguments must be 2D arrays with length 2 or 3 (for 2d or 3d points) and the return value is a vector of angles, one for each column of a,b, and c."
@@ -41,6 +42,12 @@ The potential function of a HarmonicEdgePotential is U[d] = 0.5 / n * (d - d0)^2
 
 HarmonicAnglePotential::usage = "HarmonicAnglePotential[mesh] yields a function symbol f such that f[X] is the harmonic angle potential where X is a possible vertex coordinate list for the given cortical mesh. The potential is calculated as the total of (a - a0)^2 where a is the angle of a face in X and a0 is the angle of the same face corner in the original mesh. Note that Grad[f, X] yields the numerical gradient of the potential at the vertex configuration given in X.
 The potential function of a HarmonicAnglePotential is U[a] = 0.5 / n * (a - a0)^2 where a is the angle of a corner of a face, n is the number of faces in the system, and a0 is the angle of the same face in the initial mesh.";
+
+VDWEdgePotential::usage = "VDWEdgePotential[mesh] is identical to HarmonicEdgePotential[mesh], but uses a much different potential function, based on the physical model of the van der Waals force. This potential function is experimental.";
+VDWEdgePotential::badarg = "Bad argument given to VDWEdgePotential: `1`";
+
+VDWAnglePotential::usage = "VDWAnglePotential[mesh] is identical to HarmonicAnglePotential[mesh], but uses a much different potential function, based on the physical model of the van der Waals force. This potential function is experimental.";
+
 
 GaussianPotentialWell::usage = "GaussianPotentialWell[mesh, u -> {x0, std}] yields a function symbol f such that f[X] is the potential and Grad[f, X] is the gradient of an inverted Gaussian potential well that draws vertex u toward position x0 with the standard deviation std. In addition to the center and standard deviation, the following rules may be appended to the list on the right hand side of the rule:
   * \"FWHM\" (default: False) when True indicates that std should be interpreted as a full-width-half-max specification instead of the standard deviation.
@@ -102,6 +109,39 @@ MapTangles[map, X] uses the coordinates given in X for the map.";
 MapUntangle::usage = "MapUntangle[map] attempts to untangle the map given by repeatedly moving tangled vertices to their centroids (with respect to their neighbors); this may not succeed, but will return the coordinates regardless after 50 such attempts.
 MapUntangle[map, X] uses the coordinates X as the map coordinates.
 MapUntangle[map, X, max] attempts at most max times to untangle the map.";
+
+RegistrationFrame::usage = "RegistrationFrame[PF,X0] yields a registration frame with the given potential function PF and starting coordinates X0.";
+RegistrationFrame::badarg = "Bad argument given to RegistrationFrame: `1`";
+RegistrationFrameData::usage = "RegistrationFrameData[...] is used to represent a registration frame object.";
+RegistrationFrameQ::usage = "RegistrationFrameQ[frame] yields True if and only if frame is a valid registration frame; otherwise yields False.";
+StepNumber::usage = "StepNumber[frame] yields the step number of the given registration frame.";
+StepSize::usage = "StepSize[frame] yields the recommended step-size for the given frame.";
+MinStepSize::usage = "MinStepSize[frame] yields the minimum step-size the registration will descend to; once the step-size is below this length, the registration is considered converged.";
+MaxVertexChange::usage = "MaxVertexChange[frame] yields the maximum distance a vertex is allowed to travel in a single step of the registration.";
+
+RegistrationTrajectory::usage = "RegistrationTrajectory[mesh, F] yields a registration trajectory object for the given cortical mesh and given potential field F. The following options may be given:
+  * InitialVertexCoordinates (default: Automatic) specifies the starting coordinates in the registration; the default, Automatic, specifies that it should start with VertexCoordinates[mesh].
+  * MaxVertexChange (default: 0.1) specifies the maximum distance a single vertex is allowed to move during a single step of the minimization.
+  * MinStepSize (default: 10^-5) specifies that the minimum gradient length that must be reached for the minimization to be considered complete.
+  * CacheFrequency (default: 50) specifies that the registration will save every <n>'th frame during minimization.";
+RegistrationTrajectory::badarg = "Bad argument given to RegistrationTrajectory: `1`";
+RegistrationTrajectoryData::usage = "RegistrationTrajectoryData[...] is used to represent a registration trajectory object.";
+RegistrationTrajectoryQ::usage = "RegistrationTrajectoryQ[traj] yields True if and only if traj is a RegistrationTrajectory object.";
+CacheFrequency::usage = "CacheFrequency is an argument given to RegistrationTrajectory that specifies how often a frame in the registration should be cached; by default the value is 100.";
+InitialFrame::usage = "InitialFrame[traj] yields the initial frame of the given registration trajectory, traj.";
+FinalFrame::usage = "FinalFrame[traj] yields the final frame of the given registration trajectory, traj; note that this may take a long time to calculate.";
+InitialVertexCoordinates::usage = "InitialVertexCoordinates is an option to RegistrationTrajectory and MapRegister that indicates the coordinates that should be used in the initial frame.";
+
+MeshRegister::usage = "MeshRegister[mesh, pf] yields the result of registering the given mesh to the given potential field, pf. The pf variable must be a valid CorticalPotentialFunction, including named potential functions.
+MeshRegister[mesh, {pf1, pf2...}] feeds the registration through each of the given potential functions in order, using the result of the registration in the previous function as input to the next function.
+MeshRegister[mesh, pf :> prolog] evaluates prolog before beginning the minimization of pf.
+MeshRegister[mesh, pf :> {prolog, epilog}] evaluates prolog before beginning the minimization of pf and evaluates epilog after it.
+MeshRegister[{mesh, X0}, ...] uses X0 as the starting vertex coordinates of the given mesh.
+
+The following options may be given:
+  * Method (default: \"ConjugateGradient\") must be either \"ConjugateGradient\" or \"Newton\"; if the latter is specified, then the Hessian of the potential field will be used.
+  * StepMonitor (default: None) is evaluated during every step of minimization.
+  * ";
 
 Begin["`Private`"];
 
@@ -500,7 +540,7 @@ CalculateVDWAngleGradient = Compile[
     {data = CalculateAngleIntermediateData[a,b,c],
      dims = Length[a]},
     With[
-      {th = Last[data]
+      {th = Last[data],
        dth = CalculateAngleGradientWithData[a,b,c,data]},
       dth * ConstantArray[0.5 * (th0 / th^2 - th0^2 / th^3), {3, dims}]]],
   {{CalculateAngleIntermediateData[_,_,_], _Real, 2},
@@ -836,6 +876,44 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
       MetaInformation -> OptionValue[MetaInformation]]]];
 Protect[HarmonicEdgePotential];
 
+(* #VDWEdgePotential ******************************************************************************)
+Options[VDWEdgePotential] = {MetaInformation -> {}, Order -> 2};
+VDWEdgePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
+  {X0 = VertexCoordinatesTr[mesh],
+   R0 = EdgeLengths[mesh],
+   E = VertexIndex[mesh, EdgePairsTr[mesh]],
+   m = EdgeCount[mesh],
+   n = VertexCount[mesh],
+   dims = If[CorticalMeshQ[mesh], 3, 2],
+   ord = OptionValue[Order] // Function[
+     If[!NumericQ[#] || # <= 1, 
+       Message[VDWEdgePotential::badarg, "VDWEdgePotential Order must be > 1"],
+       #]]},
+  With[
+    {c1 = (ord - 1)/ord,
+     c2 = ((ord - 1)/ord)^ord / (ord - 1)},
+    CorticalPotentialFunction[
+      {(* Potential... *)
+       With[
+         {R0overR = c1 * R0 / EdgeLengthsTr[mesh, X]},
+         Total[(R0overR - 1) * R0overR^(ord - 1) + c2] / m],
+       (* Gradient... *)
+       With[
+         {R = EdgeLengthsTr[mesh,X]},
+         With[
+           {dR = (ord * (R - R0) * (((ord - 1)*R0)/(ord*R))^ord)/(R*R0),
+            dX = CalculateDistanceGradients[X[[All, E[[1]]]], X[[All, E[[2]]]]]},
+           SumOverEdgesDirectedTr[
+             mesh,
+             ConstantArray[dR / m, dims] * dX[[1]] / m]]],
+       (* No Hessian yet *)
+       None},
+      X,
+      Print -> Subscript[Style["\[GothicCapitalV]",Bold], Row[{"Edges",",",Length@X0}]],
+      CorticalMesh -> mesh,
+      MetaInformation -> OptionValue[MetaInformation]]]];
+Protect[VDWEdgePotential];
+
 (* #HarmonicAnglePotential ************************************************************************)
 Options[HarmonicAnglePotential] = {MetaInformation -> {}};
 HarmonicAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
@@ -872,6 +950,44 @@ HarmonicAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]]];
 Protect[HarmonicAnglePotential];
+
+(* #VWDAnglePotential *****************************************************************************)
+Options[VDWAnglePotential] = {MetaInformation -> {}};
+VDWAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
+  {X0 = VertexCoordinatesTr[mesh],
+   Ft = VertexIndex[mesh, FaceListTr[mesh]],
+   A0 = FaceAnglesTr[mesh],
+   n = 3 * FaceCount[mesh],
+   dims = If[CorticalMeshQ[mesh], 3, 2],
+   pfun = CalculateVDWAnglePotential,
+   gfun = CalculateVDWAngleGradient},
+  With[
+    {const = 1.0 / n},
+    CorticalPotentialFunction[
+      {With[
+         {corners0 = X[[All, #]]& /@ Ft},
+         const * Sum[
+           pfun @@ Append[RotateLeft[corners0, i], A0[[i+1]]],
+           {i, 0, 2}]],
+       With[
+         {corners0 = X[[All, #]]& /@ Ft},
+         (* corners0: {v1, v2, v3} (3xdxn); vi: {x, y, z} (3 x n) or {x, y} (2 x n) *)
+         With[
+           {facesGrad = Sum[
+              RotateRight[
+                gfun @@ Append[RotateLeft[corners0, i], A0[[i + 1]]],
+                i],
+              {i, 0, 2}]},
+           (* facesGrad: same format as corners0 *)
+           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]],
+       (* No hessian yet *)
+       None},
+      X,
+      Print -> Subscript[Style["\[GothicCapitalV]",Bold], Row[{"Angles",",",Length@X0}]],
+      CorticalMesh -> mesh,
+      MetaInformation -> OptionValue[MetaInformation]]]];
+Protect[VDWAnglePotential];
+
 
 (* #GaussianPotentialWell *************************************************************************)
 Options[GaussianPotentialWell] = {MetaInformation -> {}};
@@ -1146,6 +1262,257 @@ With[
     max]];
 *)
 
+(* # *******************************************************************************************)
+Options[RegistrationFrame] = {
+  MaxVertexChange -> 0.1,
+  MinStepSize -> 10^-5};
+DefineImmutable[
+  RegistrationFrame[P_CorticalPotentialFunctionInstance, X0_, OptionsPattern[]] :> frame,
+  {VertexCount[frame] -> Length@First[X0],
+   Dimensions[frame] -> Dimensions[X0],
+
+   PotentialFunction[frame] = P,
+   VertexCoordinatesTr[frame] = X0,
+   MaxVertexChange[frame] = OptionValue[MaxVertexChange],
+   MinStepSize[frame] = OptionValue[MinStepSize],
+   StepNumber[frame] = 0,
+   
+   VertexCoordinates[frame] := Transpose@VertexCoordinatesTr[frame],
+   
+   Value[frame] :> PotentialFunction[frame][VertexCoordinatesTr[frame]],
+   Gradient[frame] :> Partition[
+     Grad[PotentialFunction[frame], VertexCoordinatesTr[frame]],
+     VertexCount[frame]],
+   StepSize[frame] :> With[
+     {grad = Gradient[frame],
+      x0 = VertexCoordinatesTr[frame],
+      pe0 = Value[frame],
+      pf = PotentialFunction[frame],
+      minss = MinStepSize[frame]},
+     With[
+       {gradNorm = Sqrt@Total[Join @@ grad^2],
+        maxVtxNorm = Sqrt@Max@Total[grad^2]},
+       NestWhile[
+         (0.5*#) &,
+         MaxVertexChange[frame]/maxVtxNorm,
+         #*maxVtxNorm > minss && pe0 < pf[x0 - #*grad] &]]],
+   Next[frame] := If[StepSize[frame] <= MinStepSize[frame],
+     None,
+     Clone[
+       frame,
+       VertexCoordinatesTr -> (VertexCoordinatesTr[frame] - StepSize[frame]*Gradient[frame]),
+       StepNumber -> (StepNumber[frame] + 1)]],
+   
+   RegistrationFrameQ[frame] -> Which[
+     Dimensions[VertexCoordinatesTr[frame]] != Dimensions[frame], Message[
+       RegistrationFrame::badarg,
+       "coordinates have the wrong dimensions: " <> ToString[Dimensions@VertexCoordinatesTr[frame]]
+         <> " and " <> ToString@Dimensions[frame]],
+     MaxVertexChange[frame] <= 0, Message[
+       RegistrationFrame::badarg,
+       "MaxVertexChange must be > 0"],
+     MinStepSize[frame] <= 0, Message[
+       RegistrationFrame::badarg,
+       "MinSteoSize must be > 0"],
+     Head[PotentialFunction[frame]] =!= 
+     CorticalPotentialFunctionInstance, Message[
+       RegistrationFrame::badarg,
+       "Invalid cortical potential function"],
+     True, True]},
+  SetSafe -> True,
+  Symbol -> RegistrationFrameData];
+MakeBoxes[frame:RegistrationFrameData[___], form_] := MakeBoxes[#]& @ With[
+  {style = {
+     FontSize -> 11,
+     FontColor -> Gray,
+     FontFamily -> "Arial",
+     FontWeight -> "Thin"}},
+  Row[
+    {"RegistrationFrame"[
+       Panel[
+         Grid[
+           MapThread[
+             Function[{Spacer[4], Style[#1, Sequence @@ style], Spacer[2], #2, Spacer[4]}],
+             {{"Step Number:", "Potential:", "Max Vertex Gradient:"},
+              {StepNumber[frame], Value[frame], Max@ColumnNorms[Gradient[frame]]}}],
+           Alignment -> Table[{Right, Right, Center, Left, Left}, {3}]]]]},
+    BaseStyle -> Darker[Gray]]];
+Protect[RegistrationFrame, RegistrationFrameData, RegistrationFrameQ, StepNumber, StepSize, 
+        MinStepSize, MaxVertexChange];
+
+(* #RegistrationTrajectory ************************************************************************)
+Options[RegistrationTrajectory] = {
+  MaxVertexChange -> 0.1,
+  MinStepSize -> 10^-5,
+  CacheFrequency -> 50,
+  InitialVertexCoordinates -> Automatic,
+  AutoCache -> None};
+DefineImmutable[
+  RegistrationTrajectory[
+    mesh_?CorticalObjectQ,
+    P_CorticalPotentialFunctionInstance,
+    opts:OptionsPattern[]] :> traj,
+  {MaxVertexChange[traj] = OptionValue[MaxVertexChange],
+   MinStepSize[traj] = OptionValue[MinStepSize],
+
+   CacheFrequency[traj] -> OptionValue[CacheFrequency],
+   AutoCache[traj] -> With[
+     {tmp = OptionValue[AutoCache]},
+     Which[
+       tmp === None || tmp === False, None,
+       !StringQ[tmp] || !StringContainsQ[tmp, "XXX"~~"X"..], Message[
+         RegistrationTrajectory::badarg,
+         "AutoCache must be a string with at least 4 X's"],
+       True, Function[
+         Which[
+           # === Normal, tmp,
+           True, StringReplace[
+             tmp,
+             s:("XXX"~~"X"..) :> If[IntegerQ[#], 
+               IntegerString[#, 10, StringLength[s]],
+               ToString[#]]]]]]],
+   PotentialFunction[traj] -> P,
+   CorticalMesh[traj] -> mesh,
+   InitialFrame[traj] -> With[
+     {f0 = RegistrationFrame[
+        PotentialFunction[traj],
+        Replace[
+          OptionValue[InitialVertexCoordinates],
+          {Automatic :> VertexCoordinatesTr[mesh],
+           X_ /; Dimensions[X] == Dimensions@VertexCoordinates[mesh] :> Transpose[X],
+           X_ /; Dimensions[X] == Dimensions@VertexCoordinatesTr[mesh] :> X,
+           _ :> Message[
+             RegistrationTrajectory::badarg,
+             "InitialVertexCoordinaets must be Automatic or an appropriately sized matrix"]}],
+        Sequence @@ FilterRules[{opts}, Options[RegistrationFrame]]]},
+     Which[
+       !RegistrationFrameQ[f0], Message[
+         RegistrationTrajectory::badarg,
+         "arguments did not produce a valid initial frame"],
+       Dimensions@VertexCoordinatesTr@f0 != Dimensions@VertexCoordinatesTr[mesh], Message[
+         RegistrationTrajectory::badarg,
+         "X0 must be appropriately sized for VertexCoordinatesTr[mesh]"],
+       True, f0]],
+   Symbol[traj] -> With[
+     {f = CacheFrequency[traj],
+      F0 = InitialFrame[traj],
+      ac = AutoCache[traj],
+      sym = TemporarySymbol["trajectory"]},
+     If[!IntegerQ[f] || f < 1,
+       Message[RegistrationTrajectory::badarg, "CacheFrequency must be an integer > 0"]];
+     sym /: Max[sym] = 0;
+     sym /: Last[sym] = Infinity;
+     sym[0] = F0;
+     sym[k_Integer /; k > 0] := Check[
+       If[k > Last[sym],
+         sym[Last[sym]],
+         With[
+           {cache = If[Mod[k, f] == 0,
+              Catch@AutoCache[ac[k], Throw@None],
+              None],
+            prev = f*Floor[(k - 1)/f]},
+           With[
+             {rule = If[cache =!= None,
+                cache,
+                With[
+                  {res = Check[
+                     NestWhile[
+                       Function@With[
+                         {nexts = NestList[Next, #, k - prev]},
+                         With[
+                           {okIDs = Indices[nexts, Except[None]]},
+                           With[
+                             {end = VertexCoordinatesTr[nexts[[Last@okIDs]]],
+                              endID = Last@okIDs},
+                             If[Or[!ArrayQ[end, 2, NumericQ],
+                                   CorticalMapQ[mesh] && MapTangledQ[mesh, Transpose@end]],
+                               Clone[#, MaxVertexChange -> (0.5 * MaxVertexChange[#])],
+                               (prev + endID - 1) -> end]]]],
+                       sym[prev],
+                       Function@Which[
+                         Head[#] === Rule, False,
+                         MaxVertexChange[#] <= 0, Message[
+                           RegistrationTrajectory::nocnv,
+                           "stepsize reduced to 0"],
+                         True, True]],
+                     $Failed]},
+                  If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === None,
+                    AutoCache[ac[k], res],
+                    res]]]},
+             If[rule === $Failed,
+               $Failed,
+               With[
+                 {frame = Clone[
+                    F0,
+                    StepNumber -> rule[[1]],
+                    VertexCoordinatesTr -> rule[[2]]]},
+                 If[rule[[1]] > Max[sym], sym /: Max[sym] = rule[[1]]];
+                 If[k > rule[[1]], sym /: Last[sym] = rule[[1]]];
+                 If[Mod[k, f] == 0 && k == rule[[1]], sym[k] = frame];
+                 frame]]]]],
+       $Failed];
+     sym],
+   
+   Frame[traj, k_Integer /; k >= 0] := Symbol[traj][k],
+   Frame[traj, ks_ /; ArrayQ[ks, 1, IntegerQ[#] && # >= 0 &]] := Map[Symbol[traj], ks],
+   FinalFrame[traj] :> With[
+     {sym = Symbol[traj], f = CacheFrequency[traj]},
+     NestWhile[
+       (sym[#]; # + f)&,
+       f * Floor[(Max[sym] + f) / f],
+       Last[sym] === Infinity &];
+     sym[Last[sym]]],
+
+   RegistrationTrajectoryQ[traj] -> With[
+     {mvc = MaxVertexChange[traj],
+      mss = MinStepSize[traj],
+      cfreq = CacheFrequency[traj]},
+     Which[
+       mvc <= 0, Message[
+         RegistrationTrajectory::badarg,
+         "MaxVertexChange must be > 0"],
+       mss <= 0, Message[
+         RegistrationTrajectory::badarg,
+         "MinSteoSize must be > 0"],
+       cfreq =!= None && (! IntegerQ[cfreq] || cfreq < 1), Message[
+         RegistrationTrajectory::badarg,
+         "CacheFrequency must be an integer > 0 or None"],
+       True, True]]},
+  Symbol -> RegistrationTrajectoryData,
+  SetSafe -> True];
+MakeBoxes[frame:RegistrationTrajectoryData[___], form_] := MakeBoxes[#]& @ With[
+  {style = {
+     FontSize -> 11,
+     FontColor -> Gray,
+     FontFamily -> "Arial",
+     FontWeight -> "Thin"}},
+  Row[
+    {"RegistrationTrajectory"[
+       Panel[
+         Grid[
+           MapThread[
+             Function[{Spacer[4], Style[#1, Sequence @@ style], Spacer[2], #2, Spacer[4]}],
+             {{"Dimensions:", "Potential Function:"},
+              {Dimensions@VertexCoordinates@InitialFrame[frame], PotentialFunction[frame]}}],
+         Alignment -> Table[{Right, Right, Center, Left, Left}, {3}]]]]},
+     BaseStyle -> Darker[Gray]]];
+Protect[RegistrationTrajectory, RegistrationTrajectoryData, RegistrationTrajectoryQ, CacheFrequency,
+        InitialFrame, InitialVertexCoordinates];
+
+(* #MeshRegister **********************************************************************************)
+(*
+Options[MeshRegister] = Join[
+  Options[RegistrationTrajectory],
+  {MaxIterations -> 10000}];
+MeshRegister[mesh_?CorticalObjectQ,
+             PF_CorticalPotentialFunctionInstance,
+             opts:OptionsPattern[]] := With[
+  {maxiter = Replace[
+     Option},
+  With[
+    {},
+    ]];
+*)
 
 End[];
 EndPackage[];
