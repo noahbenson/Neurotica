@@ -754,18 +754,13 @@ HarmonicPotentialWellParseHarmonic[x0_, OptionsPattern[]] := With[
 Protect[HarmonicPotentialWellParseHarmonic];
 
 HarmonicPotentialWellParseSpec[mesh_, Rule[idcsArg_, harmonicArg_]] := Check[
-  {With[
-     {CheckIndices = Replace @ {
-        id_Integer :> {id},
-        ids:{_Integer..} :> ids,
-        _ :> Message[HarmonicPotentialWell::badarg, "index "<>ToString[idcsArg]<>" not found"]}},
-     Which[
-       IntegerQ[idcsArg], CheckIndices @ VertexIndex[mesh, idcsArg],
-       ArrayQ[idcsArg, 1, IntegerQ], CheckIndices @ VertexIndex[mesh, idcsArg],
-       All, Range[VertexCount[mesh]],
-       True, Message[
-         HarmonicPotentialWell::badarg,
-         "Harmonic well spec's indices must be an integer or a list of integers"]]],
+  {Which[
+     IntegerQ[idcsArg], {VertexIndex[mesh, idcsArg]},
+     ArrayQ[idcsArg, 1, IntegerQ], {VertexIndex[mesh, idcsArg]},
+     All, Range[VertexCount[mesh]],
+     True, Message[
+       HarmonicPotentialWell::badarg,
+       "Harmonic well spec's indices must be an integer or a list of integers"]],
    Which[
      ArrayQ[harmonicArg, 1, NumericQ], HarmonicPotentialWellParseHarmonic[harmonicArg],
      ListQ[harmonicArg], Apply[HarmonicPotentialWellParseHarmonic, harmonicArg],
