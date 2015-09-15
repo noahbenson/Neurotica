@@ -107,7 +107,7 @@ FlipIntegerBytes[i] is equivalent to FlipIntegerBytes[i, \"Integer32\"].";
 FlipIntegerBytes::badarg = "Bad argument given to FlipIntegerBytes: `1`";
 
 Unboole::usage = "Unboole[u] yields a value or list the same length as the list u in which all zero elements have been converted to False and all non-zero elements have been converted to True; effectively this is the opposite of the Boole function. Unboole automatically threads over lists.
-Note: If the argument to Unboole is not a real number or an integer, then Unboole yields False for any PossibleZeroQ value and True for all others.";
+Note: If the argument to Unboole is not a real number or an integer, then Unboole yields a Piecewise function that checks for the argument == 0.";
 
 MapNamed::usage = "MapNamed[f, {name1 -> list1, name2 -> list2, ...}] is identical to MapThread[f, {list1, list2...}] except that instead of passing the members of the various lists as the first, second, etc. argument to f, MapNamed passes a single Association argument to f with the appropriate values named according to the names in the given list.
 MapNamed[f, name -> list] is equivalent to MapNamed[f, {name -> list}].
@@ -776,7 +776,7 @@ With[
   Unboole[x_Real] := FT[[Unitize[x] + 1]];
   Unboole[x_Integer] := FT[[Unitize[x] + 1]];
   Unboole[x_?NumericQ] := FT[[Unitize[x] + 1]];
-  Unboole[x_] := Piecewise[{{False, PossibleZeroQ[x]}}, True];
+  Unboole[x_] := Piecewise[{{False, x == 0}}, True];
   Unboole[x_List /; ArrayQ[x, 1, NumericQ]] := FT[[Unitize[x] + 1]];
   Unboole[x_List] := Map[Unboole, x]];
 Protect[Unboole];
