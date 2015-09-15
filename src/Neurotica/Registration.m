@@ -95,6 +95,20 @@ SignedRegionDistancePotential::badarg = "Bad argument given to SignedRegionDista
 
 HarmonicPerimeterPotential::usage = "HarmonicPerimeterPotential[map] yields a cortical potential function that operates on the vertices on the perimeter of the given map to hold them in place using a harmonic potential well tied to their initial positions.";
 
+PotentialShape::usage = "To define a potential shape that can be used with the Potential[] function, one simply needs to overload the PotentialShape function. PotentialShape is always called with 1 or more argument, the first of which is the name of the potential shape, such as \"Harmonic\" or \"VDW\". The remaining arguments are any options passed along to the shape. The potentialShape[] function should return a list of three functions; each of these should accept a list of values and should return the (1) potential, (2) gradient, and (3) hessian for these values. The first of these should be simply a scalar, while the latter two should be the first and second derivatives of the potential function, thus should be lists the same length as the input list. The Hessian function may be None if the Hessian is not supported.";
+PotentialShape::badopt = "Bad option given to potential shape: `1`";
+PotentialDirection::usage = "To define a direction that can be used with the Potential[] function, one simply needs to overload the PotentialDirection function. PotentialDirection is always called with 2 or more argument, the first of which is always the mesh, the second of which is always the name of the direction, and the rest of which are any options that are passed along with the direction name. Examples of directions are \"EdgeLengths\" or \"\[CapitalDelta]Angle\". PotentialDirection should always yield a list of three functions. The first should yield a 1D list of the variable over which this potential direction operates; for example a list of the lengths of the edges or of the change in angles. The second function should accept a list the same length as the list returned by the first function that contains scalar values by which the gradient of these values should be multiplied and must retun the gradient of the particular values. For example, the EdgeLength potential direction yields, from its first function, a list of edge lengths; its second function takes a length of scalar values, one for each edge, and yields the gradient in terms of vertices, assuming that the values it is given are scalars to be multiplied by the edge gradients. The final function is equivalent, but yields the Hessian matrix for the given direction; this function may be None to indicate that the Hessian is not supported.";
+Potential::usage = "Potential[mesh, direction, shape] yields a cortical potential function for use with the given mesh based on the requiested direction and shape of the potential field. Direction specifies the value over which the potential is computed while shape specifies the kind of shape that the potential takes.
+Possible values of direction include:
+  * \"EdgeLengths\": a function of the lengths of the edges is minimized
+  * \"DEdgeLengths\": a function of the change of the lengths of the edges is minimized
+  * \"Angles\": a function of the angles is minimized
+  * \"DAngles\": a function of the change of the angles is minimized
+  * \"FixedDistance\": a function of the distance to a fixed point in minimized
+  * \"DFixedDistance\": a function of the change in the distance to a fixed point in minimized
+Possible shapes include:
+  * \"Harmonic\": the value raised to a power (default Order: 2)";
+
 CortexGradientPlot::usage = "CortexGradientPlot[mesh, functions] yields a plot of the edges in the given mesh with the arrows representing the gradient of the vertices in the mesh, according to the list of potential functions given in the list functions. In addition to all options that are valid for CortexPlot, the following options may be given:
   * Arrowheads (default: Small) indicates that the arrowheads should be the given size in the plot.
   * PlotStyle (default: Automatic) should be a list of style instructions for the arrows of the gradients; these are cycled across the potential functions as in ListPlot.
@@ -318,6 +332,9 @@ CalculateDistanceHessian = Compile[
             MapThread[Join, {Transpose@rab, raa}]]]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
+SetAttributes[CalculateDistance, NumericFunction];
+SetAttributes[CalculateDistanceGradient, NumericFunction];
+SetAttributes[CalculateDistanceHessian, NumericFunction];
 Protect[CalculateDistance, CalculateDistanceGradient, CalculateDistanceHessian];
 
 (* Compute the gradient of the angles in terms of the vertices *)
@@ -338,6 +355,7 @@ CalculateAngleIntermediateData = Compile[
         Join[u1, u2, u3, n1, n2, n3, {d1, d2, d3, cos, Re@ArcCos[cos]}]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
+SetAttributes[CalculateAngleIntermediateData, NumericFunction];
 Protect[CalculateAngleIntermediateData];
 CalculateAngle = Compile[
   {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}},
@@ -347,6 +365,7 @@ CalculateAngle = Compile[
   {{CalculateAngleIntermediateData[_,_,_], _Real, 2}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
+SetAttributes[CalculateAngle, NumericFunction];
 Protect[CalculateAngle];
 CalculateAngleGradientWithData = Compile[
   {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {data, _Real, 2}},
@@ -389,6 +408,8 @@ CalculateAngleGradient = Compile[
    {CalculateAngleGradientWithData[_,_,_,_], _Real, 3}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
+SetAttributes[CalculateAngleGradient, NumericFunction];
+SetAttributes[CalculateAngleGradientWithData, NumericFunction];
 Protect[CalculateAngleGradient, CalculateAngleGradientWithData];
 (* Used in calculating the Hessian... *)
 NormalizedVectorGradient = Compile[
@@ -408,6 +429,7 @@ NormalizedVectorGradient = Compile[
         ConstantArray[norm^3, {Length@u, Length@v}]]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
+SetAttributes[NormalizedVectorGradient, NumericFunction];
 Protect[NormalizedVectorGradient];
 VectorNormalizationFactorGradient = Compile[
   {{u, _Real, 2}, {v, _Real, 2}},
@@ -419,6 +441,7 @@ VectorNormalizationFactorGradient = Compile[
       diff / ConstantArray[norm^3, Length@diff]]],
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
+SetAttributes[VectorNormalizationFactorGradient, NumericFunction];
 Protect[VectorNormalizationFactorGradient];
 CalculateAngleHessianWithData = Function[{a,b,c,data},(*Compile[
   {{a, _Real, 2}, {b, _Real, 2}, {c, _Real, 2}, {data, _Real, 2}},*)
@@ -491,6 +514,8 @@ CalculateAngleHessian = Compile[
    {CalculateAngleHessianWithData[_,_,_,_], _Real, 5}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
+SetAttributes[CalculateAngleHessian, NumericFunction];
+SetAttributes[CalculateAngleHessianWithData, NumericFunction];
 Protect[CalculateAngleHessian, CalculateAngleHessianWithData];
 
 (* Here we compile functions for calculating harmonic angle potentials *)
@@ -521,6 +546,9 @@ CalculateHarmonicAngleHessian = Compile[
   {{CalculateAngleHessian[_,_,_], _Real, 4}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}, 
   Parallelization -> True];
+SetAttributes[CalculateHarmonicAnglePotential, NumericFunction];
+SetAttributes[CalculateHarmonicAngleGradient, NumericFunction];
+SetAttributes[CalculateHarmonicAngleHessian, NumericFunction];
 Protect[CalculateHarmonicAnglePotential, CalculateHarmonicAngleGradient,
         CalculateHarmonicAngleHessian];
 
@@ -560,6 +588,9 @@ CalculateVDWAngleHessian = Compile[
    {CalculateAngleGradientWithData[_,_,_,_], _Real, 3}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
   Parallelization -> True];
+SetAttributes[CalculateVDWAnglePotential, NumericFunction];
+SetAttributes[CalculateVDWAngleGradient, NumericFunction];
+SetAttributes[CalculateVDWAngleHessian, NumericFunction];
 Protect[CalculateVDWAnglePotential, CalculateVDWAngleGradient, CalculateVDWAngleHessian];
 
 
@@ -839,16 +870,6 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
            SumOverEdgesDirectedTr[
              mesh,
              ConstantArray[r, dims] * dX[[1]] / m]]],
-       (* This code produces the correct grad, but has been depricated:
-        With[
-          {dX = X[[All, E[[2]]]] - X[[All, E[[1]]]]},
-          With[
-            {norms = Sqrt[Total[dX^2]]},
-            With[
-              {magnitude = (D0 - norms) / (m * norms)},
-              SumOverEdgesDirectedTr[
-                mesh,
-                dX * ConstantArray[magnitude, Length[dX]]]]]]*)
        (* Hessian is trickier *)
        With[
          {x1 = X[[All, E[[1]]]], 
@@ -1112,6 +1133,73 @@ HarmonicPerimeterPotential[map_?CorticalMapQ, OptionsPattern[]] := With[
     MetaInformation -> OptionValue[MetaInformation]]];
 Protect[HarmonicPerimeterPotential];
 
+(* #PotentialDirection ****************************************************************************)
+PotentialDirection[mesh_?CorticalObjectQ, "EdgeLength"] := With[
+  {E = EdgePairsTr[mesh],
+   dims = If[CorticalMeshQ[mesh], 3, 2]},
+  {Function@ColumnNorms[#[[All, E[[2]]]] - #[[All, E[[1]]]]],
+   Function@SumOverEdgesDirectedTr[
+     mesh,
+     ConstantArray[#2, dims] * NormalizeColumns[#1[[All, E[[2]]]] - #1[[All, E[[1]]]]]],
+   None}];
+PotentialDirection[mesh_?CorticalObjectQ,
+                   "\[CapitalDelta]EdgeLength"|"DEdgeLength"|"DeltaEdgeLength"] := With[
+  {E = EdgePairsTr[mesh],
+   R0 = EdgeLengths[mesh],
+   dims = If[CorticalMeshQ[mesh], 3, 2]},
+  {Function[ColumnNorms[#[[All, E[[1]]]] - #[[All, E[[2]]]]] - R0],
+   Function@With[
+     {V = #1[[All, E[[1]]]] - #1[[All, E[[2]]]]},
+     With[
+       {R = ColumnNorms[V]},
+       SumOverEdgesDirectedTr[
+         mesh,
+         ConstantArray[#2, dims] * NormalizeColumns[(R - R0) * V]]]],
+   None}];
+PotentialDirection[mesh_?CorticalObjectQ, "Angle"] := With[
+  {F = FaceListTr[mesh],
+   dims = If[CorticalMeshQ[mesh], 3, 2]},
+  {Function[Join@@FaceAnglesTr[mesh, #]],
+   Function@With[
+     {Xf = {#1[[F[[1]]]], #1[[F[[2]]]], #1[[F[[3]]]]}},
+     With[
+       {dirs = Join@@Table[
+          CalculateAngleGradient[Xf[[i+1]], Xf[[Mod[i+1,3]+1]], Xf[[Mod[i+2,3]+1]]],
+          {i,0,2}]},
+       Table[SumOverFaceVerticesTr[mesh, #2 * dirs[[k]]], {k,1,dims}]]],
+   None}];
+PotentialDirection[mesh_?CorticalObjectQ, "\[CapitalDelta]Angle"|"DeltaAngle"|"DAngle"] := With[
+  {F = FaceListTr[mesh],
+   T0 = Join@@FaceAnglesTr[mesh],
+   dims = If[CorticalMeshQ[mesh], 3, 2]},
+  {Function[Join@@FaceAnglesTr[mesh, #] - T0],
+   Function@With[
+     {Xf = {#1[[F[[1]]]], #1[[F[[2]]]], #1[[F[[3]]]]},
+      T = FaceAnglesTr[mesh, #2]},
+     With[
+       {dirs = MapThread[
+          Apply[Join, #]&,
+          Table[
+            CalculateAngleGradient[Xf[[i+1]], Xf[[Mod[i+1,3]+1]], Xf[[Mod[i+2,3]+1]]],
+            {i,0,2}]]},
+       Table[SumOverFaceVerticesTr[mesh, #2 * dirs[[k]]], {k,1,dims}]]],
+   None}];
+
+(* #PotentialShape ********************************************************************************)
+PotentialShape[mesh_?CorticalObjectQ, "Harmonic", ref_, OptionsPattern[{Order -> 2}]] := With[
+  {q = Replace[
+     OptionValue[Order],
+     {q_ /; NumericQ[q] && q >= 1 :> q,
+      _ :> Message[PotentialShape::badopt, "Harmonic potential option Order must be >= 1"]}]},
+  {Function[1.0 / (q * Length[#]) * Abs[#]^q],
+   Function[Sign[#]*Abs[#]^(q-1) / Length[#]],
+   Function[(q - 1) / Length[#] * Abs[#]^(q - 2)]}];
+(* #here *)
+
+(* #Potential *************************************************************************************)
+
+
+
 (* #CortexGradientPlot ****************************************************************************)
 Options[CortexGradientPlot] = Join[
   {Arrowheads -> Small,
@@ -1217,45 +1305,6 @@ MapUntangle[map_?CorticalMapQ, opts:OptionsPattern[]] := MapUntangle[
   VertexCoordinates[map],
   opts];
 Protect[MapUntangle];
-(*
-With[
-  {P = HarmonicEdgePotential[map] + HarmonicAnglePotential[map],
-   hold = Replace[OptionValue[Hold], None->{}],
-   nei = VertexIndex[map, NeighborhoodList[map]]},
-  NestWhile[
-    Function @ With[
-      {X0 = #,
-       X0t = Transpose[#]},
-      With[
-        {tangles = With[
-           {t0 = MapTangles[map, X0]},
-           Complement[Union[Flatten[{t0, nei[[#]] & /@ t0}]], hold]]},
-        With[
-          {gradpart = Join[tangles, tangles + Length[X0]]},
-          Block[
-            {X, f, g},
-            f[x_List] := P[MapThread[ReplacePart[#1, Thread[tangles -> #2]]&, {X0t, x}]];
-            g[x_List] := Part[
-              Grad[P, MapThread[ReplacePart[#1, Thread[tangles -> #2]]&, {X0t, x}]],
-              gradpart];
-            ReplacePart[
-              X0,
-              Thread[
-                tangles -> Quiet[
-                  First@FindArgMin[
-                    f[X],
-                    {X, X0t[[All, tangles]]},
-                    Gradient :> g[X],
-                    Method -> {"QuasiNewton",
-                               "StepControl" -> {"LineSearch", "CurvatureFactor" -> 1.0}},
-                    AccuracyGoal -> 6,
-                    MaxIterations -> 100],
-                  {FindArgMin::cvmit, FindArgMin::lstol}]]]]]]],
-    Xtangled,
-    MapTangledQ[map, #] &,
-    1,
-    max]];
-*)
 
 (* # *******************************************************************************************)
 Options[RegistrationFrame] = {
@@ -1495,6 +1544,7 @@ Protect[RegistrationTrajectory, RegistrationTrajectoryData, RegistrationTrajecto
         InitialFrame, InitialVertexCoordinates];
 
 (* #MeshRegister **********************************************************************************)
+
 (*
 Options[MeshRegister] = Join[
   Options[RegistrationTrajectory],
