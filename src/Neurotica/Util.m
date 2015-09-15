@@ -37,6 +37,12 @@ AutoCache::nodir = "AutoCache directory (`1`) does not exist and cannot be creat
 AutoCache::nomkdir = "AutoCache directory (`1`) does not exist and AutoCache is not allowed to create it";
 AutoCache::badopt = "Bad option to AutoCache: `1`"
 
+AutoCacheFilename::usage = "AutoCacheFilename[name] yields the filename that would be used to store the auto-cache with the given name.
+AutoCacheFilename accepts the same arguments, Directory and CreateDirectory, as AutoCache and will create directories is specified.";
+
+AutoCachedQ::usage = "AutoCachedQ[name] yields True if and only if the given cache exists in the AutoCache directories.
+The Directory option may be passed as with AutoCache.";
+
 SetSafe::usage = "SetSafe[a, b] is equivalent t0 the expression (a = b) except that if any messages are generated during the evaluation of b, $Failed is yielded and a is not set.";
 
 Memoize::usage = "Memoize[f := expr] constructs a version of the pattern f that will auto-memoize its values and remember them.
@@ -100,6 +106,14 @@ FlipIntegerBytes[i, k] treats i as a k-byte integer; k may be a number (e.g., 4 
 FlipIntegerBytes[i] is equivalent to FlipIntegerBytes[i, \"Integer32\"].";
 FlipIntegerBytes::badarg = "Bad argument given to FlipIntegerBytes: `1`";
 
+Unboole::usage = "Unboole[u] yields a value or list the same length as the list u in which all zero elements have been converted to False and all non-zero elements have been converted to True; effectively this is the opposite of the Boole function. Unboole automatically threads over lists.
+Note: If the argument to Unboole is not a real number or an integer, then Unboole yields False for any PossibleZeroQ value and True for all others.";
+
+MapNamed::usage = "MapNamed[f, {name1 -> list1, name2 -> list2, ...}] is identical to MapThread[f, {list1, list2...}] except that instead of passing the members of the various lists as the first, second, etc. argument to f, MapNamed passes a single Association argument to f with the appropriate values named according to the names in the given list.
+MapNamed[f, name -> list] is equivalent to MapNamed[f, {name -> list}].
+MapNamed[f, {data...}, level] applies f to the given level of the lists in data (equivalent to MapThread's use of level).
+MapNamed[f, name -> list, level] also applies f to the given level, but expects level to be equivalent to the level passed to Map.";
+
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
 Begin["`Private`"];
@@ -136,6 +150,38 @@ $AutoCreateCacheDirectory /: Set[$AutoCreateCacheDirectory, b:(True|False)] := (
   b);
 Protect[$AutoCreateCacheDirectory];
 
+(* #AutoCacheFilename *****************************************************************************)
+Options[AutoCacheFilename] = {Directory -> Automatic, CreateDirectory -> Automatic};
+AutoCacheFilename[name_String, OptionsPattern[]] := With[
+  {splitName = FileNameSplit[name],
+   canCreate = Replace[
+       OptionValue[CreateDirectory],
+       {Automatic :> $AutoCreateCacheDirectory,
+        Except[True|False] :> (
+          Message[AutoCache::badopt, "CreateDirectory must be True, False, or Automatic"];
+          Throw[$Failed])}]},
+  With[
+    {dir = Replace[
+       OptionValue[Directory],
+       {Automatic :> Which[
+          First[splitName] == "", FileNameJoin[Most[splitName]],
+          First[splitName] == "~", FileNameJoin[Most[splitName]],
+          $CacheDirectory === Temporary, ($CacheDirectory = CreateDirectory[]),
+          True, $CacheDirectory],
+        Except[_String] :> (
+          Message[AutoCache::badopt, "Directory must be Automatic or a string"];
+          Throw[$Failed])}],
+     file = StringReplace[Last[splitName], {s:(__ ~~ ".mx") :> s, s__ :> (s <> ".mx")}, 1]},
+    Catch@FileNameJoin[
+      {Which[
+         DirectoryQ[dir], dir,
+         canCreate, Replace[
+           CreateDirectory[dir],
+           $Failed :> (Message[AutoCache::nodir, dir]; Throw[$Failed])],
+         True, (Message[AutoCache::nomkdir, dir]; Throw[$Failed])],
+       file}]]];
+Protect[AutoCacheFilename];
+
 (* #AutoCache *************************************************************************************)
 Options[AutoCache] = {
   Quiet -> False,
@@ -143,53 +189,32 @@ Options[AutoCache] = {
   Directory -> Automatic,
   CreateDirectory -> Automatic};
 Attributes[AutoCache] = {HoldRest};
-AutoCache[name_String, body_, OptionsPattern[]] := Catch[
+AutoCache[name_String, body_, OptionsPattern[]] := Catch@With[
+  {quiet = TrueQ[OptionValue[Quiet]],
+   check = TrueQ[OptionValue[Check]],
+   fileName = AutoCacheFilename[
+     name,
+     Directory -> OptionValue[Directory],
+     CreateDirectory -> OptionValue[CreateDirectory]]},
   With[
-    {splitName = FileNameSplit[name],
-     canCreate = Replace[
-       OptionValue[CreateDirectory],
-       {Automatic :> $AutoCreateCacheDirectory,
-        Except[True|False] :> (
-          Message[AutoCache::badopt, "CreateDirectory must be True, False, or Automatic"];
-          Throw[$Failed])}],
-     quiet = TrueQ[OptionValue[Quiet]],
-     check = TrueQ[OptionValue[Check]]},
+    {cachedRes = If[StringQ[fileName] && FileExistsQ[fileName],
+       Block[{Global`data = None}, Get[fileName]; Global`data],
+       None]},
     With[
-      {dir = Replace[
-         OptionValue[Directory],
-         {Automatic :> Which[
-            First[splitName] == "", FileNameJoin[Most[splitName]],
-            First[splitName] == "~", FileNameJoin[Most[splitName]],
-            $CacheDirectory === Temporary, ($CacheDirectory = CreateDirectory[]),
-            True, $CacheDirectory],
-          Except[_String] :> (
-            Message[AutoCache::badopt, "Directory must be Automatic or a string"];
-            Throw[$Failed])}],
-       file = StringReplace[Last[splitName], {s:(__ ~~ ".mx") :> s, s__ :> (s <> ".mx")}, 1]},
-      With[
-        {fileName = Catch[
-           FileNameJoin[
-             {Which[
-                DirectoryQ[dir], dir,
-                canCreate, Replace[
-                  CreateDirectory[dir],
-                  $Failed :> (Message[AutoCache::nodir, dir]; Throw[None])],
-                True, (Message[AutoCache::nomkdir, dir]; Throw[None])],
-              file}]]},
-        With[
-          {cachedRes = If[FileExistsQ[FileNameJoin[{dir, file}]], 
-             Block[{Global`data = None}, Get[fileName]; Global`data],
-             None]},
-          With[
-            {theRes = If[cachedRes === None || cachedRes === $Failed,
-               If[check,
-                 Check[body, $Failed],
-                 body],
-               cachedRes]},
-            If[cachedRes === None || cachedRes == $Failed,
-              Block[{Global`data = theRes}, DumpSave[fileName, Global`data]]];
-            theRes]]]]]];
+      {theRes = If[cachedRes === None || cachedRes === $Failed,
+         If[check, Check[body, $Failed], body],
+         cachedRes]},
+      If[cachedRes === None || cachedRes == $Failed,
+        Block[{Global`data = theRes}, If[theRes =!= $Failed, DumpSave[fileName, Global`data]]]];
+      theRes]]];
 Protect[AutoCache];
+
+(* #AutoCachedQ ***********************************************************************************)
+Options[AutoCachedQ] = {Directory -> Automatic};
+AutoCachedQ[name_String, opts:OptionsPattern[]] := Quiet@Check[
+  FileExistsQ@AutoCacheFilename[name, CreateDirectory -> False, opts],
+  False];
+Protect[AutoCachedQ];
 
 (* #SetSafe ***************************************************************************************)
 SetAttributes[SetSafe, HoldAll];
@@ -655,7 +680,7 @@ NormalizeRows[{}] = {};
 Protect[NormalizeRows];
 
 (* #NormalizeColumns ******************************************************************************)
-NormalizeColumns[X_] := X / Table[#, {Length[X]}]&@Sqrt@Total[X^2];
+NormalizeColumns[X_] := X / ConstantArray[# + (1 - Unitize[#]), {Length[X]}]&@Sqrt@Total[X^2];
 NormalizeColumns[{}] = {};
 Protect[NormalizeColumns];
 
@@ -744,6 +769,30 @@ NeuroticaPermanentDatum[name_String] := Replace[
   Missing[___] -> None];
 Protect[NeuroticaPermanentDatum];
 
+
+(* #Unboole ***************************************************************************************)
+With[
+  {FT = {False,True}},
+  Unboole[x_Real] := FT[[Unitize[x] + 1]];
+  Unboole[x_Integer] := FT[[Unitize[x] + 1]];
+  Unboole[x_?NumericQ] := FT[[Unitize[x] + 1]];
+  Unboole[x_] := Piecewise[{{False, PossibleZeroQ[x]}}, True];
+  Unboole[x_List /; ArrayQ[x, 1, NumericQ]] := FT[[Unitize[x] + 1]];
+  Unboole[x_List] := Map[Unboole, x]];
+Protect[Unboole];
+
+(* #MapNamed **************************************************************************************)
+MapNamed[f_, args:{Rule[_,_List]..}, level_:1] := With[
+  {names = args[[All, 1]]},
+  MapThread[
+    Function[f@Association@Thread[names -> {##}]],
+    args[[All,2]],
+    level]];
+MapNamed[f_, Rule[name_, list_List], level_:{1}] := Map[
+  Function[f[<|name -> #|>]],
+  list,
+  level];
+Protect[MapNamed];
 
 End[];
 EndPackage[];
