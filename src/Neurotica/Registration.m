@@ -216,7 +216,7 @@ Unprotect[CorticalPotentialFunctionInstance];
 (* The call form for the potential is here, where it can be defined: *)
 (CPF:CorticalPotentialFunctionInstance[__])[X_ /; ArrayQ[X, 2, NumericQ]] := With[
    {f = PotentialFunction[CPF]},
-   If[Length[X] <= Length[X[[1]]], f[X], Transpose @ f[Transpose @ X]]];
+   If[Length[X] <= Length[X[[1]]], f[X], f[Transpose @ X]]];
 (CPF:CorticalPotentialFunctionInstance[__])[X_Symbol] := With[
    {tmp = TemporarySymbol["CPF"],
     f = PotentialFunction[CPF]},
@@ -869,7 +869,7 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
             r = CalculateDistance[x1, x2]},
            SumOverEdgesDirectedTr[
              mesh,
-             ConstantArray[r, dims] * dX[[1]] / m]]],
+             ConstantArray[r - D0, dims] * dX[[1]] / m]]],
        (* Hessian is trickier *)
        With[
          {x1 = X[[All, E[[1]]]], 
@@ -1056,12 +1056,12 @@ RegionDistancePotential[mesh_?CorticalObjectQ, reg_?RegionQ, {F_, G_}, OptionsPa
       Automatic :> ConstantArray[1, VertexCount[mesh]],
       _ :> Message[RegionDistancePotential::badarg, "Unrecognized VertexWeight option"]}]},
   With[
-    {idcs = Indices[weight, Except[0|0.0]],
+    {idcs = Complement[Range@Length[weight], Indices[Chop[weight], 0]],
      distFn = RegionDistance[reg],
      nearFn = RegionNearest[reg],
      W = Total[Abs@weight]},
     With[
-      {w = weight[[idcs]], absw = Abs[weight[[idcs]]]},
+      {w = Chop[weight], absw = Abs@Chop[weight[[idcs]]]},
       CorticalPotentialFunction[
         {Dot[F @ distFn @ Transpose @ X[[All, idcs]], absw] / W,
          With[
@@ -1069,10 +1069,12 @@ RegionDistancePotential[mesh_?CorticalObjectQ, reg_?RegionQ, {F_, G_}, OptionsPa
            With[
              {dX = X - Transpose[nears]},
              With[
-               {dists = ColumnNorms[dX]},
-               dX * ConstantArray[
-                 w * G[dists] / (W * (# + (1 - Unitize[#]))&[Chop @ dists]),
-                 Length[X]]]]],
+               {dists = Chop@ColumnNorms[dX]},
+               With[
+                 {nulls = Unitize[dists]},
+                 dX * ConstantArray[
+                   nulls * w * G[dists] / (W * ((1 - nulls) + dists)),
+                   Length[X]]]]]],
          None},
         X,
         Print -> OptionValue[Print],
@@ -1334,12 +1336,13 @@ DefineImmutable[
       pf = PotentialFunction[frame],
       minss = MinStepSize[frame]},
      With[
-       {gradNorm = Sqrt@Total[Join @@ grad^2],
-        maxVtxNorm = Sqrt@Max@Total[grad^2]},
-       NestWhile[
-         (0.5*#) &,
-         MaxVertexChange[frame]/maxVtxNorm,
-         #*maxVtxNorm > minss && pe0 < pf[x0 - #*grad] &]]],
+       {gradNorm = Sqrt@Total[Join @@ grad^2]},
+       With[
+         {maxVtxNorm = Max[gradNorm]},
+         NestWhile[
+           (0.5*#) &,
+           MaxVertexChange[frame]/maxVtxNorm,
+           # > minss && pe0 < pf[x0 - #*grad] &]]]],
    Next[frame] := If[StepSize[frame] <= MinStepSize[frame],
      None,
      Clone[
@@ -1441,7 +1444,8 @@ DefineImmutable[
      {f = CacheFrequency[traj],
       F0 = InitialFrame[traj],
       ac = AutoCache[traj],
-      sym = TemporarySymbol["trajectory"]},
+      sym = TemporarySymbol["trajectory"],
+      minss = MinStepSize[traj]},
      If[!IntegerQ[f] || f < 1,
        Message[RegistrationTrajectory::badarg, "CacheFrequency must be an integer > 0"]];
      sym /: Max[sym] = 0;
@@ -1452,11 +1456,11 @@ DefineImmutable[
          sym[Last[sym]],
          With[
            {cache = If[Mod[k, f] == 0,
-              Catch@AutoCache[ac[k], Throw@None],
-              None],
+              AutoCache[ac[k], $Failed],
+              $Failed],
             prev = f*Floor[(k - 1)/f]},
            With[
-             {rule = If[cache =!= None,
+             {rule = If[cache =!= $Failed,
                 cache,
                 With[
                   {res = Check[
@@ -1464,23 +1468,29 @@ DefineImmutable[
                        Function@With[
                          {nexts = NestList[Next, #, k - prev]},
                          With[
-                           {okIDs = Indices[nexts, Except[None]]},
+                           {okIDs = Complement[Range@Length[nexts], Indices[nexts, None]]},
                            With[
                              {end = VertexCoordinatesTr[nexts[[Last@okIDs]]],
                               endID = Last@okIDs},
                              If[Or[!ArrayQ[end, 2, NumericQ],
                                    CorticalMapQ[mesh] && MapTangledQ[mesh, Transpose@end]],
-                               Clone[#, MaxVertexChange -> (0.5 * MaxVertexChange[#])],
+                               Clone[
+                                 #,
+                                 MaxVertexChange -> 0.5 * Min[
+                                   MaxVertexChange /@ {#, nexts[[Last@okIDs]]}]],
                                (prev + endID - 1) -> end]]]],
                        sym[prev],
-                       Function@Which[
+                       Function[Which[
                          Head[#] === Rule, False,
-                         MaxVertexChange[#] <= 0, Message[
-                           RegistrationTrajectory::nocnv,
-                           "stepsize reduced to 0"],
-                         True, True]],
+                         # === $Failed, (
+                           Message[RegistrationTrajectory::nocnv, "could not take valid step"];
+                           False),
+                         MaxVertexChange[#] <= minss, (
+                           Message[RegistrationTrajectory::nocnv, "stepsize reduced to 0"];
+                           False),
+                         True, True]]],
                      $Failed]},
-                  If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === None,
+                  If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === $Failed,
                     AutoCache[ac[k], res],
                     res]]]},
              If[rule === $Failed,
