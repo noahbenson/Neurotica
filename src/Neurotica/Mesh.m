@@ -253,6 +253,7 @@ LabelBoundaryEdgeList::usage = "LabelBoundaryEdgeList[sub, hemi, name] yields a 
 Note that if you are defining a new subject modality, then you only need to define the LabelVertexList function.";
 LabelBoundaryEdgePairsTr::usage = "LabelBoundaryEdgePairsTr[sub, hemi, name] yields a list equivalent to Transpose[LabelBoundaryEdgePairs[sub, hemi]].";
 LabelBoundaryEdgePairs::usage = "LabelBoundaryEdgePairs[sub, hemi, name] yields a list of the edge pairs rather than the edges themselves that are returned by LabelEdgeList.";
+LabelBoundaryEdgePairs::badarg = "Bad argument given to LabelBoundary function: `1`";
 
 OccipitalPole::usage = "OccipitalPole[subject, mesh, hemisphere] is usually defined by subject modalities (e.g., FreeSurferSubject[]) such that the function yields the vertex coordinate for the occipital pole in the particular mesh and hemisphere requested.
 Note that if you define a new subject modality, then defining OccipitalPoleIndex[] for the subject should be sufficient.";
@@ -3098,54 +3099,86 @@ LabelFaceList[sub_, hemi_, name_] := Check[
 Protect[LabelFaceList];
 
 (* #LabelBoundaryEdgePairsTr **********************************************************************)
-LabelBoundaryEdgePairsTr[sub_, hemi_, name_] := Check[
+Options[LabelBoundaryEdgePairsTr] = {Method -> "Longest"};
+LabelBoundaryEdgePairsTr[sub_, hemi_, name_, OptionsPattern[]] := Check[
   With[
-    {Ft = LabelFaceListTr[sub, hemi, name]},
-    With[
-      {allE = Sort /@ Transpose[{Join@@Ft, Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
+    {Ft = LabelFaceListTr[sub, hemi, name],
+     accum = Switch[OptionValue[Method],
+       "Longest", If[#1 == {} || Length@First[#2] > Length@First[#1], #2, #1]&,
+       All, Append[#1, #2]&,
+       _, Message[
+         LabelBoundaryEdgePairs::badarg,
+         "Method must be All or \"Longest\""]]},
+    If[Length[Ft] == 0,
+      {},
       With[
-        {pairs = Select[Tally[allE], Last[#] == 1&][[All, 1]]},
+        {allE = Sort /@ Transpose[{Join@@Ft, Join[Ft[[2]], Ft[[3]], Ft[[1]]]}]},
         With[
-          {path = FindShortestPath[
-             Graph[Apply[UndirectedEdge, #]& /@ Rest[pairs]],
-             pairs[[1,1]],
-             pairs[[1,2]]]},
-          {path, RotateLeft[path]}]]]],
+          {pairs = Select[Tally[allE], Last[#] == 1&][[All, 1]],
+           sym = Unique["tag"]},
+          First@NestWhile[
+            Function@With[
+              {oldpath = #[[1]], edges = #[[2]]},
+              With[
+                {newpath = {#, RotateLeft[#]}&@FindShortestPath[
+                   Graph@Rest[edges],
+                   edges[[1,1]],
+                   edges[[1,2]]]},
+                If[Length@First[newpath] < 2,
+                  {oldpath, Rest[edges]},
+                  {accum[oldpath, newpath], Complement[edges, Sort /@ Transpose[newpath]]}]]],
+            {{}, pairs},
+            Length[#[[2]]] > 2&]]]]],
   $Failed];
 Protect[LabelBoundaryEdgePairsTr];
 
 (* #LabelBoundaryEdgePairs ************************************************************************)
-LabelBoundaryEdgePairs[sub_, hemi_, name_] := Check[
-  Transpose @ LabelBoundaryEdgePairsTr[sub, hemi, name],
+Options[LabelBoundaryEdgePairs] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryEdgePairs[sub_, hemi_, name_, opts:OptionsPattern[]] := Check[
+  With[
+    {p = LabelBoundaryEdgePairsTr[sub, hemi, name, opts]},
+    If[p == {}, p, Transpose[p]]],
   $Failed];
 Protect[LabelBoundaryEdgePairs];
 
 (* #LabelBoundaryEdgeList *************************************************************************)
-LabelBoundaryEdgeList[sub_, hemi_, name_] := Check[
-  Apply[UndirectedEdge, #]& /@ Transpose[LabelBoundaryEdgePairsTr[sub, hemi, name]],
+Options[LabelBoundaryEdgeList] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryEdgeList[sub_, hemi_, name_, opts:OptionsPattern[]] := Check[
+  Apply[UndirectedEdge, #]& /@ LabelBoundaryEdgePairs[sub, hemi, name, opts],
   $Failed];
 Protect[LabelBoundaryEdgeList];
 
 (* #LabelBoundaryVertexList ***********************************************************************)
-LabelBoundaryVertexList[sub_, hemi_, name_] := Check[
-  LabelBoundaryEdgePairsTr[sub, hemi, name][[1]],
+Options[LabelBoundaryVertexList] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryVertexList[sub_, hemi_, name_, opts:OptionsPattern[]] := Check[
+  With[
+    {e = LabelBoundaryEdgePairsTr[sub, hemi, name, opts]},
+    Which[
+      !ListQ[e], $Failed,
+      Length[e] == 0, {},
+      ArrayQ[e, 2], e[[1]],
+      True, e[[All, 1]]]],
   $Failed];
 Protect[LabelBoundaryVertexList];
 
 (* #LabelBoundaryVertexCoordinatesTr **************************************************************)
-LabelBoundaryVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
+Options[LabelBoundaryVertexCoordinatesTr] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryVertexCoordinatesTr[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]] := Check[
   With[
     {cortex = Cortex[sub, mesh, hemi]},
-    Part[
-      VertexCoordinatesTr[cortex],
-      All, 
-      VertexIndex[cortex, LabelBoundaryVertexList[sub, hemi, name]]]],
+    With[
+      {vs = VertexIndex[cortex, LabelBoundaryVertexList[sub, hemi, name, opts]],
+       X = VertexCoordinatesTr[cortex]},
+      If[ArrayQ[vs, 1],
+        X[[All, vs]],
+        X[[All, #]]& /@ vs]]],
   $Failed];
 Protect[LabelBoundaryVertexCoordinatesTr];
 
 (* #LabelBoundaryVertexCoordinates ****************************************************************)
-LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_] := Check[
-  Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name],
+Options[LabelBoundaryVertexCoordinates] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]] := Check[
+  Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name, opts],
   $Failed];
 Protect[LabelBoundaryVertexCoordinates];
 

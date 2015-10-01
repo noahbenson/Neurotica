@@ -53,6 +53,7 @@ Forget::usage = "Forget[f] forces all memoized values associated with the symbol
 Forget[\!\(\*SubscriptBox[\(f\),\(1\)]\), \!\(\*SubscriptBox[\(f\),\(2\)]\), ...] forgets each of the symbols.";
 
 Indices::usage = "Indices[list, patt] yields a list of the indices of elements that match patt in list; this is equivalent to Flatten[Position[list, patt, {1}, Heads->False]], but is considerably optimized.";
+Index::usage = "Index[list] yields an association containing, as keys, each unique element that occurs in the given list and, as values, the indices at which the corresponding element occurs in the list. For example, Index[{a,b,c,b}] == <|a -> {1}, b -> {2,4}, c -> {3}|>.";
 
 TemporarySymbol::usage = "TemporarySymbol[] yields a unique symbol that is marked as temporary.
 TemporarySymbol[string] yields a unique symbol that begins with the given string and is marked temporary.";
@@ -113,6 +114,10 @@ MapNamed::usage = "MapNamed[f, {name1 -> list1, name2 -> list2, ...}] is identic
 MapNamed[f, name -> list] is equivalent to MapNamed[f, {name -> list}].
 MapNamed[f, {data...}, level] applies f to the given level of the lists in data (equivalent to MapThread's use of level).
 MapNamed[f, name -> list, level] also applies f to the given level, but expects level to be equivalent to the level passed to Map.";
+
+DivideCheck::usage = "DivideCheck[a,b] yields a/b if Chop[b] is not equal to 0 and yields 0 if Chop[b] is equal to 0.
+DivideCheck[a,b,c] yields c if Chop[b] is equal to 0.
+Note that DivideCheck works with arrays as well as single values.";
 
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
@@ -793,6 +798,21 @@ MapNamed[f_, Rule[name_, list_List], level_:{1}] := Map[
   list,
   level];
 Protect[MapNamed];
+
+(* #DivideCheck ***********************************************************************************)
+DivideCheck[a_, b_, c_:0] := With[
+  {bne0 = Unitize@Chop[b]},
+  With[
+    {beq0 = 1 - unit},
+    c * beq0 + bneq0 * a / (b + beq0)]];
+SetAttributes[DivideCheck, NumericFunction];
+Protect[DivideCheck];
+
+(* #Index *****************************************************************************************)
+Index[data_List] := Association@Last@Reap[
+  MapThread[Sow, {Range@Length[data], data}],
+  _,
+  Rule];
 
 End[];
 EndPackage[];
