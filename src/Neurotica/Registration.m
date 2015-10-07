@@ -1468,18 +1468,20 @@ DefineImmutable[
                   {res = Check[
                      NestWhile[
                        Function@With[
-                         {nexts = NestWhileList[Next, #, (Next[#] =!= None)&, 1, k - prev]},
-                         Which[
-                           nexts == {}, prev -> VertexCoordinatesTr[#],
-                           Or[!RegistrationFrameQ@Last[nexts],
-                              !ArrayQ[VertexCoordinatesTr@Last[nexts], 2, NumericQ],
-                              MapTangledQ[cmesh, VertexCoordinates@Last[nexts]]], Clone[
-                                #,
-                                MaxVertexChange -> 0.5 * Min[MaxVertexChange /@ {#, Last[nexts]}]],
-                           Length[nexts] < k - prev, Rule[
-                             prev + Length[nexts],
-                             VertexCoordinatesTr@Last[nexts]],
-                           True, k -> VertexCoordinatesTr@Last[nexts]]],
+                         {nexts = Rest@NestWhileList[Next, #, (Next[#] =!= None)&, 1, k - prev]},
+                         With[
+                           {ln = If[nexts == {}, None, Last[nexts]]},
+                           Which[
+                             nexts == {}, prev -> VertexCoordinatesTr[#],
+                             Or[!RegistrationFrameQ[ln],
+                                !ArrayQ[VertexCoordinatesTr[ln], 2, NumericQ],
+                                MapTangledQ[cmesh, VertexCoordinates[ln]]], Clone[
+                                  #,
+                                  MaxVertexChange -> 0.5 * Min[MaxVertexChange /@ {#, ln}]],
+                             Length[nexts] < k - prev, Rule[
+                               prev + Length[nexts],
+                               VertexCoordinatesTr[ln]],
+                           True, k -> VertexCoordinatesTr[ln]]]],
                        sym[prev],
                        Function@Which[
                          Head[#] === Rule, False,
