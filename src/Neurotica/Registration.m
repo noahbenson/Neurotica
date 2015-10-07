@@ -139,6 +139,7 @@ RegistrationTrajectory::usage = "RegistrationTrajectory[mesh, F] yields a regist
   * MinStepSize (default: 10^-5) specifies that the minimum gradient length that must be reached for the minimization to be considered complete.
   * CacheFrequency (default: 50) specifies that the registration will save every <n>'th frame during minimization.";
 RegistrationTrajectory::badarg = "Bad argument given to RegistrationTrajectory: `1`";
+RegistrationTrajectory::nocnv = "Failure to converge: `1`";
 RegistrationTrajectoryData::usage = "RegistrationTrajectoryData[...] is used to represent a registration trajectory object.";
 RegistrationTrajectoryQ::usage = "RegistrationTrajectoryQ[traj] yields True if and only if traj is a RegistrationTrajectory object.";
 CacheFrequency::usage = "CacheFrequency is an argument given to RegistrationTrajectory that specifies how often a frame in the registration should be cached; by default the value is 100.";
@@ -1444,6 +1445,7 @@ DefineImmutable[
      {f = CacheFrequency[traj],
       F0 = InitialFrame[traj],
       ac = AutoCache[traj],
+      cmesh = CorticalMesh[traj],
       sym = TemporarySymbol["trajectory"],
       minss = MinStepSize[traj]},
      If[!IntegerQ[f] || f < 1,
@@ -1466,21 +1468,20 @@ DefineImmutable[
                   {res = Check[
                      NestWhile[
                        Function@With[
-                         {nexts = NestList[Next, #, k - prev]},
-                         With[
-                           {okIDs = Complement[Range@Length[nexts], Indices[nexts, None]]},
-                           With[
-                             {end = VertexCoordinatesTr[nexts[[Last@okIDs]]],
-                              endID = Last@okIDs},
-                             If[Or[!ArrayQ[end, 2, NumericQ],
-                                   CorticalMapQ[mesh] && MapTangledQ[mesh, Transpose@end]],
-                               Clone[
-                                 #,
-                                 MaxVertexChange -> 0.5 * Min[
-                                   MaxVertexChange /@ {#, nexts[[Last@okIDs]]}]],
-                               (prev + endID - 1) -> end]]]],
+                         {nexts = NestWhileList[Next, #, (Next[#] =!= None)&, 1, k - prev]},
+                         Which[
+                           nexts == {}, prev -> VertexCoordinatesTr[#],
+                           Or[!RegistrationFrameQ@Last[nexts],
+                              !ArrayQ[VertexCoordinatesTr@Last[nexts], 2, NumericQ],
+                              MapTangledQ[cmesh, VertexCoordinates@Last[nexts]]], Clone[
+                                #,
+                                MaxVertexChange -> 0.5 * Min[MaxVertexChange /@ {#, Last[nexts]}]],
+                           Length[nexts] < k - prev, Rule[
+                             prev + Length[nexts],
+                             VertexCoordinatesTr@Last[nexts]],
+                           True, k -> VertexCoordinatesTr@Last[nexts]]],
                        sym[prev],
-                       Function[Which[
+                       Function@Which[
                          Head[#] === Rule, False,
                          # === $Failed, (
                            Message[RegistrationTrajectory::nocnv, "could not take valid step"];
@@ -1488,7 +1489,7 @@ DefineImmutable[
                          MaxVertexChange[#] <= minss, (
                            Message[RegistrationTrajectory::nocnv, "stepsize reduced to 0"];
                            False),
-                         True, True]]],
+                         True, True]],
                      $Failed]},
                   If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === $Failed,
                     AutoCache[ac[k], res],
@@ -1545,7 +1546,7 @@ MakeBoxes[frame:RegistrationTrajectoryData[___], form_] := MakeBoxes[#]& @ With[
        Panel[
          Grid[
            MapThread[
-             Function[{Spacer[4], Style[#1, Sequence @@ style], Spacer[2], #2, Spacer[4]}],
+             {Spacer[4], Style[#1, Sequence @@ style], Spacer[2], #2, Spacer[4]}&,
              {{"Dimensions:", "Potential Function:"},
               {Dimensions@VertexCoordinates@InitialFrame[frame], PotentialFunction[frame]}}],
          Alignment -> Table[{Right, Right, Center, Left, Left}, {3}]]]]},
