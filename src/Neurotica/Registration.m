@@ -1118,7 +1118,9 @@ SignedRegionDistancePotential[mesh_?CorticalObjectQ,
              {dX = X - Transpose[nears]},
              With[
                {dists = distFn[Transpose @ X[[All, idcs]]]},
-               dX * ConstantArray[w * G[dists] / (W * dists), Length[X]]]]],
+               dX * ConstantArray[
+                 w * G[dists] / (# + (1 - Unitize[#]))&@(W * dists),
+                 Length[X]]]]],
          None},
         X,
         Print -> OptionValue[Print],
