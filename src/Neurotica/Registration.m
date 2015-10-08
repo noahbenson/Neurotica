@@ -1104,7 +1104,9 @@ SignedRegionDistancePotential[mesh_?CorticalObjectQ,
   With[
     {idcs = Indices[weight, Except[0|0.0]],
      distFn = SignedRegionDistance[reg],
-     nearFn = RegionNearest[reg],
+     nearFn = RegionNearest@MeshRegion[
+       MeshCoordinates[reg], 
+       MeshCells[reg, If[CorticalMapQ[mesh], 1, 2]]],
      W = Total[Abs@weight]},
     With[
       {w = weight[[idcs]], absw = Abs[weight[[idcs]]]},
