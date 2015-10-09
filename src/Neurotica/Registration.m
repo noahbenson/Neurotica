@@ -1341,9 +1341,9 @@ DefineImmutable[
       pf = PotentialFunction[frame],
       minss = MinStepSize[frame]},
      With[
-       {gradNorm = Sqrt@Total[Join @@ grad^2]},
+       {gradNorms = ColumnNorms[grad]},
        With[
-         {maxVtxNorm = Max[gradNorm]},
+         {maxVtxNorm = Max[gradNorms]},
          NestWhile[
            (0.5*#) &,
            MaxVertexChange[frame]/maxVtxNorm,
