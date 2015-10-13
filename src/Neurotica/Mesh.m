@@ -3040,6 +3040,12 @@ CorticalLabelVertexList[mesh_?CorticalMeshQ, label_] := Which[
   True, (Message[CorticalLabelVertexList::notlab]; $Failed)];
 
 (* #LabelVertexCoordinatesTr **********************************************************************)
+LabelVertexCoordinatesTr[cortex_?CorticalObjectQ, name_] := Check[
+  Part[
+    VertexCoordinatesTr[cortex],
+    All,
+    VertexIndex[cortex, CorticalLabelVertexList[cortex, name]]],
+  $Failed];
 LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
   With[
     {cortex = Cortex[sub, mesh, hemi]},
@@ -3051,24 +3057,32 @@ LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
 Protect[LabelVertexCoordinatesTr];
 
 (* #LabelVertexCoordinates ************************************************************************)
+LabelVertexCoordinates[cortex_?CorticalObjectQ, name_] := Check[
+  Transpose[LabelVertexCoordinatesTr[cortex, name]],
+  $Failed];
 LabelVertexCoordinates[sub_, mesh_, hemi_, name_] := Check[
   Transpose[LabelVertexCoordinatesTr[sub, mesh, hemi, name]],
   $Failed];
 Protect[LabelVertexCoordinates];
 
 (* #LabelEdgePairsTr ******************************************************************************)
-LabelEdgePairsTr[sub_, hemi_, name_] := Check[
+LabelEdgePairsTr[cortex_?CorticalObjectQ, name_] := Check[
   With[
-    {U = LabelVertexList[sub, hemi, name],
-     cortex = Cortex[sub, Automatic, hemi]},
+    {U = CorticalLabelVertexList[cortex, name]},
     With[
       {UE = VertexEdgeList[cortex][[VertexIndex[cortex, U]]],
        Et = EdgePairsTr[cortex]},
       Et[[All, Select[Tally[Join@@UE], Last[#] == 2&][[All, 1]]]]]],
   $Failed];
+LabelEdgePairsTr[sub_, hemi_, name_] := Check[
+  LabelEdgePairsTr[Cortex[sub, Automatic, hemi], name],
+  $Failed];
 Protect[LabelEdgePairsTr];
 
 (* #LabelEdgePairs ********************************************************************************)
+LabelEdgePairs[cortex_?CorticalObjectQ, name_] := Check[
+  Transpose @ LabelEdgePairsTr[cortex, name],
+  $Failed];
 LabelEdgePairs[sub_, hemi_, name_] := Check[
   Transpose @ LabelEdgePairsTr[sub, hemi, name],
   $Failed];
@@ -3081,6 +3095,14 @@ LabelEdgeList[sub_, hemi_, name_] := Check[
 Protect[LabelEdgeList];
 
 (* #LabelFaceListTr ******************************************************************************)
+LabelFaceListTr[cortex_?CorticalObjectQ, name_] := Check[
+  With[
+    {U = CorticalLabelVertexList[cortex, name]},
+    With[
+      {UF = VertexFaceList[cortex][[VertexIndex[cortex, U]]],
+       Ft = FaceListTr[cortex]},
+      Ft[[All, Select[Tally[Join@@UF], Last[#] == 3&][[All, 1]]]]]],
+  $Failed];
 LabelFaceListTr[sub_, hemi_, name_] := Check[
   With[
     {U = LabelVertexList[sub, hemi, name],
@@ -3093,6 +3115,9 @@ LabelFaceListTr[sub_, hemi_, name_] := Check[
 Protect[LabelFaceListTr];
 
 (* #LabelFaceList *********************************************************************************)
+LabelFaceList[cortex_?CorticalObjectQ, name_] := Check[
+  Transpose @ LabelFaceListTr[cortex, name],
+  $Failed];
 LabelFaceList[sub_, hemi_, name_] := Check[
   Transpose @ LabelFaceListTr[sub, hemi, name],
   $Failed];
@@ -3100,10 +3125,9 @@ Protect[LabelFaceList];
 
 (* #LabelBoundaryEdgePairsTr **********************************************************************)
 Options[LabelBoundaryEdgePairsTr] = {Method -> "Longest"};
-LabelBoundaryEdgePairsTr[sub_, hemi_, name_, OptionsPattern[]] := Check[
+LabelBoundaryEdgePairsTrFromFaceList[Ft_, name_, methodOpt_] := Check[
   With[
-    {Ft = LabelFaceListTr[sub, hemi, name],
-     accum = Switch[OptionValue[Method],
+    {accum = Switch[methodOpt,
        "Longest", If[#1 == {} || Length@First[#2] > Length@First[#1], #2, #1]&,
        All, Append[#1, #2]&,
        _, Message[
@@ -3130,10 +3154,21 @@ LabelBoundaryEdgePairsTr[sub_, hemi_, name_, OptionsPattern[]] := Check[
             {{}, pairs},
             Length[#[[2]]] > 2&]]]]],
   $Failed];
+LabelBoundaryEdgePairsTr[cortex_?CorticalObjectQ, name_, OptionsPattern[]] := Check[
+  LabelBoundaryEdgePairsTrFromFaceList[LabelFaceListTr[cortex, name], name, OptionValue[Method]],
+  $Failed];
+LabelBoundaryEdgePairsTr[sub_, hemi_, name_, OptionsPattern[]] := Check[
+  LabelBoundaryEdgePairsTrFromFaceList[LabelFaceListTr[sub, hemi, name], name, OptionValue[Method]],
+  $Failed];
 Protect[LabelBoundaryEdgePairsTr];
 
 (* #LabelBoundaryEdgePairs ************************************************************************)
 Options[LabelBoundaryEdgePairs] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryEdgePairs[cortex_?CorticalObjectQ, name_, opts:OptionsPattern[]] := Check[
+  With[
+    {p = LabelBoundaryEdgePairsTr[cortex, name, opts]},
+    If[p == {}, p, Transpose[p]]],
+  $Failed];
 LabelBoundaryEdgePairs[sub_, hemi_, name_, opts:OptionsPattern[]] := Check[
   With[
     {p = LabelBoundaryEdgePairsTr[sub, hemi, name, opts]},
@@ -3143,6 +3178,9 @@ Protect[LabelBoundaryEdgePairs];
 
 (* #LabelBoundaryEdgeList *************************************************************************)
 Options[LabelBoundaryEdgeList] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryEdgeList[cortex_?CorticalObjectQsub_, name_, opts:OptionsPattern[]] := Check[
+  Apply[UndirectedEdge, #]& /@ LabelBoundaryEdgePairs[cortex, name, opts],
+  $Failed];
 LabelBoundaryEdgeList[sub_, hemi_, name_, opts:OptionsPattern[]] := Check[
   Apply[UndirectedEdge, #]& /@ LabelBoundaryEdgePairs[sub, hemi, name, opts],
   $Failed];
@@ -3150,6 +3188,15 @@ Protect[LabelBoundaryEdgeList];
 
 (* #LabelBoundaryVertexList ***********************************************************************)
 Options[LabelBoundaryVertexList] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryVertexList[cortex_?CorticalObjectQ, name_, opts:OptionsPattern[]] := Check[
+  With[
+    {e = LabelBoundaryEdgePairsTr[cortex, name, opts]},
+    Which[
+      !ListQ[e], $Failed,
+      Length[e] == 0, {},
+      ArrayQ[e, 2], e[[1]],
+      True, e[[All, 1]]]],
+  $Failed];
 LabelBoundaryVertexList[sub_, hemi_, name_, opts:OptionsPattern[]] := Check[
   With[
     {e = LabelBoundaryEdgePairsTr[sub, hemi, name, opts]},
@@ -3163,20 +3210,24 @@ Protect[LabelBoundaryVertexList];
 
 (* #LabelBoundaryVertexCoordinatesTr **************************************************************)
 Options[LabelBoundaryVertexCoordinatesTr] = Options[LabelBoundaryEdgePairsTr];
-LabelBoundaryVertexCoordinatesTr[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]] := Check[
+LabelBoundaryVertexCoordinatesTr[cortex_?CorticalObjectQ, name_, opts:OptionsPattern[]] := Check[
   With[
-    {cortex = Cortex[sub, mesh, hemi]},
-    With[
-      {vs = VertexIndex[cortex, LabelBoundaryVertexList[sub, hemi, name, opts]],
-       X = VertexCoordinatesTr[cortex]},
-      If[ArrayQ[vs, 1],
-        X[[All, vs]],
-        X[[All, #]]& /@ vs]]],
+    {vs = VertexIndex[cortex, LabelBoundaryVertexList[cortex, name, opts]],
+     X = VertexCoordinatesTr[cortex]},
+    If[ArrayQ[vs, 1],
+      X[[All, vs]],
+      X[[All, #]]& /@ vs]],
+  $Failed];
+LabelBoundaryVertexCoordinatesTr[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]] := Check[
+  LabelBoundaryVertexCoordinatesTr[Cortex[sub, mesh, hemi], name, opts],
   $Failed];
 Protect[LabelBoundaryVertexCoordinatesTr];
 
 (* #LabelBoundaryVertexCoordinates ****************************************************************)
 Options[LabelBoundaryVertexCoordinates] = Options[LabelBoundaryEdgePairsTr];
+LabelBoundaryVertexCoordinates[cortex_?CorticalObjectQ, name_, opts:OptionsPattern[]] := Check[
+  Transpose @ LabelBoundaryVertexCoordinatesTr[cortex, name, opts],
+  $Failed];
 LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]] := Check[
   Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name, opts],
   $Failed];
