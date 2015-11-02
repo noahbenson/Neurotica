@@ -1308,6 +1308,9 @@ DefineImmutable[
 
 
      (* ======================================= Interfaces ====================================== *)
+
+     (* Labels *)
+     LabelVertexList[mesh, args___] := CorticalLabelVertexList[mesh, args],
    
      (* #MeshRegion *)
      MeshRegion[mesh] :> MeshRegion[VertexCoordinates[mesh], Polygon[FaceList[mesh]]],
@@ -1954,6 +1957,9 @@ DefineImmutable[
      InverseProjectVectors[map, U_List] := Transpose @ InverseProjectVectors[map, Transpose[U]],
 
      (* ======================================= Interfaces ====================================== *)
+
+     (* Labels *)
+     LabelVertexList[mesh, args___] := CorticalLabelVertexList[mesh, args],
 
      (* #BoundaryMeshRegion *)
      BoundaryMeshRegion[map] :> BoundaryMeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
