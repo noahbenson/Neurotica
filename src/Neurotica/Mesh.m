@@ -1959,7 +1959,7 @@ DefineImmutable[
      (* ======================================= Interfaces ====================================== *)
 
      (* Labels *)
-     LabelVertexList[mesh, args___] := CorticalLabelVertexList[mesh, args],
+     LabelVertexList[map, args___] := CorticalLabelVertexList[mesh, args],
 
      (* #BoundaryMeshRegion *)
      BoundaryMeshRegion[map] :> BoundaryMeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
