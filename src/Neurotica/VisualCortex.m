@@ -355,12 +355,9 @@ CompileSchiraFunction[a_, b_, lambda_, psi_, shearMtx_, scale_, fc_, areas_] := 
      fcx0 = N[Log[(a + lambda) / (b + lambda)]],
      xscale = If[NumberQ[scale], scale, scale[[1]]],
      yscale = If[NumberQ[scale], scale, scale[[2]]],
-     mtx = MapThread[
-       Append,
-       {Dot[
-          RotationMatrix[N[psi]],
-          N[shearMtx]],
-        N[fc]}]},
+     mtx = Dot[
+       RotationMatrix[N[psi]],
+       N[shearMtx]]},
     (* sanity checks should already be done: just compile the function *)
     Compile[
       {{z, _Complex}},
@@ -394,11 +391,12 @@ CompileSchiraFunction[a_, b_, lambda_, psi_, shearMtx_, scale_, fc_, areas_] := 
              {zz, zLayered}]},
           (* We center the FC on zero to start, by subtracting fcx0, then we scale and shear, and,
              last, we push things back to the specified FC *)
-          Flatten@Dot[
+
+          fc[[1]]+ I*fc[[2]] + Flatten@Dot[
             {{xscale, I*yscale}},
             mtx,
             (* Note that we flip the z here so that the arrangement matchis the LH *)
-            {Re[zLogPolar] - fcx0, -Im[zLogPolar], {1.0, 1.0, 1.0, 1.0, 1.0}}]]],
+            {Re[zLogPolar] - fcx0, -Im[zLogPolar]}]]],
       RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> True},
       Parallelization -> True,
       RuntimeAttributes -> {Listable}]],
