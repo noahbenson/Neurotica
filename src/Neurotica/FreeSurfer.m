@@ -1864,8 +1864,7 @@ DefineImmutable[
                "Hemisphere" -> hemi}]] &},
          SetVertexProperties[
            mesh,
-           {Curvature :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
-            "Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
+           {"Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
             "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
             "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
             "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
