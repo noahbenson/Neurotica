@@ -119,6 +119,9 @@ DivideCheck::usage = "DivideCheck[a,b] yields a/b if Chop[b] is not equal to 0 a
 DivideCheck[a,b,c] yields c if Chop[b] is equal to 0.
 Note that DivideCheck works with arrays as well as single values.";
 
+FlatOuter::usage = "FlatOuter[args...] is identical to Outer[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
+FlatTable::usage = "FlatTable[args...] is identical to Table[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
+
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
 Begin["`Private`"];
@@ -813,6 +816,20 @@ Index[data_List] := Association@Last@Reap[
   MapThread[Sow, {Range@Length[data], data}],
   _,
   Rule];
+Protect[Index];
+
+(* #FlatOuter *************************************************************************************)
+FlatOuter[args__] := With[
+  {listArgs = TakeWhile[Rest[{args}], ListQ]},
+  Flatten[Outer[args], Length[listArgs] - 1]];
+Protect[FlatOuter];
+
+(* #FlatTable *************************************************************************************)
+FlatTable[args__] := Flatten[
+  Table[args],
+  Length@Hold[args] - 1];
+SetAttributes[FlatTable, HoldAll];
+Protect[FlatTable];
 
 End[];
 EndPackage[];
