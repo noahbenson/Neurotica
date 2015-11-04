@@ -3054,11 +3054,14 @@ LabelVertexCoordinatesTr[cortex_?CorticalObjectQ, name_] := Check[
   $Failed];
 LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
   With[
-    {cortex = Cortex[sub, mesh, hemi]},
-    Part[
-      VertexCoordinatesTr[cortex],
-      All,
-      VertexIndex[cortex, LabelVertexList[sub, hemi, name]]]],
+    {cortex = Cortex[sub, mesh, hemi],
+     U = Normal@LabelVertexList[sub, hemi, name]},
+    If[MissingQ[U],
+      U,
+      Part[
+        VertexCoordinatesTr[cortex],
+        All,
+        VertexIndex[cortex, U]]]],
   $Failed];
 Protect[LabelVertexCoordinatesTr];
 
@@ -3111,21 +3114,23 @@ LabelFaceListTr[cortex_?CorticalObjectQ, name_] := Check[
   $Failed];
 LabelFaceListTr[sub_, hemi_, name_] := Check[
   With[
-    {U = LabelVertexList[sub, hemi, name],
+    {U = Normal@LabelVertexList[sub, hemi, name],
      cortex = Cortex[sub, Automatic, hemi]},
-    With[
-      {UF = VertexFaceList[cortex][[VertexIndex[cortex, U]]],
-       Ft = FaceListTr[cortex]},
-      Ft[[All, Select[Tally[Join@@UF], Last[#] == 3&][[All, 1]]]]]],
+    If[MissingQ[U],
+      U,
+      With[
+        {UF = VertexFaceList[cortex][[VertexIndex[cortex, U]]],
+         Ft = FaceListTr[cortex]},
+        Ft[[All, Select[Tally[Join@@UF], Last[#] == 3&][[All, 1]]]]]]],
   $Failed];
 Protect[LabelFaceListTr];
 
 (* #LabelFaceList *********************************************************************************)
 LabelFaceList[cortex_?CorticalObjectQ, name_] := Check[
-  Transpose @ LabelFaceListTr[cortex, name],
+  Replace[LabelFaceListTr[cortex, name], m:Except[_?MissingQ] :> Transpose[m]],
   $Failed];
 LabelFaceList[sub_, hemi_, name_] := Check[
-  Transpose @ LabelFaceListTr[sub, hemi, name],
+  Replace[LabelFaceListTr[sub, hemi, name], m:Except[_?MissingQ] :> Transpose[m]],
   $Failed];
 Protect[LabelFaceList];
 

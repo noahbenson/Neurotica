@@ -1937,16 +1937,20 @@ DefineImmutable[
             "V2"|"V2Label", {"V2Label", 1},
             "MT"|"MTLabel", {"MTLabel", 1},
             _, None]},
-         Which[
-           ListQ[propAndPatt], Indices[
-             Normal[Association[sub][propAndPatt[[1]]][hemi]],
-             propAndPatt[[2]]],
-           (* Might be in the labels list... *)
-           MemberQ[SubjectLabels[sub], name], Indices[
-             FreeSurferSubjectSimpleThresholdedLabel[Path[sub], hemi, name],
-             1],
-           (* Otherwise, missing *)
-           True, Missing["NotFound",<|"Name" -> name, "Hemisphere" -> hemi|>]]]],
+         With[
+           {try1 = Quiet@Check[
+              If[ListQ[propAndPatt],
+                Indices[
+                  Normal[Association[sub][propAndPatt[[1]]][hemi]],
+                  propAndPatt[[2]]],
+                None],
+              None]},
+           If[try1 === None && MemberQ[SubjectLabels[sub], name], 
+             Indices[
+               FreeSurferSubjectSimpleThresholdedLabel[Path[sub], hemi, name],
+               1],
+             (* Otherwise, missing *)
+             Missing["NotFound",<|"Name" -> name, "Hemisphere" -> hemi|>]]]]],
      $Failed],
 
    (* The list of valid subject labels... *)        
