@@ -66,9 +66,6 @@ $FreeSurferSubjects::usage = "$FreeSurferSubjects is an association containing p
 $FreeSurferHomes::usage = "$FreeSurferHomes is a list of potential home directories for FreeSurfer. Homes may be added with AddFreeSurferHome.";
 $FreeSurferColorLUT::usage = "$FreeSurferColorLUT is a dispatch table that will replace either an integer or string volume label and yield the remaining data (i.e., a list of the string or integer label, whichever was not given, and a color.";
 
-RHX::usage = "RHX is a keyword that represents the inverted right hemisphere as used by FreeSurfer.";
-Protect[RHX];
-
 AddFreeSurferHome::usage = "AddFreeSurferHome[dir] adds the directory dir to the FreeSurfer home structures.";
 RemoveFreeSurferHome::usage = "RemoveFreeSurferHome[dir] removes the directories matching the pattern dir from the FreeSurfer subject directories structures.";
 AddFreeSurferSubjectsDirectory::usage = "AddSubjectsDir[dir] adds the directory dir to the FreeSurfer home structures.";
@@ -79,7 +76,8 @@ RemoveFreeSurferSubject::usage = "RemoveFreeSurferSurbject[dir] removes the dire
 FreeSurferSubject::usage = "FreeSurferSubject[directory] represents a FreeSurfer subject whose data is stored in the directory named by directory.";
 FreeSurferSubject::notfound = "FreeSurferSubject directory `1` does not seem to exist";
 FreeSurferSubject::baddata = "FreeSurferSubject directory `1` does not seem to contains FreeSurfer data: `2`";
-FreeSurferSubjectQ::usage = "FreeSurferSubjectQ[directory] yields true if and only if directory is a string referring to a directory that contains a FreeSurfer subject.";
+FreeSurferSubjectQ::usage = "FreeSurferSubjectQ[sub] yields true if and only if sub is a FreeSurfer subject object.";
+FreeSurferSubjectPathQ::usage = "FreeSurferSubjectPathQ[directory] yields true if and only if directory is a string referring to a directory that contains a FreeSurfer subject.";
 FreeSurferSubjectData::usage = "FreeSurferSubjectData[...] is a form that represents the data of a single FreeSurfer subject, as obtained via the FreeSurferSubject function.";
 
 (* The Transforms *)
@@ -1063,7 +1061,7 @@ $FreeSurferSubjectsDirectories = Union[
           Prepend[
             Map[FileNameJoin[{#, "subjects"}]&, $FreeSurferHomes],
             Environment["SUBJECTS_DIR"]],
-          s_String /; FreeSurferSubjectQ[s] :> Sow[s],
+          s_String /; FreeSurferSubjectPathQ[s] :> Sow[s],
           {1}]]]]];
 Protect[$FreeSurferSubjectsDirectories];
 
@@ -1072,7 +1070,7 @@ AutoFindFreeSurferSubjects[] := With[
      Function @ If[DirectoryQ[#],
        Select[
          FileNames[FileNameJoin[{#, "*"}]],
-         FreeSurferSubjectQ]],
+         FreeSurferSubjectPathQ]],
      $FreeSurferSubjectsDirectories]},
   Association @ Flatten @ Map[
     Function @ With[
@@ -1097,7 +1095,7 @@ UpdateSubjectsDirectories[] := (
                 Map[FileNameJoin[{#, "subjects"}]&, $FreeSurferHomes],
                 $FreeSurferSubjectsDirectories],
               Environment["SUBJECTS_DIR"]],
-            s_String /; FreeSurferSubjectQ[s] :> Sow[s],
+            s_String /; FreeSurferSubjectPathQ[s] :> Sow[s],
             {1}]]]]];
   Protect[$FreeSurferSubjectsDirectories]);
 UpdateSubjects[] := With[
@@ -1150,7 +1148,9 @@ RemoveFreeSurferSubject[s_] := (
   $FreeSurferSubjects = Complement[$FreeSurferSubjects, Cases[$FreeSurferSubjects, s]];
   Protect[$FreeSurferSubjects]);
 FreeSurferSubjectQ[s_] := False;
-FreeSurferSubjectQ[s_String] := And[
+FreeSurferSubjectQ[s_FreeSurferSubjectData] := True;
+FreeSurferSubjectPathQ[s_] := False;
+FreeSurferSubjectPathQ[s_String] := And[
   DirectoryQ[s],
   DirectoryQ[FileNameJoin[{s, "surf"}]],
   DirectoryQ[FileNameJoin[{s, "mri"}]]];
@@ -1185,7 +1185,8 @@ With[
 Protect[AddFreeSurferHome, RemoveFreeSurferHome, 
         AddFreeSurferSubjectsDirectory, RemoveFreeSurferSubjectsDirectory, 
         AddFreeSurferSubject, RemoveFreeSurferSubject,
-        FreeSurferSubjectQ, FreeSurferSaveConfiguration, FreeSurferClearConfiguration];
+        FreeSurferSubjectQ, FreeSurferSubjectPathQ, FreeSurferSaveConfiguration,
+        FreeSurferClearConfiguration];
 
 
 (* Volume labels from the LUT (for use with aseg.mgz) *********************************************)
@@ -1723,7 +1724,7 @@ Protect[$FreeSurferImageData];
 
 
 DefineImmutable[
-  FreeSurferSubject[path_?FreeSurferSubjectQ] :> sub,
+  FreeSurferSubject[path_?FreeSurferSubjectPathQ] :> sub,
   {(* Path gives the subject's directory *)
    Path[sub] -> path,
    (* MetaInformation is just a placeholder *)

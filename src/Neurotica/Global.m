@@ -27,6 +27,9 @@ Curvature::usage = "Curvature is a keyword that can be used to refer to curvatur
 
 RH::usage = "RH is a keyword that represents the right hemisphere.";
 LH::usage = "LH is a keyword that represents the left hemisphere.";
+RHX::usage = "RHX is a keyword that represents the inverted right hemisphere as used by programs like FreeSurfer.";
+LHX::usage = "RHX is a keyword that represents the inverted left hemisphere as used by programs like FreeSurfer.";
+HemisphereQ::usage = "HemisphereQ[x] yields true if x is a valid hemisphere, i.e., RH, LH, RHX, or LHX.";
 
 Anterior::usage = "Anterior is a keyword that represents the forward part of the brain; it is generally a synonym for Front and is an antonym with Posterior and Back.";
 Posterior::usage = "Posterior is a keyword that represents the rear part of the brain; it is generally a synonym for Back and is an antonym with Anterior and Front.";
@@ -55,9 +58,14 @@ If[!ValueQ[Radius],
 
 Begin["`Private`"];
 
-Protect[RH, LH, Anterior, Posterior, Inferior, Superior, 
-        PolarAngle, Eccentricity, VisualArea,
-        Curvature, OccipitalPoleIndex, LabelVertexList, SubjectLabels,
+HemisphereQ[x_] := False;
+HemisphereQ[LH] = True;
+HemisphereQ[RH] = True;
+HemisphereQ[LHX] = True;
+HemisphereQ[RHX] = True;
+
+Protect[RH, LH, RHX, LHX, HemisphereQ, Anterior, Posterior, Inferior, Superior, PolarAngle,
+        Eccentricity, VisualArea, Curvature, OccipitalPoleIndex, LabelVertexList, SubjectLabels,
         VertexToVoxelMap, VoxelToVertexMap];
 
 (* #Cortex ****************************************************************************************)
