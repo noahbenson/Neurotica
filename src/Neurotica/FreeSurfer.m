@@ -1907,16 +1907,18 @@ DefineImmutable[
               "Parcellation2005" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed]},
               (* V1 gets special treatment because it has a special load function *)
              If[MemberQ[SubjectLabels[sub], "V1"],
-               {"V1Label" :> Quiet@Check[Normal@assoc["V1Label"][hemi], $Failed],
-                "V1Probability" :> Quiet@Check[Normal@assoc["V1Probability"][hemi], $Failed]},
+               {"V1Label" :> Quiet@Check[Unboole@Normal@assoc["V1Label"][hemi], $Failed],
+                "V1Probability" :> Quiet@Check[
+                  Unboole@Normal@assoc["V1Probability"][hemi],
+                  $Failed]},
                {}],
              Join@@Map[
                Function@List[
                  (# <> "Label") :> Quiet@Check[
-                    Unboole@FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, #],
+                    Unboole@Normal@FreeSurferSubjectSimpleThresholdedLabel[Path[sub], hemi, #],
                     $Failed],
                  (# <> "Probability") :> Quiet@Check[
-                    Unboole@FreeSurferSubjectSimpleLabel[sub, hemi, #],
+                    Unboole@Normal@FreeSurferSubjectSimpleLabel[Path[sub], hemi, #],
                     $Failed]],
                DeleteCases[SubjectLabels[sub], "V1"]]]]]]],
    Cortex[sub, name:Except[LH|RH|RHX], hemi:LH|RH|RHX] := Cortex[sub, hemi, name],
