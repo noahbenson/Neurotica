@@ -1842,7 +1842,7 @@ DefineImmutable[
        "TalairachTransform"           :> FreeSurferSubjectLinearTransform[path, "talairach"]}}],
                                  
    (* Now we make some accessors for this subject *)
-   Cortex[sub, name_, hemi:(LH|RH|RHX)] := With[
+   Cortex[sub, hemi:(LH|RH|RHX), name_] := With[
      {assoc = Association[sub],
       id = If[name === Automatic, "Sphere", ToLowerCase[name]] // Function @ FirstCase[
         Normal @ $FreeSurferSurfaceData,
@@ -1880,8 +1880,10 @@ DefineImmutable[
             "V2Probability" :> Quiet@Check[assoc["V2Probability"][hemi], $Failed],
             "MTProbability" :> Quiet@Check[assoc["MTProbability"][hemi], $Failed],
             "BrodmannThresholds" :> Quiet@Check[assoc["BrodmannProbabilities"][hemi], $Failed]}]]]],
+   Cortex[sub, name:Except[LH|RH|RHX], hemi:LH|RH|RHX] := Cortex[sub, hemi, name],
+
    (* We also want an accessor for MRImages *)
-   MRImage[sub, name_, hemi:(None|LH|RH|RHX)] := With[
+   MRImage[sub, hemi:(None|LR|LH|RH|RHX), name_] := With[
      {assoc = Association[sub],
       id = ToLowerCase[name] // Function @ FirstCase[
         Normal @ $FreeSurferImageData,
@@ -1891,15 +1893,15 @@ DefineImmutable[
        {vol0 = assoc[id]},
        With[
          {vol = Which[
-            AssociationQ[vol0], If[hemi === None,
+            AssociationQ[vol0], If[hemi === None || hemi === LR,
               If[KeyExistsQ[vol0, Full], 
                 vol0[Full],
                 ImageAdd[vol0[LH], vol0[RH]]],
               vol0[hemi]],
-            ListQ[vol0], If[hemi === None,
+            ListQ[vol0], If[hemi === None || hemi === LR,
               (Full /. vol0) /. Full :> ImageAdd[LH /. vol0, RH /. vol0],
               hemi /. vol0],
-            MRImageQ[vol0], If[hemi === None,
+            MRImageQ[vol0], If[hemi === None || hemi === LR,
               vol0,
               ImageMultiply[vol0, Image3D@assoc["FilledMaskImage"][hemi]]],
             True, Message[FreeSurferSubject::baddata, Path[sub], "Image not found for given FreeSurfer subject"]]},
@@ -1910,7 +1912,8 @@ DefineImmutable[
              {"Subject" -> sub,
               "Hemisphere" -> hemi,
               "ImageName" -> id}]]]]],
-   MRImage[sub, name_] := MRImage[sub, name, None],
+   MRImage[sub, name:Except[None|LR|LH|RH|RHX], hemi:None|LR|LH|RH|RHX] := MRImage[sub, hemi, name],
+   MRImage[sub, name:Except[None|LR|LH|RH|RHX]] := MRImage[sub, LR, name],
                
    (* We can also get the occipital pole in a similar way... *)
    OccipitalPoleIndex[sub, hemi:(LH|RH|RHX)] := Check[
@@ -1933,17 +1936,21 @@ DefineImmutable[
             "V1"|"V1Label", {"V1Label", 1},
             "V2"|"V2Label", {"V2Label", 1},
             "MT"|"MTLabel", {"MTLabel", 1},
-            _, $Failed]},
-         If[!ListQ[propAndPatt],
-           propAndPatt,
-           Flatten @ Position[
+            _, None]},
+         Which[
+           ListQ[propAndPatt], Indices[
              Normal[Association[sub][propAndPatt[[1]]][hemi]],
-             propAndPatt[[2]],
-             {1},
-             Heads -> False]]]],
+             propAndPatt[[2]]],
+           (* Might be in the labels list... *)
+           MemberQ[SubjectLabels[sub], name], Indices[
+             FreeSurferSubjectSimpleThresholdedLabel[Path[sub], hemi, name],
+             1],
+           (* Otherwise, missing *)
+           True, Missing["NotFound",<|"Name" -> name, "Hemisphere" -> hemi|>]]]],
      $Failed],
-        
-   SubjectLabels[sub] := Join[
+
+   (* The list of valid subject labels... *)        
+   SubjectLabels[sub] :> Join[
      Intersection[
        FreeSurferSubjectBrodmannLabelList[Path[sub], LH],
        FreeSurferSubjectBrodmannLabelList[Path[sub], RH]],
