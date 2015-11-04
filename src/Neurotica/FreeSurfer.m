@@ -1369,6 +1369,28 @@ FreeSurferSubjectRibbon[sub_String] := With[
       mgh]]];
 
 (* FreeSurferSubject Surface Data *****************************************************************)
+FreeSurferSubjectSurfaceMetaInformation[sub_?DirectoryQ, hemi:(LH|RH|RHX)] := With[
+  {checkFn = Function@Check[
+     With[
+       {hemistr = Replace[hemi, {(LH|RHX) -> "lh", RH -> "rh"}],
+        dirstr = If[hemi === RHX, 
+          FileNameJoin[{sub, "xhemi", "surf"}],
+          FileNameJoin[{sub, "surf"}]]},
+       Import[
+         FileNameJoin[{dirstr, hemistr <> "." <> #}],
+         {"FreeSurferSurface", "MetaInformation"}]],
+     $Failed]},
+  With[
+    {meta = Fold[If[#1 =!= $Failed, #1, checkFn[#2]]&, $Failed, {"white", "pial", "inflated"}]},
+    If[meta === $Failed,
+      $Failed, 
+      (FreeSurferSubjectSurfaceMetaInformation[sub, hemi] = meta)]]];
+FreeSurferSubjectSurfaceVertexCount[sub_?DirectoryQ, hemi:(LH|RH|RHX)] := With[
+  {meta = FreeSurferSubjectSurfaceMetaInformation[sub, hemi]},
+  If[meta =!= $Failed, ("VertexCount" /. meta), $Failed]];
+FreeSurferSubjectSurfaceFaceCount[sub_?DirectoryQ, hemi:(LH|RH|RHX)] := With[
+  {meta = FreeSurferSubjectSurfaceMetaInformation[sub, hemi]},
+  If[meta =!= $Failed, ("FaceCount" /. meta), $Failed]];
 FreeSurferSubjectSimpleSurface[sub_?DirectoryQ, hemi:(LH|RH|RHX), surf_String] := With[
   {dat = Check[
     With[
@@ -1426,7 +1448,8 @@ FreeSurferSubjectSimpleLabel[sub_String /; DirectoryQ[sub], hemi:(LH|RH|RHX), la
           FileNameJoin[{sub, "label"}]]},
        Import[FileNameJoin[{dirstr, hemistr <> "." <> label <> ".label"}], 
               "FreeSurferLabel",
-              True -> "Unthresholded"]],
+              True -> "Unthresholded",
+              Max -> FreeSurferSubjectSurfaceVertexCount[sub, hemi]]],
      $Failed]},
   If[dat === $Failed, 
     $Failed,
@@ -1442,7 +1465,8 @@ FreeSurferSubjectSimpleThresholdedLabel[sub_String /; DirectoryQ[sub],
           FileNameJoin[{sub, "label"}]]},
        Import[FileNameJoin[{dirstr, hemistr <> "." <> label <> ".label"}], 
               "FreeSurferLabel",
-              True -> 1]],
+              True -> 1,
+              Max -> FreeSurferSubjectSurfaceVertexCount[sub, hemi]]],
      $Failed]},
   If[dat === $Failed, 
     $Failed,
@@ -1544,9 +1568,15 @@ FreeSurferSubjectParcellation2009[sub_String, hemi:(LH|RH|RHX)] := FreeSurferSub
 FreeSurferSubjectParcellation2005[sub_String, hemi:(LH|RH|RHX)] := Check[
   FreeSurferSubjectSimpleAnnot[sub, hemi, "aparc.annot"],
   $Failed];
-FreeSurferSubjectV1Label[sub_String, hemi:(LH|RH|RHX)] := Check[
-  FreeSurferSubjectSimpleLabel[sub, hemi, "v1.prob"],
-  $Failed];
+FreeSurferSubjectV1Label[sub_String, hemi:(LH|RH|RHX)] := Quiet[
+  Check[
+    FreeSurferSubjectSimpleLabel[sub, hemi, "v1.prob"],
+    Check[
+      FreeSurferSubjectSimpleLabel[sub, hemi, "v1-prob"],
+      Check[
+        FreeSurferSubjectSimpleLabel[sub, hemi, "V1"],
+        $Failed]]],
+  {Import::nffil}];
 FreeSurferSubjectV1ThresholdedLabel[sub_String, hemi:(LH|RH|RHX)] := Check[
   With[
     {label = FreeSurferSubjectV1Label[sub, hemi]},
@@ -1840,14 +1870,16 @@ DefineImmutable[
                                           RH  :> FreeSurferSubjectOP[path, RH],
                                           RHX :> FreeSurferSubjectOP[path, RHX]},
        "TalairachTransform"           :> FreeSurferSubjectLinearTransform[path, "talairach"]}}],
-                                 
+
    (* Now we make some accessors for this subject *)
    Cortex[sub, hemi:(LH|RH|RHX), name_] := With[
      {assoc = Association[sub],
       id = If[name === Automatic, "Sphere", ToLowerCase[name]] // Function @ FirstCase[
         Normal @ $FreeSurferSurfaceData,
-        (r_Rule /; Or[MatchQ[ToLowerCase[#], ToLowerCase[r[[1]]]],
-                      MatchQ[ToLowerCase[#], r[[2]]["Pattern"]]]) :> r[[1]]]},
+        (r_Rule /; Or[
+           MatchQ[ToLowerCase[#], ToLowerCase[r[[1]]]],
+           MatchQ[ToLowerCase[#], r[[2]]["Pattern"]]]
+         ) :> r[[1]]]},
      With[
        {mapMeshName = $FreeSurferSurfaceData[id]["MapSurface"]},
        With[
@@ -1865,21 +1897,28 @@ DefineImmutable[
                "Hemisphere" -> hemi}]] &},
          SetVertexProperties[
            mesh,
-           {"Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
-            "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
-            "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
-            "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
-            "Parcellation" :> Quiet@Check[assoc["Parcellation2009"][hemi], $Failed],
-            "Parcellation2005" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed],
-            "RibbonIndices" :> Quiet@Check[Normal[VertexToVoxelMap[sub, hemi]][[All,2]], $Failed],
-            "V1Label" :> Quiet@Check[assoc["V1Label"][hemi], $Failed],
-            "V2Label" :> Quiet@Check[assoc["V2Label"][hemi], $Failed],
-            "MTLabel" :> Quiet@Check[assoc["MTLabel"][hemi], $Failed],
-            "BrodmannLabels" :> Quiet@Check[assoc["BrodmannLabels"][hemi], $Failed],
-            "V1Probability" :> Quiet@Check[assoc["V1Probability"][hemi], $Failed],
-            "V2Probability" :> Quiet@Check[assoc["V2Probability"][hemi], $Failed],
-            "MTProbability" :> Quiet@Check[assoc["MTProbability"][hemi], $Failed],
-            "BrodmannThresholds" :> Quiet@Check[assoc["BrodmannProbabilities"][hemi], $Failed]}]]]],
+           Join[
+             {"Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
+              "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
+              "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
+              "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
+              "RibbonIndices" :> Quiet@Check[Normal[VertexToVoxelMap[sub, hemi]][[All,2]], $Failed],
+              "Parcellation" :> Quiet@Check[assoc["Parcellation2009"][hemi], $Failed],
+              "Parcellation2005" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed]},
+              (* V1 gets special treatment because it has a special load function *)
+             If[MemberQ[SubjectLabels[sub], "V1"],
+               {"V1Label" :> Quiet@Check[Normal@assoc["V1Label"][hemi], $Failed],
+                "V1Probability" :> Quiet@Check[Normal@assoc["V1Probability"][hemi], $Failed]},
+               {}],
+             Join@@Map[
+               Function@List[
+                 (# <> "Label") :> Quiet@Check[
+                    Unboole@FreeSurferSubjectSimpleThresholdedLabel[sub, hemi, #],
+                    $Failed],
+                 (# <> "Probability") :> Quiet@Check[
+                    Unboole@FreeSurferSubjectSimpleLabel[sub, hemi, #],
+                    $Failed]],
+               DeleteCases[SubjectLabels[sub], "V1"]]]]]]],
    Cortex[sub, name:Except[LH|RH|RHX], hemi:LH|RH|RHX] := Cortex[sub, hemi, name],
 
    (* We also want an accessor for MRImages *)
@@ -1945,12 +1984,13 @@ DefineImmutable[
                   propAndPatt[[2]]],
                 None],
               None]},
-           If[try1 === None && MemberQ[SubjectLabels[sub], name], 
-             Indices[
+           Which[
+             ArrayQ[try1], try1,
+             try1 === None && MemberQ[SubjectLabels[sub], name], Indices[
                FreeSurferSubjectSimpleThresholdedLabel[Path[sub], hemi, name],
                1],
              (* Otherwise, missing *)
-             Missing["NotFound",<|"Name" -> name, "Hemisphere" -> hemi|>]]]]],
+             True, Missing["NotFound",<|"Name" -> name, "Hemisphere" -> hemi|>]]]]],
      $Failed],
 
    (* The list of valid subject labels... *)        
