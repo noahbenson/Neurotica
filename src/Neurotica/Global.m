@@ -42,6 +42,7 @@ PolarAngle::usage = "PolarAngle is a key used by the visual cortex package to re
 VisualArea::usage = "VisualArea is a key used by the retinotopy package to represent the visual area ID of a particular patch of cortex. See also VisualAreasData.";
 
 Cortex::usage = "Cortex[sub, hemi, name] yields a cortical mesh object associated with the given hemisphere and name for the given subject. Cortex is a keyword that is used by various Neurotica functions to represent the cortical surface of a subject, so behavior is not guaranteed for non-standard subject modalities.";
+Cortex::notfound = "Cortex name `1` not found for subject type `2`";
 SubjectLabels::usage = "SubjectLabels[sub] yields a list of the labels supported by the given subject subject sub.";
 
 OccipitalPoleIndex::usage = "OccipitalPoleIndex[subject, hemisphere] is usually defined by subject modalities (e.g., FreeSurferSubject[]) such that the function yields the index for the occipital pole in the particular subject and hemisphere requested.";

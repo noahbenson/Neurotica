@@ -1874,53 +1874,56 @@ DefineImmutable[
    (* Now we make some accessors for this subject *)
    Cortex[sub, hemi:(LH|RH|RHX), name_] := With[
      {assoc = Association[sub],
-      id = If[name === Automatic, "Sphere", ToLowerCase[name]] // Function @ FirstCase[
-        Normal @ $FreeSurferSurfaceData,
-        (r_Rule /; Or[
-           MatchQ[ToLowerCase[#], ToLowerCase[r[[1]]]],
-           MatchQ[ToLowerCase[#], r[[2]]["Pattern"]]]
-         ) :> r[[1]]]},
-     With[
-       {mapMeshName = $FreeSurferSurfaceData[id]["MapSurface"]},
+      id = With[
+        {nm = ToLowerCase@Replace[name, Automatic -> "Sphere"]},
+        SelectFirst[
+          Keys[$FreeSurferSurfaceData],
+          (nm == ToLowerCase[#] || MatchQ[nm, $FreeSurferSurfaceData[#]["Pattern"]])&]]},
+     If[Head[id] === Missing,
+       (Message[Cortex::notfound, name, "FreeSurfer"]; $Failed),
        With[
-         {mesh = assoc[id][hemi] // CorticalMesh[
-            #,
-            MetaInformation -> Join[
-              Options[#, MetaInformation],
-              {"CorticalMap" -> {
-                 Method -> "Mollweide",
-                 Center :> OccipitalPole[sub, mapMeshName, hemi],
-                 Radius -> Full},
-               "SphericalMesh" :> Cortex[sub, mapMeshName, hemi],
-               "Subject" -> sub,
-               "SurfaceName" -> id,
-               "Hemisphere" -> hemi}]] &},
-         SetVertexProperties[
-           mesh,
-           Join[
-             {"Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
-              "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
-              "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
-              "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
-              "RibbonIndices" :> Quiet@Check[Normal[VertexToVoxelMap[sub, hemi]][[All,2]], $Failed],
-              "Parcellation" :> Quiet@Check[assoc["Parcellation2009"][hemi], $Failed],
-              "Parcellation2005" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed]},
-              (* V1 gets special treatment because it has a special load function *)
-             If[MemberQ[SubjectLabels[sub], "V1"],
-               {"V1Label" :> Quiet@Check[Unboole@Normal@assoc["V1Label"][hemi], $Failed],
-                "V1Probability" :> Quiet@Check[
-                  Unboole@Normal@assoc["V1Probability"][hemi],
-                  $Failed]},
-               {}],
-             Join@@Map[
-               Function@List[
-                 (# <> "Label") :> Quiet@Check[
-                    Unboole@Normal@FreeSurferSubjectSimpleThresholdedLabel[Path[sub], hemi, #],
-                    $Failed],
-                 (# <> "Probability") :> Quiet@Check[
-                    Unboole@Normal@FreeSurferSubjectSimpleLabel[Path[sub], hemi, #],
-                    $Failed]],
-               DeleteCases[SubjectLabels[sub], "V1"]]]]]]],
+         {mapMeshName = $FreeSurferSurfaceData[id]["MapSurface"]},
+         With[
+           {mesh = assoc[id][hemi] // CorticalMesh[
+              #,
+              MetaInformation -> Join[
+                Options[#, MetaInformation],
+                {"CorticalMap" -> {
+                   Method -> "Mollweide",
+                   Center :> OccipitalPole[sub, mapMeshName, hemi],
+                   Radius -> Full},
+                 "SphericalMesh" :> Cortex[sub, mapMeshName, hemi],
+                 "Subject" -> sub,
+                 "SurfaceName" -> id,
+                 "Hemisphere" -> hemi}]] &},
+           SetVertexProperties[
+             mesh,
+             Join[
+               {"Curvature" :> Quiet@Check[assoc["Curvature"][hemi], $Failed],
+                "SulcalDepth" :> Quiet@Check[assoc["SulcalDepth"][hemi], $Failed],
+                "Thickness" :> Quiet@Check[assoc["Thickness"][hemi], $Failed],
+                "VertexArea" :> Quiet@Check[assoc["VertexArea"][hemi], $Failed],
+                "RibbonIndices" :> Quiet@Check[
+                  Normal[VertexToVoxelMap[sub, hemi]][[All,2]],
+                  $Failed],
+                "Parcellation" :> Quiet@Check[assoc["Parcellation2009"][hemi], $Failed],
+                "Parcellation2005" :> Quiet@Check[assoc["Parcellation"][hemi], $Failed]},
+               (* V1 gets special treatment because it has a special load function *)
+               If[MemberQ[SubjectLabels[sub], "V1"],
+                 {"V1Label" :> Quiet@Check[Unboole@Normal@assoc["V1Label"][hemi], $Failed],
+                  "V1Probability" :> Quiet@Check[
+                    Unboole@Normal@assoc["V1Probability"][hemi],
+                    $Failed]},
+                 {}],
+               Join@@Map[
+                 Function@List[
+                   (# <> "Label") :> Quiet@Check[
+                      Unboole@Normal@FreeSurferSubjectSimpleThresholdedLabel[Path[sub], hemi, #],
+                      $Failed],
+                   (# <> "Probability") :> Quiet@Check[
+                      Unboole@Normal@FreeSurferSubjectSimpleLabel[Path[sub], hemi, #],
+                      $Failed]],
+                 DeleteCases[SubjectLabels[sub], "V1"]]]]]]]],
    Cortex[sub, name:Except[LH|RH|RHX], hemi:LH|RH|RHX] := Cortex[sub, hemi, name],
 
    (* We also want an accessor for MRImages *)
