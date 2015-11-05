@@ -27,8 +27,9 @@ Curvature::usage = "Curvature is a keyword that can be used to refer to curvatur
 
 RH::usage = "RH is a keyword that represents the right hemisphere.";
 LH::usage = "LH is a keyword that represents the left hemisphere.";
+LR::usage = "LR is a keyword that indicates that a hemisphere or piece of MR data includes or is made from both left and right hemispheres.";
 RHX::usage = "RHX is a keyword that represents the inverted right hemisphere as used by programs like FreeSurfer.";
-LHX::usage = "RHX is a keyword that represents the inverted left hemisphere as used by programs like FreeSurfer.";
+LHX::usage = "LHX is a keyword that represents the inverted left hemisphere as used by programs like FreeSurfer.";
 HemisphereQ::usage = "HemisphereQ[x] yields true if x is a valid hemisphere, i.e., RH, LH, RHX, or LHX.";
 
 Anterior::usage = "Anterior is a keyword that represents the forward part of the brain; it is generally a synonym for Front and is an antonym with Posterior and Back.";
@@ -40,7 +41,7 @@ Eccentricity::usage = "Eccentricity is a key used by the visual cortex package t
 PolarAngle::usage = "PolarAngle is a key used by the visual cortex package to represent the polar angle, as measured in degrees of rotation about the foveal confluence (center of the visual field) from the upper to the lower vertical meridia.";
 VisualArea::usage = "VisualArea is a key used by the retinotopy package to represent the visual area ID of a particular patch of cortex. See also VisualAreasData.";
 
-Cortex::usage = "Cortex is a keyword that is used by various Neurotica functions to represent the cortical surface of a subject.";
+Cortex::usage = "Cortex[sub, hemi, name] yields a cortical mesh object associated with the given hemisphere and name for the given subject. Cortex is a keyword that is used by various Neurotica functions to represent the cortical surface of a subject, so behavior is not guaranteed for non-standard subject modalities.";
 SubjectLabels::usage = "SubjectLabels[sub] yields a list of the labels supported by the given subject subject sub.";
 
 OccipitalPoleIndex::usage = "OccipitalPoleIndex[subject, hemisphere] is usually defined by subject modalities (e.g., FreeSurferSubject[]) such that the function yields the index for the occipital pole in the particular subject and hemisphere requested.";
@@ -64,7 +65,7 @@ HemisphereQ[RH] = True;
 HemisphereQ[LHX] = True;
 HemisphereQ[RHX] = True;
 
-Protect[RH, LH, RHX, LHX, HemisphereQ, Anterior, Posterior, Inferior, Superior, PolarAngle,
+Protect[RH, LH, LR, RHX, LHX, HemisphereQ, Anterior, Posterior, Inferior, Superior, PolarAngle,
         Eccentricity, VisualArea, Curvature, OccipitalPoleIndex, LabelVertexList, SubjectLabels,
         VertexToVoxelMap, VoxelToVertexMap];
 
