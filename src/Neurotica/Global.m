@@ -27,7 +27,7 @@ Curvature::usage = "Curvature is a keyword that can be used to refer to curvatur
 
 RH::usage = "RH is a keyword that represents the right hemisphere.";
 LH::usage = "LH is a keyword that represents the left hemisphere.";
-LR::usage = "LR is a keyword that indicates that a hemisphere or piece of MR data includes or is made from both left and right hemispheres.";
+LR::usage = "LR is a keyword that represents a pseudo-hemisphere, such as when both hemispheres are included in an MRImage (e.g., MRImage[sub, LR, \"Ribbon\"]).";
 RHX::usage = "RHX is a keyword that represents the inverted right hemisphere as used by programs like FreeSurfer.";
 LHX::usage = "LHX is a keyword that represents the inverted left hemisphere as used by programs like FreeSurfer.";
 HemisphereQ::usage = "HemisphereQ[x] yields true if x is a valid hemisphere, i.e., RH, LH, RHX, or LHX.";
@@ -62,6 +62,7 @@ Begin["`Private`"];
 HemisphereQ[x_] := False;
 HemisphereQ[LH] = True;
 HemisphereQ[RH] = True;
+HemisphereQ[LR] = True;
 HemisphereQ[LHX] = True;
 HemisphereQ[RHX] = True;
 

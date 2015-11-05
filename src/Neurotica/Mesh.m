@@ -203,6 +203,8 @@ RemoveVertexProperty::usage = "RemoveVertexProperty[mesh, prop] is equivalent to
 RemoveEdgeProperty::usage   = "RemoveEdgeProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, EdgeList}, prop].";
 RemoveFaceProperty::usage   = "RemoveFaceProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, FaceList}, prop].";
 
+MapPropertyValues::usage = "MapPropertyValues[f, mesh] yields the result of applying the function f to each an association of the property values in the given mesh for each vertex in order; this is using MapNamed[] on the collection of property values for mesh, but any property not explicitly used in f will not be explicitly reified by the underlying mechanics, meaning unloaded properties remain unloaded.";
+
 Reproject::usage = "Reproject[map, X] yields a map identical to the given map except that it reprojects its coordinates from the alternate coordinate list for the original mesh, given by X. If X is instead a mesh with the same number of elements as the original mesh, then its coordinates are used.";
 ReporjectTr::usage = "ReprojectTr[map, Xt] is equivalent to Reproject[map, Transpose[Xt]].";
 Reproject::badarg = "Bad argument given to Reproject: `1`";
@@ -1104,7 +1106,7 @@ DefineImmutable[
        Which[
          Head[e] === UndirectedEdge, Part[idx, EdgeIndex[mesh, e]],
          MatchQ[e, {_Integer, _Integer}], Part[idx, EdgeIndex[mesh, e]],
-         ListQ[e], Map[Part[idx, #]&, EdgeIndex[mesh, e], {-2}],
+         ListQ[e] || ArrayQ[e], Map[Part[idx, #]&, EdgeIndex[mesh, e], {-2}],
          True, $Failed]],
      
      (* #VertexDegree *)
@@ -1726,7 +1728,7 @@ DefineImmutable[
        Which[
          Head[e] === UndirectedEdge, Part[idx, EdgeIndex[map, e]],
          MatchQ[e, {_Integer, _Integer}], Part[idx, EdgeIndex[map, e]],
-         ListQ[e], Map[Part[idx, #]&, EdgeIndex[map, e], {-2}],
+         ListQ[e] || ArrayQ[e], Map[Part[idx, #]&, EdgeIndex[map, e], {-2}],
          True, $Failed]],
 
      (* #SumOverFacesMatrix and #SumOverEdgesMatrix *)
@@ -2271,7 +2273,7 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
      sym = Unique["delayedProperty"]},
     sym := With[
       {res = vals},
-      If[!ListQ[res] || Length[res] != Length[type[mesh]],
+      If[!ArrayQ[res] || Length[res] != Length[type[mesh]],
         Table[$Failed, {Length[type[mesh]]}],
         (sym = res)]];
     If[list === prop || list === $Failed, 
@@ -2439,10 +2441,31 @@ RemoveVertexProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, Vert
 RemoveEdgeProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, EdgeList}, prop];
 RemoveFaceProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, FaceList}, prop];
 
+(* #MapPropertyValues *****************************************************************************)
+MapPropertyValues[f_, {mesh_?CorticalObjectQ, type:VertexList|EdgeList|FaceList}] := With[
+  {props = Switch[type,
+     VertexList, VertexProperties[mesh], 
+     EdgeList, EdgeProperties[mesh],
+     FaceList, FaceProperties[mesh]],
+   count = Switch[type,
+     VertexList, VertexCount[mesh], 
+     EdgeList, EdgeCount[mesh],
+     FaceList, FaceCount[mesh]]},
+  f[Association[#]]& /@ Transpose@Map[
+    Function@If[Head[#] === Rule, 
+      Thread[#],
+      Replace[
+        Thread[{Range[count], ConstantArray[#, count]}],
+        {k_, x_ :> y_} :> (x :> Part[y, k]),
+        {1}]],
+    props]];
+MapPropertyValues[f_, mesh_?CorticalObjectQ] := MapPropertyValues[f, {mesh, VertexList}];
+
 Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList,
         VertexPropertyList, EdgePropertyList, FacePropertyList, VertexPropertyValues,
         EdgePropertyValues, FacePropertyValues, SetVertexProperties, SetEdgePropertues,
-        SetFaceProperties, RemoveVertexProperty, RemoveEdgeProperty, RemoveFaceProperty];
+        SetFaceProperties, RemoveVertexProperty, RemoveEdgeProperty, RemoveFaceProperty,
+        MapPropertyValues];
 
 
 (* #CorticalCurvatureColor ************************************************************************)
@@ -3054,11 +3077,14 @@ LabelVertexCoordinatesTr[cortex_?CorticalObjectQ, name_] := Check[
   $Failed];
 LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
   With[
-    {cortex = Cortex[sub, mesh, hemi]},
-    Part[
-      VertexCoordinatesTr[cortex],
-      All,
-      VertexIndex[cortex, LabelVertexList[sub, hemi, name]]]],
+    {cortex = Cortex[sub, mesh, hemi],
+     U = Normal@LabelVertexList[sub, hemi, name]},
+    If[MissingQ[U],
+      U,
+      Part[
+        VertexCoordinatesTr[cortex],
+        All,
+        VertexIndex[cortex, U]]]],
   $Failed];
 Protect[LabelVertexCoordinatesTr];
 
@@ -3111,21 +3137,23 @@ LabelFaceListTr[cortex_?CorticalObjectQ, name_] := Check[
   $Failed];
 LabelFaceListTr[sub_, hemi_, name_] := Check[
   With[
-    {U = LabelVertexList[sub, hemi, name],
+    {U = Normal@LabelVertexList[sub, hemi, name],
      cortex = Cortex[sub, Automatic, hemi]},
-    With[
-      {UF = VertexFaceList[cortex][[VertexIndex[cortex, U]]],
-       Ft = FaceListTr[cortex]},
-      Ft[[All, Select[Tally[Join@@UF], Last[#] == 3&][[All, 1]]]]]],
+    If[MissingQ[U],
+      U,
+      With[
+        {UF = VertexFaceList[cortex][[VertexIndex[cortex, U]]],
+         Ft = FaceListTr[cortex]},
+        Ft[[All, Select[Tally[Join@@UF], Last[#] == 3&][[All, 1]]]]]]],
   $Failed];
 Protect[LabelFaceListTr];
 
 (* #LabelFaceList *********************************************************************************)
 LabelFaceList[cortex_?CorticalObjectQ, name_] := Check[
-  Transpose @ LabelFaceListTr[cortex, name],
+  Replace[LabelFaceListTr[cortex, name], m:Except[_?MissingQ] :> Transpose[m]],
   $Failed];
 LabelFaceList[sub_, hemi_, name_] := Check[
-  Transpose @ LabelFaceListTr[sub, hemi, name],
+  Replace[LabelFaceListTr[sub, hemi, name], m:Except[_?MissingQ] :> Transpose[m]],
   $Failed];
 Protect[LabelFaceList];
 
@@ -3240,10 +3268,11 @@ LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]]
 Protect[LabelBoundaryVertexCoordinates];
 
 (* #OccipitalPole *********************************************************************************)
-OccipitalPole[sub_, mesh_, hemi_] := Check[
-  VertexCoordinatesTr[Cortex[sub, mesh, hemi]][[All, OccipitalPoleIndex[sub, hemi]]],
+OccipitalPole[sub_, hemi_?HemisphereQ, mesh_] := Check[
+  VertexCoordinatesTr[Cortex[sub, hemi, mesh]][[All, OccipitalPoleIndex[sub, hemi]]],
   $Failed];
-OccipitalPole[sub_, hemi_] := OccipitalPole[sub, Automatic, hemi];
+OccipitalPole[sub_, m:Except[_?HemisphereQ], h_?HemisphereQ] := OccipitalPole[sub, h, m];
+OccipitalPole[sub_, hemi_] := OccipitalPole[sub, hemi, Automatic];
 Protect[OccipitalPole];
 
 (* #MapBoundaryVertexList *************************************************************************)
