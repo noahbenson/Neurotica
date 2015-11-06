@@ -821,13 +821,13 @@ Protect[Index];
 (* #FlatOuter *************************************************************************************)
 FlatOuter[args__] := With[
   {listArgs = TakeWhile[Rest[{args}], ListQ]},
-  Flatten[Outer[args], Length[listArgs] - 1]];
+  Flatten[Outer[args], Length[listArgs] - 2]];
 Protect[FlatOuter];
 
 (* #FlatTable *************************************************************************************)
 FlatTable[args__] := Flatten[
   Table[args],
-  Length@Hold[args] - 1];
+  Length@Hold[args] - 2];
 SetAttributes[FlatTable, HoldAll];
 Protect[FlatTable];
 
