@@ -391,8 +391,7 @@ CompileSchiraFunction[a_, b_, lambda_, psi_, shearMtx_, scale_, fc_, areas_] := 
              {zz, zLayered}]},
           (* We center the FC on zero to start, by subtracting fcx0, then we scale and shear, and,
              last, we push things back to the specified FC *)
-
-          fc[[1]]+ I*fc[[2]] + Flatten@Dot[
+          fc[[1]] + I*fc[[2]] + Flatten@Dot[
             {{xscale, I*yscale}},
             mtx,
             (* Note that we flip the z here so that the arrangement matchis the LH *)
@@ -417,12 +416,9 @@ CompileSchiraInverse[a_, b_, lambda_, psi_, shearMtx_, scale_, fc_, areas_] := C
      fcx0 = N[Log[(a + lambda) / (b + lambda)]],
      xscale = If[NumberQ[scale], scale, scale[[1]]],
      yscale = If[NumberQ[scale], scale, scale[[2]]],
-     mtx = MapThread[
-       Append,
-       {Dot[
-          RotationMatrix[N[psi]],
-          N[shearMtx]],
-        N[fc]}](*,
+     mtx = Dot[
+       RotationMatrix[N[psi]],
+       N[shearMtx]](*,
      sideFn = With[
        {u = If[ListQ[scale] && Times@@scale < 0,
           {Cos[psi + 0.5*Pi], Sin[psi + 0.5*Pi]},
@@ -449,7 +445,10 @@ CompileSchiraInverse[a_, b_, lambda_, psi_, shearMtx_, scale_, fc_, areas_] := C
                   b + absz * Exp[I * argz * Sech[argz]^(dsech1 * Sech[dsech2*Log[absz/b]])]]]]},
            (* We center the FC on zero to start, by subtracting fcx0, then we scale and shear, 
               and, last, we push things back to the specified FC *)
-           First@Dot[{{xscale, I*yscale}}, mtx, {Re[ztr] - fcx0, Im[ztr], 1.0}]],
+           fc[[1]] + I*fc[[2]] + First@Dot[
+             {{xscale, I*yscale}},
+             mtx,
+             {Re[ztr] - fcx0, Im[ztr]}]],
          RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
          Parallelization -> True,
          RuntimeAttributes -> {Listable}]},
@@ -662,21 +661,23 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_], map_?MapQ] := With[
   {inv = Replace[Inverse, disp],
    Z = Transpose[VertexList[map]],
    r90 = Replace[\[CapitalRho]90, disp]},
-  Map[
-    Append[ComplexToVisualAngle[#[[1]]], #[[2]]]&,
-    inv[(Z[[1]] + I * Z[[2]])] * (90.0 / r90)]];
+  Quiet[
+    Map[
+      Append[ComplexToVisualAngle[#[[1]]], #[[2]]]&,
+      inv[(Z[[1]] + I * Z[[2]])] * (90.0 / r90)],
+    {FindRoot::cvmit}]];
 CorticalMapToRetinotopy[SchiraModelObject[disp_], {x:Except[_List], y:Except[_List]}] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
-   {z = inv[x + I*y] * (90.0 / r90)},
+   {z = Quiet[inv[x + I*y] * (90.0 / r90), {FindRoot::cvmit}]},
    Append[ComplexToVisualAngle[z[[1]]], z[[2]]]]];
 CorticalMapToRetinotopy[SchiraModelObject[disp_],
                         {x_List, y_List} /; Length[x] == Length[y] && Length[x] != 2] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
-    {res = inv[X + I*Y] * (90.0 / r90)},
+    {res = Quiet[inv[X + I*Y] * (90.0 / r90), {FindRoot::cvmit}]},
     If[ListQ[First@res],
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]& /@ res,
       Append[ComplexToVisualAngle[res[[1]]], res[[2]]]]]];
@@ -686,12 +687,12 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_], coords:{{_,_}..}] := With[
    r90 = Replace[\[CapitalRho]90, disp]},
   Map[
     Append[ComplexToVisualAngle[#[[1]]], #[[2]]]&,
-    inv[Z[[1]] + I * Z[[2]]] * (90.0 / r90)]];
+    Quiet[inv[Z[[1]] + I * Z[[2]]] * (90.0 / r90), {FindRoot::cvmit}]]];
 CorticalMapToRetinotopy[SchiraModelObject[disp_], X_, Y_] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
-    {res = inv[X + I*Y] * (90.0 / r90)},
+    {res = Quiet[inv[X + I*Y] * (90.0 / r90), {FindRoot::cvmit}]},
     If[ListQ[First@res],
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]& /@ res,
       Append[ComplexToVisualAngle[res[[1]]], res[[2]]]]]];
