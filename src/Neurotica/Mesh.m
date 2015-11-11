@@ -930,6 +930,10 @@ DefineImmutable[
        Options[CorticalMesh][[All,1]],
        opt:Except[Properties] :> (opt -> OptionValue[opt]),
        {1}],
+     MetaInformation[mesh]    := Fold[
+       Replace,
+       MetaInformation,
+       {Options[mesh], MetaInformation -> {}}],
 
 
      (* ====================================== Immediates ======================================= *)
@@ -1516,6 +1520,11 @@ DefineImmutable[
        Options[CorticalMap][[All,1]],
        opt:Except[Properties] :> (opt -> OptionValue[opt]),
        {1}],
+     MetaInformation[map]    := Fold[
+       Replace,
+       MetaInformation,
+       {Options[map], MetaInformation -> {}}],
+
      
      (* Here, we setup all of the special map-specific parameters and translate them *)
      TranslatedCenter[map] -> CorticalMapTranslateCenter[

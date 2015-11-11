@@ -190,12 +190,14 @@ DefineImmutable[
          ReplacePart[Hold[G], (# -> sym)& /@ pos]]]],
    HessianFunction[P]   -> Block[
      {X},
-     With[
-       {pos = Position[Hold[H], X, Infinity],
-        sym = Unique["arg"]},
-       Function @@ Join[
-         Hold[{sym}],
-         ReplacePart[Hold[H], (# -> sym)& /@ pos]]]],
+     If[Hold[H] === Hold[None],
+       Function[$Failed],
+       With[
+         {pos = Position[Hold[H], X, Infinity],
+          sym = Unique["arg"]},
+         Function @@ Join[
+           Hold[{sym}],
+           ReplacePart[Hold[H], (# -> sym)& /@ pos]]]]],
    (* And a call form for the gradient. *)
    Grad[P, M_ /; ArrayQ[M, 2, NumericQ]] := With[
      {f = GradientFunction[P]},
@@ -261,7 +263,7 @@ AutoExtendCorticalPotential[
   X];
 AutoExtendCorticalPotential[
   Times[x_?NumericQ, P0, rest___] -> Times[P, rest], P0 -> P,
-  {F0, G0, H0} -> {x * F0, x * G0, x * H0},
+  {F0, G0, H0} -> {x * F0, x * G0, If[H0 === None, None, x * H0]},
   X];
 (* One weird one... *)
 CorticalPotentialFunctionInstance /: Plus[P0_CorticalPotentialFunctionInstance,
@@ -272,21 +274,23 @@ CorticalPotentialFunctionInstance /: Plus[P0_CorticalPotentialFunctionInstance,
      opts0 = Options[P0], opts1 = Options[P1]},
     With[
       {rule = RuleDelayed @@ Join[Hold @@ {HoldPattern @@ args1[[4]]}, args0[[4]]]},
-      CorticalPotentialFunction @@ Join[
-        Replace[
-          Hold @@ {
-            {Join[args0[[1]], ReplaceAll[args1[[1]], rule]],
-             Join[args0[[2]], ReplaceAll[args1[[2]], rule]],
-             Join[args0[[3]], ReplaceAll[args1[[3]], rule]]}},
-          Hold[a__] :> Plus[a],
-          {2}],
-        args0[[4]],
-        Hold @@ {
-          Print -> Row[{Print /. opts0, "+", Print /. opts1}],
-          CorticalMesh -> With[
-            {msh = CorticalMesh /. opts0},
-            If[msh == (CorticalMesh /. opts1), msh, None]],
-          MetaInformation -> ((MetaInformation /. #)& /@ {opts0, opts1})}]]],
+      Block[
+        {X},
+        With[
+          {PF0 = PotentialFunction[P0],
+           GF0 = GradientFunction[P0],
+           HF0 = HessianFunction[P0],
+           PF1 = PotentialFunction[P1],
+           GF1 = GradientFunction[P1],
+           HF1 = HessianFunction[P1]},
+          CorticalPotentialFunction[
+            {PF0[X] + PF1[X], GF0[X] + GF1[X], HF0[X] + HF1[X]},
+            X,
+            Print -> Row[{Print /. opts0, "+", Print /. opts1}],
+            CorticalMesh -> With[
+              {msh = CorticalMesh /. opts0},
+              If[msh == (CorticalMesh /. opts1), msh, None]],
+            MetaInformation -> ((MetaInformation /. #)& /@ {opts0, opts1})]]]]],
   rest];
 Protect[CorticalPotentialFunction, CorticalPotentialFunctionInstance];
 
