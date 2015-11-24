@@ -23,7 +23,7 @@ BeginPackage["Neurotica`Registration`", {"Neurotica`Global`","Neurotica`Util`","
 Unprotect["Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 ClearAll[ "Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 
-CorticalPotentialFunction::usage = "CorticalPotentialFunction[{F, G}, X] yields a cortical potential function object with potential F and gradient G in terms of the coordinate matrix X, which is assumed to be a 2 or 3 by n matrix when the potential is evaluated. The following options may be given:
+CorticalPotentialFunction::usage = "CorticalPotentialFunction[{F, G, H}] yields a cortical potential function object with potential function F, gradient function G, and Hessian function H (which may be None). These functions are only ever called with a single argument, a 2 or 3 by n matrix, when the potential/gradient/hessian is evaluated. The following options may be given:
   * Print (default: Subscript[\"F\", \"Potential\"]) specifies what symbol should be used to display the potential function.
   * MetaInformation (default: {}) specifies any optional meta-information to attach to the potential function.
   * CorticalMesh (default: None) specifies the (optional) cortical mesh for which this potential function was defined.";
