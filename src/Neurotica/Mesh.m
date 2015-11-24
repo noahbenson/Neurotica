@@ -139,7 +139,7 @@ SumOverEdgesTr::usage = "SumOverEdgesTr[M, Q] yields the 3 x n result of summing
 SumOverFaces::usage = "SumOverFaces[M, Q] yields the result of summing over the faces given in the matrix Q whose last dimension must be equal to 3 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
 SumOverEdges::usage = "SumOverEdges[M, Q] yields the result of summing over the edges given in the matrix Q whose last dimension must be equal to 2 and whose first dimension must be equal to the number of faces in cortical mesh or map M.";
 SumOverEdgesDirected::usage = "SumOverEdgesDirected[M, Q] yields the equivalent of SumOverEdges[M, Q] except that the values in Q are subtracted from the second element of each edge instead of added to it.";
-SumOverEdgesDirectedTr::usage = "SumOverEdgesDirectedTr[M, Q] yields the equivalent of SumOverEdgesTr[M, Q] except that the values in Q are subtracted from the second element of each edge instead of added to it..";
+SumOverEdgesDirectedTr::usage = "SumOverEdgesDirectedTr[M, Q] yields the equivalent of SumOverEdgesTr[M, Q] except that the values in Q are subtracted from the second element of each edge instead of added to it.";
 
 NeighborhoodList::usage = "NeighborhoodList[s] yields a list of length N (where N is the number of vertices in s) of the neighboring vertices of each vertex; each entry k of the list is a list of the integer id's of the neighbors of the kth vertex. The neighbor id's are sorted such that they are listed in a counter-clockwise order around vertex k starting from the x-axis. The argument s may be either a map or a surface.";
 NeighborhoodAngles::usage = "NeighborhoodAngles[mesh] yields a list of the angles between the nodes in the NeighborhoodList; these angles are in the same order as the nodes in NeighborhoodList such that the first angle in a neighborhood is between the first vertex in the neighborhood, the central vertex, and second vertex in the neighborhood and the last angle in the neighborhood angles list is the angle between the first vertex in the neighborhood list, the center vertex, and the last vertex in the neighborhood list.
@@ -147,6 +147,9 @@ NeighborhoodAngles[s, X] yields the neighborhood angles for s if the vertices of
 NeighborhoodBisectors::usage = "NeighborhoodBisectors[mesh] yeilds a list of the vectors that bisect each of the angles in NeighborhoodAngles[mesh].
 NeighborhoodBisectors[s, X] yields the neighborhood bisecting vectors for the points given by the coordinate matrix X.";
 NeighborhoodEdgeLengths::usage = "NeighborhoodEdgeLengths[s] yields a list of the edge lengths for the neighborhood of each vertex in the surface or map s. The results are in the same order as NeighborhoodList[s] such that for the neighborhood list L, and the neighborhood edge length list G, G[[i,j]] is the length of the edge from vertex i to the vertex L[[i,j]].";
+SumOverNeighbors::usage = "SumOverNeighbors[mesh] yields a sparse matrix of size n x n where n is the number of vertices in the given mesh and whose entries are 0's everywhere except when, for row i and column j, vertex i and vertex j are neighbors.
+SumOverNeighbors[mesh, vector] yields the sum over neighbors, for each vertex, of the given vector.
+SumOverNeighbors[mesh, matrix] yields the sum over neighbors, for each column of the given matrix.";
 
 FaceIndex::usage = "FaceIndex[mesh, f] yields the index in the FaceList[mesh] of the face f. The vertices in f may be in any order.";
 VertexFaceList::usage = "VertexFaceList[mesh] yields a list of the faces (in the same order as VertexList[mesh]) that each vertex is a member of.
@@ -919,6 +922,12 @@ DefineImmutable[
        Transpose[{Range[3*FaceCount[mesh]], Join @@ VertexIndex[mesh, FaceListTr[mesh]]}] -> 1],
      SumOverEdgesMatrix[mesh] :> SparseArray[
        Transpose[{Range[2*EdgeCount[mesh]], Join @@ VertexIndex[mesh, EdgePairsTr[mesh]]}] -> 1],
+     SumOverNeighborsMatrix[mesh] :> SparseArray[
+       Join@@MapThread[
+         Thread[{#1, #2}]&,
+         {Range@VertexCount[mesh], VertexIndex[mesh, NeighborhoodList[mesh]]}] -> 1,
+       {VertexCount[mesh], VertexCount[mesh]},
+       0],
 
 
      (* ======================================= Settables ======================================= *)
@@ -1143,6 +1152,9 @@ DefineImmutable[
        SumOverEdgesMatrix[mesh]],
      SumOverEdgeVerticesTr[mesh, datat_] := Dot[Join @@ datat, SumOverEdgesMatrix[mesh]],
      SumOverEdgeVertices[mesh, data_] := Dot[Join @@ Transpose[data], SumOverEdgesMatrix[mesh]],
+     (* SumOverNeighbors *)
+     SumOverNeighbors[mesh] := SumOverNeighborsMatrix[mesh],
+     SumOverNeighbors[mesh, u_] := Dot[SumOverNeighborsMatrix[mesh], u],
 
 
      (* ================================ Geometrical Properties ================================= *)
@@ -1740,11 +1752,19 @@ DefineImmutable[
          ListQ[e] || ArrayQ[e], Map[Part[idx, #]&, EdgeIndex[map, e], {-2}],
          True, $Failed]],
 
-     (* #SumOverFacesMatrix and #SumOverEdgesMatrix *)
+     (* #SumOverFacesMatrix, #SumOverEdgesMatrix, and #SumOverNeighbors *)
      SumOverFacesMatrix[map] :> SparseArray[
        Transpose[{Range[3*FaceCount[map]], Join @@ VertexIndex[map, FaceListTr[map]]}] -> 1],
      SumOverEdgesMatrix[map] :> SparseArray[
        Transpose[{Range[2*EdgeCount[map]], Join @@ VertexIndex[map, EdgePairsTr[map]]}] -> 1],
+     SumOverNeighborsMatrix[map] :> SparseArray[
+       Join@@MapThread[
+         Thread[{#1, #2}]&,
+         {Range@VertexCount[map], VertexIndex[map, NeighborhoodList[map]]}] -> 1,
+       {VertexCount[map], VertexCount[map]},
+       0],
+
+
      (* #SumOverFaces *)
      SumOverFacesTr[map, datat_] := Dot[
        MapThread[Join, {datat, datat, datat}],
@@ -1767,6 +1787,10 @@ DefineImmutable[
        SumOverEdgesMatrix[map]],
      SumOverEdgeVerticesTr[map, datat_] := Dot[Join @@ datat, SumOverEdgesMatrix[map]],
      SumOverEdgeVertices[map, data_] := Dot[Join @@ Transpose[data], SumOverEdgesMatrix[map]],
+     (* SumOverNeighbors *)
+     SumOverNeighbors[map] := SumOverNeighborsMatrix[map],
+     SumOverNeighbors[map, u_] := Dot[SumOverNeighborsMatrix[map], u],
+
 
      (* #VertexDegree *)
      VertexDegree[map] :> Length /@ NeighborhoodList[map],

@@ -659,7 +659,7 @@ SchiraInverse[SchiraModelObject[disp_]] := Replace[Inverse, disp];
 (* #CorticalMapToRetinotopy ***********************************************************************)
 CorticalMapToRetinotopy[SchiraModelObject[disp_], map_?CorticalMapQ] := With[
   {inv = Replace[Inverse, disp],
-   Z = Transpose[VertexList[map]],
+   Z = VertexCoordinatesTr[map],
    r90 = Replace[\[CapitalRho]90, disp]},
   Quiet[
     Map[
