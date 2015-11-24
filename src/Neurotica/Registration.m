@@ -166,38 +166,16 @@ Options[CorticalPotentialFunction] = {
   MetaInformation -> {},
   CorticalMesh -> None};
 DefineImmutable[
-  CorticalPotentialFunction[{F_, G_, H_}, X_Symbol, OptionsPattern[]] :> P,
+  CorticalPotentialFunction[{F_, G_, H_}, OptionsPattern[]] :> P,
   {(* Let's start with options! *)
    Options[P] = Map[# -> OptionValue[#]&, Options[CorticalPotentialFunction][[All,1]]],
    Options[P, opt_] := Replace[
      opt,
      Append[Options[P], x_ :> (Message[Options::optionf, x, CorticalPotentialFunction]; {})]],
    (* We need to define the potential functions and gradients... *)
-   PotentialFunction[P] -> Block[{X},
-     With[
-       {pos = Position[Hold[F], X, Infinity],
-        sym = Unique["arg"]},
-       Function @@ Join[
-         Hold[{sym}],
-         ReplacePart[Hold[F], (# -> sym)& /@ pos]]]],
-   GradientFunction[P]  -> Block[
-     {X},
-     With[
-       {pos = Position[Hold[G], X, Infinity],
-        sym = Unique["arg"]},
-       Function @@ Join[
-         Hold[{sym}],
-         ReplacePart[Hold[G], (# -> sym)& /@ pos]]]],
-   HessianFunction[P]   -> Block[
-     {X},
-     If[Hold[H] === Hold[None],
-       Function[$Failed],
-       With[
-         {pos = Position[Hold[H], X, Infinity],
-          sym = Unique["arg"]},
-         Function @@ Join[
-           Hold[{sym}],
-           ReplacePart[Hold[H], (# -> sym)& /@ pos]]]]],
+   PotentialFunction[P] -> F,
+   GradientFunction[P]  -> G,
+   HessianFunction[P]   -> H,
    (* And a call form for the gradient. *)
    Grad[P, M_ /; ArrayQ[M, 2, NumericQ]] := With[
      {f = GradientFunction[P]},
@@ -205,12 +183,9 @@ DefineImmutable[
    (* And a call form for the Hessian. *)
    Hessian[P, M_ /; ArrayQ[M, 2, NumericQ]] := With[
      {f = HessianFunction[P]},
-     If[Length[M] <= Length[M[[1]]], f[M], Transpose[f[Transpose @ M]]]],
-   (* Finally, this one is private, but useful for combining potential functions *)
-   HeldArguments[P] -> {Hold[F], Hold[G], Hold[H], Hold[X]}},
+     If[Length[M] <= Length[M[[1]]], f[M], Transpose[f[Transpose @ M]]]]},
   SetSafe -> True,
   Symbol -> CorticalPotentialFunctionInstance];
-SetAttributes[CorticalPotentialFunction, HoldAll];
 Protect[PotentialFunction, GradientFunction];
 
 (* We have a few more edits for the potential function though: *)
@@ -229,69 +204,40 @@ Unprotect[CorticalPotentialFunctionInstance];
 (* Critically, we want a nice display form for these potential functions: *)
 MakeBoxes[P_CorticalPotentialFunctionInstance, form_] := MakeBoxes[#]& @ Options[P, Print];
 
-(* We need to define some simple combination operators... *)
-SetAttributes[AutoExtendCorticalPotential, HoldRest];
-Quiet[
-  AutoExtendCorticalPotential[
-    patt_ -> res_,
-    P0_Symbol -> P_Symbol, 
-    {F0_Symbol, G0_Symbol, H0_Symbol} -> {F_, G_, H_},
-    X_Symbol
-   ] := TagSetDelayed[
-      CorticalPotentialFunctionInstance,
-      Evaluate[patt /. HoldPattern[P0] :> P0_CorticalPotentialFunctionInstance],
-      With[
-        {opts = Options[P0],
-         args = HeldArguments[P0]},
-        With[
-          {fns = ReplaceAll[
-             Hold[{F, G, H}],
-             MapThread[
-               RuleDelayed @@ Join[Hold@@{HoldPattern @@ #1}, #2] &,
-               {{Hold[F0], Hold[G0], Hold[H0]},
-                ReplaceAll[args[[1;;3]], HoldPattern @@ args[[4]] :> X]}]]},
-          CorticalPotentialFunction @@ Join[
-            fns,
-            Hold[X],
-            Hold @@ opts]]]],
-  {RuleDelayed::rhs}];
-Protect[AutoExtendCorticalPotential];
-
-AutoExtendCorticalPotential[
-  Plus[x_?NumericQ, P0, rest___] -> Plus[P, rest], P0 -> P,
-  {F0, G0, H0} -> {x + F0, G0, H0},
-  X];
-AutoExtendCorticalPotential[
-  Times[x_?NumericQ, P0, rest___] -> Times[P, rest], P0 -> P,
-  {F0, G0, H0} -> {x * F0, x * G0, If[H0 === None, None, x * H0]},
-  X];
-(* One weird one... *)
+(* Make sure that these functions combine properly: *)
 CorticalPotentialFunctionInstance /: Plus[P0_CorticalPotentialFunctionInstance,
                                           P1_CorticalPotentialFunctionInstance,
                                           rest___] := Plus[
-  With[
-    {args0 = HeldArguments[P0], args1 = HeldArguments[P1],
-     opts0 = Options[P0], opts1 = Options[P1]},
-    With[
-      {rule = RuleDelayed @@ Join[Hold @@ {HoldPattern @@ args1[[4]]}, args0[[4]]]},
-      Block[
-        {X},
-        With[
-          {PF0 = PotentialFunction[P0],
-           GF0 = GradientFunction[P0],
-           HF0 = HessianFunction[P0],
-           PF1 = PotentialFunction[P1],
-           GF1 = GradientFunction[P1],
-           HF1 = HessianFunction[P1]},
-          CorticalPotentialFunction[
-            {PF0[X] + PF1[X], GF0[X] + GF1[X], HF0[X] + HF1[X]},
-            X,
-            Print -> Row[{Print /. opts0, "+", Print /. opts1}],
-            CorticalMesh -> With[
-              {msh = CorticalMesh /. opts0},
-              If[msh == (CorticalMesh /. opts1), msh, None]],
-            MetaInformation -> ((MetaInformation /. #)& /@ {opts0, opts1})]]]]],
+  CorticalPotentialFunction[
+    {Function[PotentialFunction[P0][#] + PotentialFunction[P1][#]],
+     Function[GradientFunction[P0][#] + GradientFunction[P1][#]],
+     If[HessianFunction[P0] === None || HessianFunction[P1] === None,
+       None,
+       Function[HessianFunction[P0][#] + HessianFunction[P1][#]]]},
+    Print -> Row[{Print /. Options[P0], "+", Print /. Options[P1]}],
+    CorticalMesh -> With[
+      {msh = CorticalMesh /. Options[P0]},
+      If[msh == (CorticalMesh /. Options[P1]), msh, None]],
+    MetaInformation -> ((MetaInformation /. #)& /@ {Options[P0], Options[P1]})],
   rest];
+CorticalPotentialFunctionInstance /: Plus[x_?NumericQ,
+                                          P_CorticalPotentialFunctionInstance,
+                                          r___] := Plus[
+  CorticalPotentialFunction[
+    {Function[x + PotentialFunction[P][#]],
+     GradientFunction[P],
+     HessianFunction[P]},
+    Sequence@@Options[P]],
+  r];
+CorticalPotentialFunctionInstance /: Times[x_?NumericQ,
+                                           P_CorticalPotentialFunctionInstance,
+                                           r___] := Times[
+  CorticalPotentialFunction[
+    {Function[x * PotentialFunction[P][#]],
+     Function[x * GradientFunction[P][#]],
+     If[HessianFunction[P] === None, None, Function[x * HessianFunction[P][#]]]},
+    Sequence@@Options[P]],
+  r];
 Protect[CorticalPotentialFunction, CorticalPotentialFunctionInstance];
 
 
@@ -864,11 +810,11 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
       {m*dims*2, n*dims},
       0];
     CorticalPotentialFunction[
-      {0.5 / m * Total[(EdgeLengthsTr[mesh, X] - D0)^2],
+      {Function[0.5 / m * Total[(EdgeLengthsTr[mesh, #] - D0)^2]],
        (* Gradient is easy: along the axis between the points *)
-       With[
-         {x1 = X[[All, E[[1]]]], 
-          x2 = X[[All, E[[2]]]]},
+       Function@With[
+         {x1 = #[[All, E[[1]]]], 
+          x2 = #[[All, E[[2]]]]},
          With[
            {dX = CalculateDistanceGradient[x1, x2],
             r = CalculateDistance[x1, x2]},
@@ -876,9 +822,9 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
              mesh,
              ConstantArray[r - D0, dims] * dX[[1]] / m]]],
        (* Hessian is trickier *)
-       With[
-         {x1 = X[[All, E[[1]]]], 
-          x2 = X[[All, E[[2]]]]},
+       Function@With[
+         {x1 = #[[All, E[[1]]]], 
+          x2 = #[[All, E[[2]]]]},
          With[
            {d2X = CalculateDistanceHessian[x1, x2],
             dX = Join @@ CalculateDistanceGradient[x1, x2],
@@ -891,7 +837,6 @@ HarmonicEdgePotential[mesh_?CorticalObjectQ] := With[
                hessEdgeToVertexMtcs[[1]],
                SparseArray[hessEdgeIdcs -> Flatten[hess]],
                hessEdgeToVertexMtcs[[2]]]]]]},
-      X,
       Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Edges",",",Length@X0}]],
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]]];
@@ -915,21 +860,20 @@ VDWEdgePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
      c2 = ((ord - 1)/ord)^ord / (ord - 1)},
     CorticalPotentialFunction[
       {(* Potential... *)
-       With[
-         {R0overR = c1 * R0 / EdgeLengthsTr[mesh, X]},
+       Function@With[
+         {R0overR = c1 * R0 / EdgeLengthsTr[mesh, #]},
          Total[(R0overR - 1) * R0overR^(ord - 1) + c2] / m],
        (* Gradient... *)
-       With[
-         {R = EdgeLengthsTr[mesh,X]},
+       Function@With[
+         {R = EdgeLengthsTr[mesh, #]},
          With[
            {dR = (ord * (R - R0) * (((ord - 1)*R0)/(ord*R))^ord)/(R*R0),
-            dX = CalculateDistanceGradients[X[[All, E[[1]]]], X[[All, E[[2]]]]]},
+            dX = CalculateDistanceGradients[#[[All, E[[1]]]], #[[All, E[[2]]]]]},
            SumOverEdgesDirectedTr[
              mesh,
              ConstantArray[dR / m, dims] * dX[[1]] / m]]],
        (* No Hessian yet *)
        None},
-      X,
       Print -> Subscript[Style["\[GothicCapitalV]",Bold], Row[{"Edges",",",Length@X0}]],
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]]];
@@ -948,25 +892,28 @@ HarmonicAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
   With[
     {const = 1.0 / n},
     CorticalPotentialFunction[
-      {With[
-         {corners0 = X[[All, #]]& /@ Ft},
-         const * Sum[
-           pfun @@ Append[RotateLeft[corners0, i], A0[[i+1]]],
-           {i, 0, 2}]],
-       With[
-         {corners0 = X[[All, #]]& /@ Ft},
-         (* corners0: {v1, v2, v3} (3xdxn); vi: {x, y, z} (3 x n) or {x, y} (2 x n) *)
+      {Function@With[
+         {X = #},
          With[
-           {facesGrad = Sum[
-              RotateRight[
-                gfun @@ Append[RotateLeft[corners0, i], A0[[i + 1]]],
-                i],
-              {i, 0, 2}]},
-           (* facesGrad: same format as corners0 *)
-           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]],
+           {corners0 = X[[All, #]]& /@ Ft},
+           const * Sum[
+             pfun @@ Append[RotateLeft[corners0, i], A0[[i+1]]],
+             {i, 0, 2}]]],
+       Function@With[
+         {X = #},
+         With[
+           {corners0 = X[[All, #]]& /@ Ft},
+           (* corners0: {v1, v2, v3} (3xdxn); vi: {x, y, z} (3 x n) or {x, y} (2 x n) *)
+           With[
+             {facesGrad = Sum[
+                RotateRight[
+                  gfun @@ Append[RotateLeft[corners0, i], A0[[i + 1]]],
+                  i],
+                {i, 0, 2}]},
+             (* facesGrad: same format as corners0 *)
+             const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]]],
        (* No hessian yet *)
        None},
-      X,
       Print -> Subscript[Style["\[GothicCapitalH]",Bold], Row[{"Angles",",",Length@X0}]],
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]]];
@@ -985,25 +932,28 @@ VDWAnglePotential[mesh_?CorticalObjectQ, OptionsPattern[]] := With[
   With[
     {const = 1.0 / n},
     CorticalPotentialFunction[
-      {With[
-         {corners0 = X[[All, #]]& /@ Ft},
-         const * Sum[
-           pfun @@ Append[RotateLeft[corners0, i], A0[[i+1]]],
-           {i, 0, 2}]],
-       With[
-         {corners0 = X[[All, #]]& /@ Ft},
-         (* corners0: {v1, v2, v3} (3xdxn); vi: {x, y, z} (3 x n) or {x, y} (2 x n) *)
+      {Function@With[
+         {X = #},
          With[
-           {facesGrad = Sum[
-              RotateRight[
-                gfun @@ Append[RotateLeft[corners0, i], A0[[i + 1]]],
-                i],
-              {i, 0, 2}]},
-           (* facesGrad: same format as corners0 *)
-           const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]],
+           {corners0 = X[[All, #]]& /@ Ft},
+           const * Sum[
+             pfun @@ Append[RotateLeft[corners0, i], A0[[i+1]]],
+             {i, 0, 2}]]],
+       Function@With[
+         {X = #},
+         With[
+           {corners0 = X[[All, #]]& /@ Ft},
+           (* corners0: {v1, v2, v3} (3xdxn); vi: {x, y, z} (3 x n) or {x, y} (2 x n) *)
+           With[
+             {facesGrad = Sum[
+                RotateRight[
+                  gfun @@ Append[RotateLeft[corners0, i], A0[[i + 1]]],
+                  i],
+                {i, 0, 2}]},
+             (* facesGrad: same format as corners0 *)
+             const * Table[SumOverFaceVerticesTr[mesh, facesGrad[[All, k]]], {k, 1, dims}]]]],
        (* No hessian yet *)
        None},
-      X,
       Print -> Subscript[Style["\[GothicCapitalV]",Bold], Row[{"Angles",",",Length@X0}]],
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]]];
@@ -1016,10 +966,9 @@ GaussianPotentialWell[mesh_?CorticalObjectQ, spec_] := Check[
   With[
     {wells = Transpose @ ParseGaussianPotentialWells[mesh, spec]},
     CorticalPotentialFunction[
-      {CalculateGaussianPotential[wells, X],
-       CalculateGaussianGradient[wells, X],
-       CalculateGaussianHessian[wells, X]},
-      X,
+      {Function@CalculateGaussianPotential[wells, #],
+       Function@CalculateGaussianGradient[wells, #],
+       Function@CalculateGaussianHessian[wells, #]},
       Print -> Subscript[Style["\[GothicCapitalC]",Bold], Row[{"Angles",",",Length@X0}]],
       CorticalMesh -> mesh,
       MetaInformation -> OptionValue[MetaInformation]]],
@@ -1034,8 +983,9 @@ HarmonicPotentialWell[mesh_?CorticalObjectQ, spec_, OptionsPattern[]] := With[
   {wells = Transpose @ ParseHarmonicPotentialWells[mesh, spec],
    dims = If[CorticalMeshQ[mesh], 3, 2]},
   CorticalPotentialFunction[
-    {CalculateHarmonicPotential[wells, X], CalculateHarmonicGradient[wells, X], None},
-    X,
+    {Function@CalculateHarmonicPotential[wells, #],
+     Function@CalculateHarmonicGradient[wells, #], 
+     None},
     MetaInformation -> OptionValue[MetaInformation],
     CorticalMesh -> mesh,
     Print -> Replace[
@@ -1068,20 +1018,19 @@ RegionDistancePotential[mesh_?CorticalObjectQ, reg_?RegionQ, {F_, G_}, OptionsPa
     With[
       {w = Chop[weight], absw = Abs@Chop[weight[[idcs]]]},
       CorticalPotentialFunction[
-        {Dot[F @ distFn @ Transpose @ X[[All, idcs]], absw] / W,
-         With[
-           {nears = nearFn @ Transpose @ X},
+        {Function[Dot[F @ distFn @ Transpose @ #[[All, idcs]], absw] / W],
+         Function@With[
+           {nears = nearFn @ Transpose @ #},
            With[
-             {dX = X - Transpose[nears]},
+             {dX = # - Transpose[nears]},
              With[
                {dists = Chop@ColumnNorms[dX]},
                With[
                  {nulls = Unitize[dists]},
                  dX * ConstantArray[
                    nulls * w * G[dists] / (W * ((1 - nulls) + dists)),
-                   Length[X]]]]]],
+                   Length[#]]]]]],
          None},
-        X,
         Print -> OptionValue[Print],
         MetaInformation -> OptionValue[MetaInformation],
         CorticalMesh -> mesh]]]];
@@ -1115,18 +1064,17 @@ SignedRegionDistancePotential[mesh_?CorticalObjectQ,
     With[
       {w = weight[[idcs]], absw = Abs[weight[[idcs]]]},
       CorticalPotentialFunction[
-        {Dot[F @ distFn @ Transpose @ X[[All, idcs]], absw] / W,
-         With[
-           {nears = nearFn @ Transpose @ X},
+        {Function[Dot[F @ distFn @ Transpose @ #[[All, idcs]], absw] / W],
+         Function@With[
+           {nears = nearFn @ Transpose[#]},
            With[
-             {dX = X - Transpose[nears]},
+             {dX = # - Transpose[nears]},
              With[
-               {dists = distFn[Transpose @ X[[All, idcs]]]},
+               {dists = distFn[Transpose @ #[[All, idcs]]]},
                dX * ConstantArray[
                  w * G[dists] / (# + (1 - Unitize[#]))&@(W * dists),
-                 Length[X]]]]],
+                 Length[#]]]]],
          None},
-        X,
         Print -> OptionValue[Print],
         MetaInformation -> OptionValue[MetaInformation],
         CorticalMesh -> mesh]]]];
@@ -1258,6 +1206,23 @@ CortexGradientPlot[Rule[X_ /; ArrayQ[X, 2, NumericQ], mesh_?CorticalMapQ],
 Protect[CortexGradientPlot];
 
 (* #MapTangledQ ***********************************************************************************)
+MapTangledQ[map_?CorticalMapQ, Xarg_] := With[
+  {X = If[Length[Xarg] == 2, Xarg, Transpose[Xarg]]},
+  With[
+    {FX = X[[All, #]]& /@ VertexIndex[map, FaceListTr[map]]},
+    (* The basic check here:
+       We know that all triangles should be expressed in the same order (clockwise or
+       counterclockwise); accordingly, all angles should be either positive or negative (when the
+       smallest angle is taken in the ordered direction). *)
+    With[
+      {th1 = ArcTan[FX[[2, 1]] - FX[[1, 1]], FX[[2, 2]] - FX[[1, 2]]],
+       th2 = ArcTan[FX[[3, 1]] - FX[[1, 1]], FX[[3, 2]] - FX[[1, 2]]]},
+      With[
+        {th = th2 - th1},
+        (* For angles that are over pi or under -pi, we want to invert the sign; then we just check
+           to make sure all signes are the same. *)
+        Length@Union@Unitize[Sign[Pi - Abs[th]] * th] != 1]]]];
+(* The old way of doing this:
 MapTangledQ[map_?CorticalMapQ, X_] := With[
   {nei = VertexIndex[map, NeighborhoodList[map]]},
   Catch[
@@ -1274,6 +1239,7 @@ MapTangledQ[map_?CorticalMapQ, X_] := With[
                   Throw[True]]]]]]],
       {X, nei}];
     False]];
+*)
 MapTangledQ[map_?CorticalMapQ] := MapTangledQ[map, VertexCoordinates[map]];
 Protect[MapTangledQ];
 
