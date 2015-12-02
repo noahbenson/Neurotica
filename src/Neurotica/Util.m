@@ -122,6 +122,8 @@ Note that DivideCheck works with arrays as well as single values.";
 FlatOuter::usage = "FlatOuter[args...] is identical to Outer[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 FlatTable::usage = "FlatTable[args...] is identical to Table[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 
+ForwardOptions::usage = "ForwardOptions[f[args...], opts...] yields the result of calling the function f with the given arguments in args... followed by the options in the sequence of opts... where the options are filtered: ForwardOptions[f[args...], opts...] is equivalent to f[args..., Sequence@@FilterRules[{opts}, Options[f]].";
+
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
 Begin["`Private`"];
@@ -830,6 +832,13 @@ FlatTable[args__] := Flatten[
   Length@Hold[args] - 2];
 SetAttributes[FlatTable, HoldAll];
 Protect[FlatTable];
+
+(* #ForwardOptions ********************************************************************************)
+Attributes[ForwardOptions] = {HoldFirst};
+ForwardOptions[f_[args___], opts___] := With[
+  {head = f},
+  head[args, Sequence@@FilterRules[{opts}, Options[head]]]];
+Protect[ForwardOptions];
 
 End[];
 EndPackage[];
