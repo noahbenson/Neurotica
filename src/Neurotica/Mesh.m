@@ -260,6 +260,10 @@ LabelBoundaryEdgePairsTr::usage = "LabelBoundaryEdgePairsTr[sub, hemi, name] yie
 LabelBoundaryEdgePairs::usage = "LabelBoundaryEdgePairs[sub, hemi, name] yields a list of the edge pairs rather than the edges themselves that are returned by LabelEdgeList.";
 LabelBoundaryEdgePairs::badarg = "Bad argument given to LabelBoundary function: `1`";
 
+CortexSelect::usage = "CortexSelect[mesh, f] yields a list of the vertices in the given mesh such that, for vertex u, function f yields true when passed an Association of properties of u.";
+CortexCases::usage = "CortexCases[mesh, prop, patt] yields a list of the vertices in the given mesh such that the property values for the given property name, prop, matches the given pattern, patt.
+CortexCases[mesh, {prop1, prop2...}, patt] matches patt against the lsit of properties for each vertex.";
+
 OccipitalPole::usage = "OccipitalPole[subject, mesh, hemisphere] is usually defined by subject modalities (e.g., FreeSurferSubject[]) such that the function yields the vertex coordinate for the occipital pole in the particular mesh and hemisphere requested.
 Note that if you define a new subject modality, then defining OccipitalPoleIndex[] for the subject should be sufficient.";
 
@@ -3299,6 +3303,20 @@ LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]]
   Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name, opts],
   $Failed];
 Protect[LabelBoundaryVertexCoordinates];
+
+(* #CortexSelect **********************************************************************************)
+CortexSelect[mesh_?CorticalObjectQ, f_] := Pick[
+  VertexList[mesh],
+  MapPropertyValues[f, mesh],
+  True];
+Protect[CortexSelect];
+
+(* #CortexCases ***********************************************************************************)
+CortexCases[mesh_?CorticalObjectQ, props_, patt_] := Pick[
+  VertexList[mesh],
+  Map[MatchQ[patt], If[ListQ[props], Transpose[#], #]& @ VertexPropertyValues[mesh, props]],
+  True];
+Protect[CortexCases];
 
 (* #OccipitalPole *********************************************************************************)
 OccipitalPole[sub_, hemi_?HemisphereQ, mesh_] := Check[
