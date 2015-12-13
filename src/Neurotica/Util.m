@@ -126,6 +126,14 @@ ForwardOptions::usage = "ForwardOptions[f[args...], opts...] yields the result o
 
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
+GaussianInterpolation::usage = "GaussianInterpolation[data] yields a function that performs the Gaussian-weighted mean interpolation over the given data matrix. The following options may be given:
+  * StandardDeviation - the standard deviation of the Guassian filter to use
+  * Threshold - the interpolation function is thresholded in that it only looks at the points close enough to be relevant. The threshold may be specified as a number (a distance cutoff), a list containing only an integer (always use the n closest points), or a list containing an integer followed by a distance cutoff.
+Additionally, all options that may be given to Nearest[] are accepted.";
+GaussianInterpolation::badarg = "Bad argument given to GaussianInterpolation: `1`";
+GaussianInterpolation::xdims = "Dimensions for given argument do not match those of interpolated space";
+GaussianInterpolationFunction::usage = "GaussianInterpolationFunction[...] is a form used to store data related to a Gaussian-interpolated function.";
+
 Begin["`Private`"];
 
 (* #FlipIntegerBytes ******************************************************************************)
@@ -839,6 +847,187 @@ ForwardOptions[f_[args___], opts___] := With[
   {head = f},
   head[args, Sequence@@FilterRules[{opts}, Options[head]]]];
 Protect[ForwardOptions];
+
+(* #UpdateOptions *********************************************************************************)
+UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:(Rule|RuleDelayed)[name_,_]] := Prepend[
+  DeleteCases[opts, (Rule|RuleDelayed)[name, _], {1}],
+  repl];
+UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:{(Rule|RuleDelayed)[_,_]..}] := With[
+  {onames = opts[[All, 1]],
+   rnames = repl[[All, 1]]},
+  Table[
+    SelectFirst[If[MemberQ[rnames, name], repl, opts], #[[1]] === name &],
+    {name, Union[rnames, onames]}]];
+Protect[UpdateOptions];
+
+(* #GaussianInterpolation *************************************************************************)
+Options[GaussianInterpolation] = Join[
+  {StandardDeviation -> Automatic,
+   Threshold -> Automatic,
+   MetaInformation -> {}},
+  Options[Nearest]];
+(* how to call an interpolation function directly... *)
+(G_GaussianInterpolationFunction)[x_] := GaussianInterpolationLookup[G, x];
+(* how to chance the array for the data *)
+GaussianInterpolation[G_GaussianInterpolationFunction, (Rule|RuleDelayed)[Array, x_]] := Clone[
+  G,
+  Array -> x];
+GaussianInterpolation[G_GaussianInterpolationFunction, {(Rule|RuleDelayed)[Array, x_]}] := Clone[
+  G,
+  Array -> x];
+(* alternate constructor... *)
+GaussianInterpolation[sample:{{_List, _}..}, opts:OptionsPattern[]] := GaussianInterpolation[
+   Transpose[Append @@ Transpose[sample]],
+   opts];
+(* now, define the immutable... *)
+DefineImmutable[
+  GaussianInterpolation[sampleData_?ArrayQ, optionsArg:OptionsPattern[]] :> G,
+  {(* The sample data... *)
+   Array[G] = sampleData,
+   Keys[G] -> With[
+     {dat = Array[G]},
+     Which[
+       VectorQ[dat, NumericQ], List /@ Range@Length[dat],
+       MatrixQ[dat, NumericQ], If[
+         Last@Dimensions[dat] == 1,
+         List /@ Range@Length[dat],
+         dat[[All, 1 ;; -2]]],
+       True, Message[
+         GaussianInterpolation::badarg,
+         "Sample data must be a 1D or 2D numeric array"]]],
+   Values[G] -> With[
+     {dat = Array[G]},
+     Which[
+       VectorQ[dat, NumericQ], dat,
+       MatrixQ[dat, NumericQ], If[
+         Last@Dimensions[dat] == 1, 
+         Flatten[dat],
+         dat[[All, -1]]],
+       True, Message[
+         GaussianInterpolation::badarg,
+         "Sample data must be a 1D or 2D numeric array"]]],
+   Dimensions[G] -> Length@First@Keys[G],
+
+   (* The options... *)
+   PrivateOptions[G] = UpdateOptions[Options[GaussianInterpolation], {optionsArg}],
+   Options[G] -> With[
+     {po = PrivateOptions[G],
+      X = Keys[G],
+      possibleOpts = Union @ Part[Options[GaussianInterpolation], All, 1]},
+     If[Or[Union@Join[Head /@ po, {Rule, RuleDelayed}] =!= {Rule, RuleDelayed},
+           Length[possibleOpts] != Length @ Union[possibleOpts, po[[All, 1]]]],
+       Message[
+         GaussianInterpolation::badarg,
+         "Unrecognized options given to GaussianInterpolation"],
+       With[
+         {scale = Replace[
+            StandardDeviation /. po,
+            {Automatic :> With[
+               {dat = Values[G]},
+               0.25 * If[VectorQ[dat],
+                 StandardDeviation[dat],
+                 Mean[StandardDeviation /@ Transpose[dat]]]],
+             s_?NumericQ /; s > 0 :> s,
+             _ :> Message[
+               GaussianInterpolation::badarg,
+               "StandardDeviation must be Automatic or a positive real number"]}],
+          meta = MetaInformation /. po,
+          distFn = Replace[OptionValue[DistanceFunction], Automatic -> EuclideanDistance]},
+         With[
+           {threshold = Replace[
+              Threshold /. po,
+              {Automatic -> {Min[{Length[X], 10}], 3.5*scale},
+               {n_Integer /; n > 0} :> {n, Infinity},
+               c_?NumericQ /; c >0 :> {Min[{Length[X], 10}], c},
+               {n_Integer, c_?NumericQ} /; n > 0 && c > 0 :> {n, c},
+               _ :> Message[
+                 GaussianInterpolation::badarg,
+                 "Threshold must be a list containing a positive integer or a positive cutoff"]}]},
+           Join[
+             {StandardDeviation -> scale,
+              Threshold -> threshold,
+              MetaInformation -> meta,
+              DistanceFunction -> distFn},
+             DeleteCases[
+               FilterRules[po, Options[Nearest]],
+               (Rule|RuleDelayed)[DistanceFunction, _],
+               {1}]]]]]],
+   Options[G, arg_List] := With[
+     {opts = Options[G]},
+     First@Last@Reap[
+       Scan[
+         Function@With[
+           {val = opts[#]},
+           If[Head[val] === Missing,
+             Message[Options::optnf, #, GaussianInterpolation],
+             Sow[# -> val]]],
+         arg]]],
+   Options[G, arg:Except[_List]] := Options[G, {arg}],
+   SetOptions[G, arg_List] := Clone[G, PrivateOptions -> UpdateOptions[PrivateOptions[G], arg]],
+   SetOptions[G, arg_Rule] := Clone[G, PrivateOptions -> UpdateOptions[PrivateOptions[G], arg]],
+   SetOptions[G, arg_RuleDelayed] := Clone[G, PrivateOptions -> UpdateOptions[PrivateOptions[G], arg]],
+
+   (* Metadata for calculation... *)
+   Nearest[G] :> With[
+     {X = Keys[G],
+      nearestOpts = FilterRules[Options[G], Options[Nearest]]},
+     Nearest[X -> Automatic, Sequence @@ nearestOpts]],
+   GaussianFilter[G] -> NormalDistribution[0, StandardDeviation /. Options[G]],
+
+   (* The actual lookup calculation... *)
+   GaussianInterpolationLookup[G, xs_ /; MatrixQ[xs, NumericQ]] := With[
+     {dims = Dimensions[G],
+      near = Nearest[G],
+      thold = Threshold /. Options[G],
+      distribution = GaussianFilter[G],
+      distFn = DistanceFunction /. Options[G],
+      X = Keys[G],
+      Y = Values[G]},
+     Which[
+       dims === Length@First[xs], With[
+         {idcs = If[thold[[2]] === Infinity,
+            near[xs, thold[[1]]],
+            MapThread[Union, {near[xs, thold[[1]]], near[xs, {Infinity, thold[[2]]}]}]]},
+         With[
+           {weights = PDF[
+              distribution,
+              MapThread[
+                distFn,
+                {MapThread[ConstantArray, {xs, Length /@ idcs}],
+                 X[[#]]& /@ idcs},
+                2]]},
+           MapThread[
+             Function[Dot[Y[[#1]], #2] / Total[#2]],
+             {idcs, weights}]]],
+       dims === Length[xs], Lookup[G, Transpose[xs]],
+       True, Message[GaussianInterpolation::xdims]]],
+   GaussianInterpolationLookup[G, x_ /; VectorQ[xs, NumericQ]] := First@GaussianInterpolationLookup[
+     G,
+     {x}],
+   GaussianInterpolationLookup[G, x_?NumericQ] := First@GaussianInterpolationLookup[G, {{x}}]},
+  SetSafe -> True,
+  Symbol -> GaussianInterpolationFunction];
+(* How to print one of these... *)
+MakeBoxes[gi_GaussianInterpolationFunction, form_] := MakeBoxes[#, form]&[
+  With[
+    {style = {
+       FontSize -> 11,
+       FontColor -> Gray,
+       FontFamily -> "Arial",
+       FontWeight -> "Thin"}},
+    Row[
+      {"GaussianInterpolation"[
+         Panel[
+           Grid[
+             MapThread[
+               Function[
+                 {Spacer[4], Style[#1, Sequence @@ style],
+                  Spacer[2], #2, Spacer[4]}],
+               {{"Data Points:", "Dimensionality:", "Standard Deviation:"},
+                {Length@Array[gi], Dimensions[gi], StandardDeviation /. Options[gi]}}],
+             Alignment -> Table[{Right, Right, Center, Left, Left}, {3}]]]]},
+      BaseStyle -> Darker[Gray]]]];
+
 
 End[];
 EndPackage[];
