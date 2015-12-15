@@ -1049,8 +1049,9 @@ DefineImmutable[
              {idcs, weights}]]],
        dims === Length[xs], Lookup[G, Transpose[xs]],
        True, Message[GaussianInterpolation::xdims]]],
-   GaussianInterpolationLookup[G, x_ /; VectorQ[xs, NumericQ]] := First@GaussianInterpolationLookup[
-     G, {x}],
+   GaussianInterpolationLookup[G, xs_ /; VectorQ[xs, NumericQ]] := If[Dimensions[G] == 1,
+     GaussianInterpolationLookup[G, Transpose[{xs}]][[All, 1]],
+     First@GaussianInterpolationLookup[G, {xs}]],
    GaussianInterpolationLookup[G, x_?NumericQ] := First@GaussianInterpolationLookup[G, {{x}}],
    (* And the derivative... *)
    GaussianInterpolationDerivative[G, xs_ /; MatrixQ[xs, NumericQ]] := With[
@@ -1091,8 +1092,9 @@ DefineImmutable[
                    numer * ddenomdr + dnumerdr * denom]]]]]],
        dims === Length[xs], Lookup[G, Transpose[xs]],
        True, Message[GaussianInterpolation::xdims]]],
-   GaussianInterpolationDerivative[G, x_ /; VectorQ[x, NumericQ]] := First[
-     GaussianInterpolationDerivative[G, {x}]],
+   GaussianInterpolationDerivative[G, x_ /; VectorQ[x, NumericQ]] := If[Dimensions[G] == 1,
+     GaussianInterpolationDerivative[G, Transpose[{x}]][[All, 1]],
+     First@GaussianInterpolationDerivative[G, {x}]],
    GaussianInterpolationDerivative[G, x_?NumericQ] := First@GaussianInterpolationDerivative[
      G, {{x}}]},
   SetSafe -> True,
