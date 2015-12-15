@@ -129,7 +129,9 @@ $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of t
 GaussianInterpolation::usage = "GaussianInterpolation[data] yields a function that performs the Gaussian-weighted mean interpolation over the given data matrix. The following options may be given:
   * StandardDeviation - the standard deviation of the Guassian filter to use
   * Threshold - the interpolation function is thresholded in that it only looks at the points close enough to be relevant. The threshold may be specified as a number (a distance cutoff), a list containing only an integer (always use the n closest points), or a list containing an integer followed by a distance cutoff.
-Additionally, all options that may be given to Nearest[] are accepted.";
+  * VectorDifferenceFunction - in case the metric space is not Euclidean, this option must specify a function f that takes two vectors, u and v, and yields the vector subtraction of u from v; i.e., f[u, v] must be the vector from u to v. By default, this is (#2 - #1)&.
+  * NormFunction - the function that yields the norm of a vector; by default, Norm.
+Additionally, all options that may be given to Nearest[] are accepted with the exception of DistanceFunction, which is replaced by the combination of VectorDifferenceFunction and NormFunction.";
 GaussianInterpolation::badarg = "Bad argument given to GaussianInterpolation: `1`";
 GaussianInterpolation::xdims = "Dimensions for given argument do not match those of interpolated space";
 GaussianInterpolationFunction::usage = "GaussianInterpolationFunction[...] is a form used to store data related to a Gaussian-interpolated function.";
@@ -864,13 +866,17 @@ UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:{(Rule|RuleDelayed)[_,_]..
 Protect[UpdateOptions];
 
 (* #GaussianInterpolation *************************************************************************)
+$GaussianInterpolationDefaultNormFunction = Norm;
+$GaussianInterpolationDefaultDifferenceFunction = Function[#2 - #1];
+$GaussianInterpolationDefaultScaleFunction = Divide;
+$GaussianInterpolationDefaultDistanceFunction = EuclideanDistance;
 Options[GaussianInterpolation] = Join[
   {StandardDeviation -> Automatic,
    Threshold -> Automatic,
    MetaInformation -> {},
-   NormFunction -> Norm,
-   VectorScaleFunction -> Divide,
-   VectorDifferenceFunction -> Function[#2 - #1]},
+   NormFunction -> Automatic,
+   VectorScaleFunction -> Automatic,
+   VectorDifferenceFunction -> Automatic},
   FilterRules[
     Options[Nearest],
     Except[DistanceFunction]]];
@@ -944,9 +950,15 @@ DefineImmutable[
                GaussianInterpolation::badarg,
                "StandardDeviation must be Automatic or a positive real number"]}],
           meta = MetaInformation /. po,
-          normFn = Replace[OptionValue[NormFunction], Automatic -> Norm],
-          scaleFn = Replace[OptionValue[VectorScaleFunction], Automatic -> Divide],
-          diffFn = Replace[OptionValue[VectorDifferenceFunction], Automatic -> Function[#2 - #1]]},
+          normFn = Replace[
+            OptionValue[NormFunction],
+            Automatic -> $GaussianInterpolationDefaultNormFunction],
+          scaleFn = Replace[
+            OptionValue[VectorScaleFunction],
+            Automatic -> $GaussianInterpolationDefaultScaleFunction],
+          diffFn = Replace[
+            OptionValue[VectorDifferenceFunction],
+            Automatic -> $GaussianInterpolationDefaultDifferenceFunction]},
          With[
            {threshold = Replace[
               Threshold /. po,
@@ -987,12 +999,20 @@ DefineImmutable[
    DistanceFunction[G] -> With[
      {normFn = NormFunction /. Options[G],
       diffFn = VectorDifferenceFunction /. Options[G]},
-     Composition[normFn, diffFn]],
+     If[And[normFn === $GaussianInterpolationDefaultNormFunction,
+            diffFn === $GaussianInterpolationDefaultDifferenceFunction],
+       $GaussianInterpolationDefaultDistanceFunction,
+       Composition[normFn, diffFn]]],
    Nearest[G] :> With[
      {X = Keys[G],
       nearestOpts = FilterRules[Options[G], Options[Nearest]],
       distFn = DistanceFunction[G]},
-     Nearest[X -> Automatic, DistanceFunction -> distFn, Sequence @@ nearestOpts]],
+     Nearest[
+       X -> Automatic,
+       DistanceFunction -> If[distFn === $GaussianInterpolationDefaultDistanceFunction,
+         Automatic,
+         distFn],
+       Sequence @@ nearestOpts]],
    GaussianFilter[G] -> NormalDistribution[0, StandardDeviation /. Options[G]],
    GaussianWeightsDerivative[G] -> With[
      {distribution = GaussianFilter[G]},
