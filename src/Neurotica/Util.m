@@ -134,6 +134,9 @@ GaussianInterpolation::badarg = "Bad argument given to GaussianInterpolation: `1
 GaussianInterpolation::xdims = "Dimensions for given argument do not match those of interpolated space";
 GaussianInterpolationFunction::usage = "GaussianInterpolationFunction[...] is a form used to store data related to a Gaussian-interpolated function.";
 
+VectorDifferenceFunction::usage = "VectorDifferenceFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and v, f[u, v] is the vector from u to v. By default, this is (#2 - #1)&.";
+VectorScaleFunction::usage = "VectorScaleFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and real r, f[u, r] is the vector in the same direction as u but with length norm(u) / r. By default, this is Divide, or (#1/#2)&.";
+
 Begin["`Private`"];
 
 (* #FlipIntegerBytes ******************************************************************************)
@@ -864,10 +867,19 @@ Protect[UpdateOptions];
 Options[GaussianInterpolation] = Join[
   {StandardDeviation -> Automatic,
    Threshold -> Automatic,
-   MetaInformation -> {}},
-  Options[Nearest]];
+   MetaInformation -> {},
+   NormFunction -> Norm,
+   VectorScaleFunction -> Divide,
+   VectorDifferenceFunction -> Function[#2 - #1]},
+  FilterRules[
+    Options[Nearest],
+    Except[DistanceFunction]]];
 (* how to call an interpolation function directly... *)
 (G_GaussianInterpolationFunction)[x_] := GaussianInterpolationLookup[G, x];
+(* And how to get the gradient... *)
+GaussianInterpolationFunction /: Grad[
+  G_GaussianInterpolationFunction, 
+  x_] := GaussianInterpolationDerivative[G, x];
 (* how to chance the array for the data *)
 GaussianInterpolation[G_GaussianInterpolationFunction, (Rule|RuleDelayed)[Array, x_]] := Clone[
   G,
@@ -923,8 +935,8 @@ DefineImmutable[
          {scale = Replace[
             StandardDeviation /. po,
             {Automatic :> With[
-               {dat = Values[G]},
-               0.25 * If[VectorQ[dat],
+               {dat = Keys[G]},
+               0.125 * If[VectorQ[dat],
                  StandardDeviation[dat],
                  Mean[StandardDeviation /@ Transpose[dat]]]],
              s_?NumericQ /; s > 0 :> s,
@@ -932,7 +944,9 @@ DefineImmutable[
                GaussianInterpolation::badarg,
                "StandardDeviation must be Automatic or a positive real number"]}],
           meta = MetaInformation /. po,
-          distFn = Replace[OptionValue[DistanceFunction], Automatic -> EuclideanDistance]},
+          normFn = Replace[OptionValue[NormFunction], Automatic -> Norm],
+          scaleFn = Replace[OptionValue[VectorScaleFunction], Automatic -> Divide],
+          diffFn = Replace[OptionValue[VectorDifferenceFunction], Automatic -> Function[#2 - #1]]},
          With[
            {threshold = Replace[
               Threshold /. po,
@@ -947,7 +961,9 @@ DefineImmutable[
              {StandardDeviation -> scale,
               Threshold -> threshold,
               MetaInformation -> meta,
-              DistanceFunction -> distFn},
+              NormFunction -> normFn,
+              VectorScaleFunction -> scaleFn,
+              VectorDifferenceFunction -> diffFn},
              DeleteCases[
                FilterRules[po, Options[Nearest]],
                (Rule|RuleDelayed)[DistanceFunction, _],
@@ -968,11 +984,23 @@ DefineImmutable[
    SetOptions[G, arg_RuleDelayed] := Clone[G, PrivateOptions -> UpdateOptions[PrivateOptions[G], arg]],
 
    (* Metadata for calculation... *)
+   DistanceFunction[G] -> With[
+     {normFn = NormFunction /. Options[G],
+      diffFn = VectorDifferenceFunction /. Options[G]},
+     Composition[normFn, diffFn]],
    Nearest[G] :> With[
      {X = Keys[G],
-      nearestOpts = FilterRules[Options[G], Options[Nearest]]},
-     Nearest[X -> Automatic, Sequence @@ nearestOpts]],
+      nearestOpts = FilterRules[Options[G], Options[Nearest]],
+      distFn = DistanceFunction[G]},
+     Nearest[X -> Automatic, DistanceFunction -> distFn, Sequence @@ nearestOpts]],
    GaussianFilter[G] -> NormalDistribution[0, StandardDeviation /. Options[G]],
+   GaussianWeightsDerivative[G] -> With[
+     {distribution = GaussianFilter[G]},
+     Block[
+       {x},
+       Function@@ReplaceAll[
+         Hold@@{D[PDF[distribution, x[1]], x[1]]},
+         x -> Slot]]],
 
    (* The actual lookup calculation... *)
    GaussianInterpolationLookup[G, xs_ /; MatrixQ[xs, NumericQ]] := With[
@@ -980,7 +1008,7 @@ DefineImmutable[
       near = Nearest[G],
       thold = Threshold /. Options[G],
       distribution = GaussianFilter[G],
-      distFn = DistanceFunction /. Options[G],
+      distFn = DistanceFunction[G],
       X = Keys[G],
       Y = Values[G]},
      Which[
@@ -1002,9 +1030,51 @@ DefineImmutable[
        dims === Length[xs], Lookup[G, Transpose[xs]],
        True, Message[GaussianInterpolation::xdims]]],
    GaussianInterpolationLookup[G, x_ /; VectorQ[xs, NumericQ]] := First@GaussianInterpolationLookup[
-     G,
-     {x}],
-   GaussianInterpolationLookup[G, x_?NumericQ] := First@GaussianInterpolationLookup[G, {{x}}]},
+     G, {x}],
+   GaussianInterpolationLookup[G, x_?NumericQ] := First@GaussianInterpolationLookup[G, {{x}}],
+   (* And the derivative... *)
+   GaussianInterpolationDerivative[G, xs_ /; MatrixQ[xs, NumericQ]] := With[
+     {dims = Dimensions[G],
+      near = Nearest[G],
+      thold = Threshold /. Options[G],
+      distribution = GaussianFilter[G],
+      distFn = DistanceFunction[G],
+      normFn = NormFunction /. Options[G],
+      diffFn = VectorDifferenceFunction /. Options[G],
+      scaleFn = VectorScaleFunction /. Options[G],
+      X = Keys[G],
+      Y = Values[G]},
+     Which[
+       dims === Length@First[xs], With[
+         {idcs = If[thold[[2]] === Infinity,
+            near[xs, thold[[1]]],
+            MapThread[Union, {near[xs, thold[[1]]], near[xs, {Infinity, thold[[2]]}]}]],
+          dwdr = GaussianWeightsDerivative[G]},
+         With[
+           {diffs = MapThread[
+              diffFn,
+              {X[[#]]& /@ idcs, 
+               MapThread[ConstantArray, {xs, Length /@ idcs}]}]},
+           With[
+             {norms = Map[normFn, diffs, {2}]},
+             With[
+               {normeds = MapThread[scaleFn, {diffs, norms}, 2],
+                weights = PDF[distribution, norms],
+                ys = Y[[#]]& /@ idcs},
+               With[
+                 {numer = Total /@ (weights * ys),
+                  dweightsdr = normeds * dwdr[norms],
+                  denom = 1.0 / (Total /@ weights)},
+                 With[
+                   {ddenomdr = -denom^2 * Total /@ dweightsdr,
+                    dnumerdr = Total /@ (dweightsdr * ys)},
+                   numer * ddenomdr + dnumerdr * denom]]]]]],
+       dims === Length[xs], Lookup[G, Transpose[xs]],
+       True, Message[GaussianInterpolation::xdims]]],
+   GaussianInterpolationDerivative[G, x_ /; VectorQ[x, NumericQ]] := First[
+     GaussianInterpolationDerivative[G, {x}]],
+   GaussianInterpolationDerivative[G, x_?NumericQ] := First@GaussianInterpolationDerivative[
+     G, {{x}}]},
   SetSafe -> True,
   Symbol -> GaussianInterpolationFunction];
 (* How to print one of these... *)
@@ -1027,6 +1097,7 @@ MakeBoxes[gi_GaussianInterpolationFunction, form_] := MakeBoxes[#, form]&[
                 {Length@Array[gi], Dimensions[gi], StandardDeviation /. Options[gi]}}],
              Alignment -> Table[{Right, Right, Center, Left, Left}, {3}]]]]},
       BaseStyle -> Darker[Gray]]]];
+Protect[VectorScaleFunction, VectorDifferenceFunction];
 
 
 End[];
