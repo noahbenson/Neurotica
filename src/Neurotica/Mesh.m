@@ -2853,6 +2853,7 @@ CorticalColorData["PolarAngleRH"] = CorticalColorSchema[
   "PolarAngle" -> {
     {-180, 0}, 
     {Red, Darker[Yellow, 1/6], Darker[Green], Darker[Cyan, 1/6], Blue}}]; 
+(*
 CorticalColorData["Eccentricity"] = CorticalColorSchema[
   "Eccentricity" -> {
     {0, 90},
@@ -2867,7 +2868,29 @@ CorticalColorData["EccentricityReverse"] = CorticalColorSchema[
       {White, Cyan, Green, Yellow, Red},
       Table[Blend[{Red, Purple}, (u - 20.0)/20.0], {u, 25, 40, 5}],
       Table[Blend[{Purple, Black}, (u - 40.0)/50.0], {u, 45, 90, 5}]]}];
-
+*)
+CorticalColorData["Eccentricity"] = CorticalColorSchema[
+  "Eccentricity" -> Function[
+    Blend[
+      {{0/90.0,   Black},
+       {2.5/90.0, Purple},
+       {5/90.0,   Red},
+       {10/90.0,  Yellow},
+       {20/90.0,  Green},
+       {40/90.0,  Cyan},
+       {90/90.0,  White}},
+      #/90]]];
+CorticalColorData["EccentricityReverse"] = CorticalColorSchema[
+  "Eccentricity" -> Function[
+    Blend[
+      {{0/90.0,   White},
+       {2.5/90.0, Cyan},
+       {5/90.0,   Green},
+       {10/90.0,  Yellow},
+       {20/90.0,  Red},
+       {40/90.0,  Purple},
+       {90/90.0,  Black}},
+      #/90]]];
 
 (* #ColorCortex ***********************************************************************************)
 SetAttributes[ColorCortex, HoldAll];
