@@ -1363,6 +1363,67 @@ Protect[RegistrationFrame, RegistrationFrameData, RegistrationFrameQ, StepNumber
         MinStepSize, MaxVertexChange];
 
 (* #RegistrationTrajectory ************************************************************************)
+RegistrationTrajectorySymbolLookup[sym_, k_] := With[
+  {f = sym["CacheFrequency"],
+   ac = sym["AutoCache"],
+   F0 = sym["InitialFrame"],
+   cmesh = sym["Mesh"],
+   minss = sym["MinStepSize"]},
+  Check[
+    If[k > Last[sym],
+      sym[Last[sym]],
+      With[
+        {cache = If[Mod[k, f] == 0,
+           AutoCache[ac[k], $Failed],
+           $Failed],
+         prev = f*Floor[(k - 1)/f]},
+        With[
+          {rule = If[cache =!= $Failed,
+             cache,
+             With[
+               {res = Check[
+                  NestWhile[
+                    Function@With[
+                      {nexts = Rest@NestWhileList[Next, #, (Next[#] =!= None)&, 1, k - prev]},
+                      With[
+                        {ln = If[nexts == {}, None, Last[nexts]]},
+                        Which[
+                          nexts == {}, prev -> VertexCoordinatesTr[#],
+                          Or[!RegistrationFrameQ[ln],
+                             !ArrayQ[VertexCoordinatesTr[ln], 2, NumericQ],
+                             MapTangledQ[cmesh, VertexCoordinates[ln]]], Clone[
+                               #,
+                               MaxVertexChange -> 0.5 * Min[MaxVertexChange /@ {#, ln}]],
+                          Length[nexts] < k - prev, Rule[
+                            prev + Length[nexts],
+                            VertexCoordinatesTr[ln]],
+                          True, k -> VertexCoordinatesTr[ln]]]],
+                    sym[prev],
+                    Function@Which[
+                      Head[#] === Rule, False,
+                      # === $Failed, (
+                        Message[RegistrationTrajectory::nocnv, "could not take valid step"];
+                        False),
+                      MaxVertexChange[#] <= minss, (
+                        Message[RegistrationTrajectory::nocnv, "stepsize reduced to 0"];
+                        False),
+                      True, True]],
+                  $Failed]},
+               If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === $Failed,
+                 AutoCache[ac[k], res],
+                 res]]]},
+          If[rule === $Failed,
+            $Failed,
+            With[
+              {frame = Clone[
+                 F0,
+                 StepNumber -> rule[[1]],
+                 VertexCoordinatesTr -> rule[[2]]]},
+              If[rule[[1]] > Max[sym], sym /: Max[sym] = rule[[1]]];
+              If[k > rule[[1]], sym /: Last[sym] = rule[[1]]];
+              If[Mod[k, f] == 0 && k == rule[[1]], sym[k] = frame];
+              frame]]]]],
+    $Failed]];
 Options[RegistrationTrajectory] = {
   MaxVertexChange -> 0.1,
   MinStepSize -> 10^-5,
@@ -1427,61 +1488,12 @@ DefineImmutable[
      sym /: Max[sym] = 0;
      sym /: Last[sym] = Infinity;
      sym[0] = F0;
-     sym[k_Integer /; k > 0] := Check[
-       If[k > Last[sym],
-         sym[Last[sym]],
-         With[
-           {cache = If[Mod[k, f] == 0,
-              AutoCache[ac[k], $Failed],
-              $Failed],
-            prev = f*Floor[(k - 1)/f]},
-           With[
-             {rule = If[cache =!= $Failed,
-                cache,
-                With[
-                  {res = Check[
-                     NestWhile[
-                       Function@With[
-                         {nexts = Rest@NestWhileList[Next, #, (Next[#] =!= None)&, 1, k - prev]},
-                         With[
-                           {ln = If[nexts == {}, None, Last[nexts]]},
-                           Which[
-                             nexts == {}, prev -> VertexCoordinatesTr[#],
-                             Or[!RegistrationFrameQ[ln],
-                                !ArrayQ[VertexCoordinatesTr[ln], 2, NumericQ],
-                                MapTangledQ[cmesh, VertexCoordinates[ln]]], Clone[
-                                  #,
-                                  MaxVertexChange -> 0.5 * Min[MaxVertexChange /@ {#, ln}]],
-                             Length[nexts] < k - prev, Rule[
-                               prev + Length[nexts],
-                               VertexCoordinatesTr[ln]],
-                           True, k -> VertexCoordinatesTr[ln]]]],
-                       sym[prev],
-                       Function@Which[
-                         Head[#] === Rule, False,
-                         # === $Failed, (
-                           Message[RegistrationTrajectory::nocnv, "could not take valid step"];
-                           False),
-                         MaxVertexChange[#] <= minss, (
-                           Message[RegistrationTrajectory::nocnv, "stepsize reduced to 0"];
-                           False),
-                         True, True]],
-                     $Failed]},
-                  If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === $Failed,
-                    AutoCache[ac[k], res],
-                    res]]]},
-             If[rule === $Failed,
-               $Failed,
-               With[
-                 {frame = Clone[
-                    F0,
-                    StepNumber -> rule[[1]],
-                    VertexCoordinatesTr -> rule[[2]]]},
-                 If[rule[[1]] > Max[sym], sym /: Max[sym] = rule[[1]]];
-                 If[k > rule[[1]], sym /: Last[sym] = rule[[1]]];
-                 If[Mod[k, f] == 0 && k == rule[[1]], sym[k] = frame];
-                 frame]]]]],
-       $Failed];
+     sym["CacheFrequency"] = f;
+     sym["AutoCache"] = ac;
+     sym["InitialFrame"] = F0;
+     sym["Mesh"] = cmesh;
+     sym["MinStepSize"] = minss;
+     sym[k_Integer /; k > 0] := RegistrationTrajectorySymbolLookup[sym, k];
      sym],
    
    Frame[traj, k_Integer /; k >= 0] := Symbol[traj][k],
