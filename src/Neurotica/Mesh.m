@@ -2831,7 +2831,8 @@ CorticalColorSchema[property_ -> f:Except[{_, _}]][assoc_?AssociationQ] := If[
       $Failed,
       f[val]]],
   $Failed];
-CorticalColorSchema[f:Except[_Rule]][assoc_?AssociationQ] := f[assoc];
+CorticalColorSchema[f:Except[_Rule]][arg_] := f[arg];
+(schema:CorticalColorSchema[prop_ -> _])[arg:Except[_?AssociationQ]] := schema[<|prop -> arg|>];
 Protect[CorticalColorSchema];
 
 (* #CorticalColorData *****************************************************************************)
