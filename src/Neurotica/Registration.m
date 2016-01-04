@@ -508,7 +508,7 @@ CalculateVDWAnglePotential = Compile[
   With[
     {data = CalculateAngleIntermediateData[a,b,c]},
     With[
-      {ratio = 2.0 * Last[data] / th0},
+      {ratio = (# + (1 - Unitize[#]))&[2.0 * Last[data] / th0]},
       Total[0.25 + 1.0/ratio^2 - 1.0/ratio]]],
   {{CalculateAngleIntermediateData[_,_,_], _Real, 2}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
