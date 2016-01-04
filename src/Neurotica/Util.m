@@ -844,6 +844,7 @@ FlatTable[args__] := Flatten[
   Table[args],
   Length@Hold[args] - 2];
 SetAttributes[FlatTable, HoldAll];
+SyntaxInformation[FlatTable] = SyntaxInformation[Table];
 Protect[FlatTable];
 
 (* #ForwardOptions ********************************************************************************)
