@@ -665,19 +665,19 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_], map_?CorticalMapQ] := With[
     Map[
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]&,
       inv[(Z[[1]] + I * Z[[2]])] * (90.0 / r90)],
-    {FindRoot::cvmit, FindRoot::frmp}]];
+    {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]];
 CorticalMapToRetinotopy[SchiraModelObject[disp_], {x:Except[_List], y:Except[_List]}] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
-   {z = Quiet[inv[x + I*y] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp}]},
+   {z = Quiet[inv[x + I*y] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]},
    Append[ComplexToVisualAngle[z[[1]]], z[[2]]]]];
 CorticalMapToRetinotopy[SchiraModelObject[disp_],
                         {x_List, y_List} /; Length[x] == Length[y] && Length[x] != 2] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
-    {res = Quiet[inv[X + I*Y] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp}]},
+    {res = Quiet[inv[X + I*Y] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]},
     If[ListQ[First@res],
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]& /@ res,
       Append[ComplexToVisualAngle[res[[1]]], res[[2]]]]]];
@@ -687,12 +687,12 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_], coords:{{_,_}..}] := With[
    r90 = Replace[\[CapitalRho]90, disp]},
   Map[
     Append[ComplexToVisualAngle[#[[1]]], #[[2]]]&,
-    Quiet[inv[Z[[1]] + I * Z[[2]]] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp}]]];
+    Quiet[inv[Z[[1]] + I * Z[[2]]] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]]];
 CorticalMapToRetinotopy[SchiraModelObject[disp_], X_, Y_] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
-    {res = Quiet[inv[X + I*Y] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp}]},
+    {res = Quiet[inv[X + I*Y] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]},
     If[ListQ[First@res],
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]& /@ res,
       Append[ComplexToVisualAngle[res[[1]]], res[[2]]]]]];
