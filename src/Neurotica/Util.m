@@ -122,7 +122,7 @@ Note that DivideCheck works with arrays as well as single values.";
 FlatOuter::usage = "FlatOuter[args...] is identical to Outer[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 FlatTable::usage = "FlatTable[args...] is identical to Table[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 
-ForwardOptions::usage = "ForwardOptions[f[args...], opts...] yields the result of calling the function f with the given arguments in args... followed by the options in the sequence of opts... where the options are filtered: ForwardOptions[f[args...], opts...] is equivalent to f[args..., Sequence@@FilterRules[{opts}, Options[f]].";
+WithOptions::usage = "WithOptions[f[args...], opts...] yields the result of calling the function f with the given arguments in args... followed by the options in the sequence of opts... where the options are filtered: WithOptions[f[args...], opts...] is equivalent to f[args..., Sequence@@FilterRules[{opts}, Options[f]].";
 
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
 
@@ -190,7 +190,7 @@ AutoCacheFilename[name_String, OptionsPattern[]] := With[
           First[splitName] == "", FileNameJoin[Most[splitName]],
           First[splitName] == "~", FileNameJoin[Most[splitName]],
           $CacheDirectory === Temporary, ($CacheDirectory = CreateDirectory[]),
-          True, $CacheDirectory],
+          True, FileNameJoin@Prepend[Most[splitName], $CacheDirectory]],
         Except[_String] :> (
           Message[AutoCache::badopt, "Directory must be Automatic or a string"];
           Throw[$Failed])}],
@@ -847,12 +847,12 @@ SetAttributes[FlatTable, HoldAll];
 SyntaxInformation[FlatTable] = SyntaxInformation[Table];
 Protect[FlatTable];
 
-(* #ForwardOptions ********************************************************************************)
-Attributes[ForwardOptions] = {HoldFirst};
-ForwardOptions[f_[args___], opts___] := With[
+(* WithOptions ************************************************************************************)
+Attributes[WithOptions] = {HoldAll};
+WithOptions[f_[args___], opts___] := With[
   {head = f},
   head[args, Sequence@@FilterRules[{opts}, Options[head]]]];
-Protect[ForwardOptions];
+Protect[WithOptions];
 
 (* #UpdateOptions *********************************************************************************)
 UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:(Rule|RuleDelayed)[name_,_]] := Prepend[
@@ -865,6 +865,11 @@ UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:{(Rule|RuleDelayed)[_,_]..
     SelectFirst[If[MemberQ[rnames, name], repl, opts], #[[1]] === name &],
     {name, Union[rnames, onames]}]];
 Protect[UpdateOptions];
+
+(* #StatusReport **********************************************************************************)
+Attributes[StatusReport] = {HoldAll};
+Options[StatusReport] = Options[Row];
+StatusReport[body_, opts:OptionsPattern[]] := Null;
 
 (* #GaussianInterpolation *************************************************************************)
 $GaussianInterpolationDefaultNormFunction = Norm;
