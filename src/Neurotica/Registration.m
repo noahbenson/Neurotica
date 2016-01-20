@@ -1221,7 +1221,7 @@ MapTangledQ[map_?CorticalMapQ, Xarg_] := With[
         {th = th2 - th1},
         (* For angles that are over pi or under -pi, we want to invert the sign; then we just check
            to make sure all signes are the same. *)
-        Length@Union@Unitize[Sign[Pi - Abs[th]] * th] != 1]]]];
+        Length@Union@Sign[Sign[Pi - Abs[th]] * th] != 1]]]];
 (* The old way of doing this:
 MapTangledQ[map_?CorticalMapQ, X_] := With[
   {nei = VertexIndex[map, NeighborhoodList[map]]},
