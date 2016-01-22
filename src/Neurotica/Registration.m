@@ -118,7 +118,7 @@ CurvaturePotential::usage = "CurvaturePotential[mesh, template, sigma] yields a 
 
 MapTangledQ::usage = "MapTangledQ[map] yields True if and only if the given cortical map is tangled (has faces that are inverted); otherwise yields False.
 MapTangledQ[map, X] is identical to MapTangledQ[map] except that it uses the coordinates given in X.";
-MapTangles::usage = "MapTangles[map] yields a list of the vertices in the given cortical map that are tangles (their neighbors are not in the correct counter-clockwise ordering).
+MapTangles::usage = "MapTangles[map] yields a list of the vertex indices in the given cortical map that are tangles (their neighbors are not in the correct counter-clockwise ordering). Note that this yields the indices in map as opposed to the vertex id's.
 MapTangles[map, X] uses the coordinates given in X for the map.";
 MapUntangle::usage = "MapUntangle[map] attempts to untangle the map given by repeatedly moving tangled vertices to their centroids (with respect to their neighbors); this may not succeed, but will return the coordinates regardless after 50 such attempts.
 MapUntangle[map, X] uses the coordinates X as the map coordinates.
@@ -1244,6 +1244,28 @@ MapTangledQ[map_?CorticalMapQ] := MapTangledQ[map, VertexCoordinates[map]];
 Protect[MapTangledQ];
 
 (* #MapTangles ************************************************************************************)
+MapTangles[map_?CorticalMapQ, Xarg_] := With[
+  {X = If[Length[Xarg] == 2, Xarg, Transpose[Xarg]],
+   Ft = VertexIndex[map, FaceListTr[map]]},
+  With[
+    {FX = X[[All, #]]& /@ Ft},
+    With[
+      {th1 = ArcTan[FX[[2, 1]] - FX[[1, 1]], FX[[2, 2]] - FX[[1, 2]]],
+       th2 = ArcTan[FX[[3, 1]] - FX[[1, 1]], FX[[3, 2]] - FX[[1, 2]]]},
+      With[
+        {th = Sign[Sign[Pi - Abs[#]] * #]&[th2 - th1]},
+        With[
+          {signs = Tally[th]},
+          (* if signs has 1 value, there are no tangles *)
+          If[Length[signs] == 1, 
+            {},
+            (* otherwise, we take the more common value to be the 'correct' one *)
+            With[
+              {bad = SortBy[signs, Last][[1 ;; -2, 1]]},
+              With[
+                {angIDs = Union@Indices[th, If[Length[bad] == 1, bad[[1]], Alternatives@@bad]]},
+                Union@Flatten@Part[Ft, All, angIDs]]]]]]]]];                  
+(*
 MapTangles[map_?CorticalMapQ, X_] := With[
   {nei = VertexIndex[map, NeighborhoodList[map]]},
   Flatten@Last@Reap[
@@ -1260,6 +1282,7 @@ MapTangles[map_?CorticalMapQ, X_] := With[
                If[Range[Length[rot]] != rot || !Graphics`Mesh`InPolygonQ[xnei, x],
                  Sow[k]]]]]]],
       {X, nei, Range[Length@X]}]]];
+*)
 MapTangles[map_?CorticalMapQ] := MapTangles[map, VertexCoordinates[map]];
 Protect[MapTangles];
 
@@ -1285,17 +1308,25 @@ Protect[MapUntangle];
 
 (* # *******************************************************************************************)
 Options[RegistrationFrame] = {
+  Method -> "GradientDescent",
   MaxVertexChange -> 0.1,
-  MinStepSize -> 10^-5};
+  MinStepSize -> 10^-5,
+  CorticalMap -> None};
 DefineImmutable[
   RegistrationFrame[P_CorticalPotentialFunctionInstance, X0_, OptionsPattern[]] :> frame,
   {VertexCount[frame] -> Length@First[X0],
    Dimensions[frame] -> Dimensions[X0],
 
    PotentialFunction[frame] = P,
-   VertexCoordinatesTr[frame] = X0,
+   VertexCoordinatesTr[frame] = If[Length[X0] < Length[X0[[1]]], X0, Transpose[X0]],
    MaxVertexChange[frame] = OptionValue[MaxVertexChange],
    MinStepSize[frame] = OptionValue[MinStepSize],
+   Method[frame] = OptionValue[Method],
+   CorticalMap[frame] -> Replace[
+     OptionValue[CorticalMap],
+     Except[None | _?CorticalMapQ] :> Message[
+       RegistrationFrame::badarg,
+       "CorticalMap option to RegistrationFrame must be a cortical map or None"]],
    StepNumber[frame] = 0,
    
    VertexCoordinates[frame] := Transpose@VertexCoordinatesTr[frame],
@@ -1309,7 +1340,8 @@ DefineImmutable[
       x0 = VertexCoordinatesTr[frame],
       pe0 = Value[frame],
       pf = PotentialFunction[frame],
-      minss = MinStepSize[frame]},
+      minss = MinStepSize[frame],
+      map = CorticalMap[frame]},
      With[
        {gradNorms = ColumnNorms[grad]},
        With[
@@ -1317,7 +1349,11 @@ DefineImmutable[
          NestWhile[
            (0.5*#) &,
            MaxVertexChange[frame]/maxVtxNorm,
-           # > minss && pe0 < pf[x0 - #*grad] &]]]],
+           If[map === None,
+             # > minss && pe0 < pf[x0 - #*grad] &,
+             Function@With[
+               {x1 = x0 - #*grad},
+               # > minss && pe0 < pf[x1] && !MapTangledQ[map, x1]]]]]]],
    Next[frame] := If[StepSize[frame] <= MinStepSize[frame],
      None,
      Clone[
@@ -1330,6 +1366,9 @@ DefineImmutable[
        RegistrationFrame::badarg,
        "coordinates have the wrong dimensions: " <> ToString[Dimensions@VertexCoordinatesTr[frame]]
          <> " and " <> ToString@Dimensions[frame]],
+     Method[frame] == "ConjugateGradient" || Method[frame] == "MonteCarlo", Message[
+       RegistrationFrame::badarg,
+       "Method option must be \"ConjucateGradient\" or \"MonteCarlo\""],
      MaxVertexChange[frame] <= 0, Message[
        RegistrationFrame::badarg,
        "MaxVertexChange must be > 0"],
@@ -1373,7 +1412,7 @@ RegistrationTrajectorySymbolLookup[sym_, k_] := With[
     If[k > Last[sym],
       sym[Last[sym]],
       With[
-        {cache = If[Mod[k, f] == 0,
+        {cache = If[ac =!= None && Mod[k, f] == 0,
            AutoCache[ac[k], $Failed],
            $Failed],
          prev = f*Floor[(k - 1)/f]},
@@ -1409,7 +1448,8 @@ RegistrationTrajectorySymbolLookup[sym_, k_] := With[
                         False),
                       True, True]],
                   $Failed]},
-               If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === $Failed,
+               If[And[ac =!= None, Mod[k, f] == 0, prev < Last[sym], 
+                      res =!= $Failed, cache === $Failed],
                  AutoCache[ac[k], res],
                  res]]]},
           If[rule === $Failed,
@@ -1467,7 +1507,9 @@ DefineImmutable[
            _ :> Message[
              RegistrationTrajectory::badarg,
              "InitialVertexCoordinaets must be Automatic or an appropriately sized matrix"]}],
-        Sequence @@ FilterRules[{opts}, Options[RegistrationFrame]]]},
+        Sequence @@ Join[
+          FilterRules[{opts}, Options[RegistrationFrame]],
+          If[CorticalMapQ[mesh], {CorticalMap -> mesh}, {}]]]},
      Which[
        !RegistrationFrameQ[f0], Message[
          RegistrationTrajectory::badarg,
