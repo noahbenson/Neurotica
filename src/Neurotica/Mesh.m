@@ -2647,7 +2647,7 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
                 {assoc = Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]},
                 With[
                   {res = f[assoc]},
-                  If[ColorQ[res],
+                  If[ColorQ[res] || Head[res] === Opacity,
                     res,
                     With[
                       {clrDat = CorticalColorData[res]},
@@ -2756,7 +2756,7 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
                 {assoc = Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]},
                 With[
                   {res = f[assoc]},
-                  If[ColorQ[res],
+                  If[ColorQ[res] || Head[res] === Opacity,
                     res,
                     With[
                       {clrDat = CorticalColorData[res]},
@@ -2934,7 +2934,7 @@ ColorCortex[instructions___] := With[
              Hold[
                {result = CompoundExpression @@ instr},
                Which[
-                 ColorQ[result], result,
+                 ColorQ[result] || Head[result] === Opacity, result,
                  CorticalColorData[result] =!= $Failed, CorticalColorData[result][#1, #2, #3],
                  result === $Failed || result === None, RGBColor[1,1,1,0],
                  True, RGBColor[1,1,1,0]]]]]]},
