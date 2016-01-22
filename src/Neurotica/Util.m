@@ -122,9 +122,33 @@ Note that DivideCheck works with arrays as well as single values.";
 FlatOuter::usage = "FlatOuter[args...] is identical to Outer[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 FlatTable::usage = "FlatTable[args...] is identical to Table[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 
+Iterate::usage = "Iterate[body, iterators...] is like Table[body, iterators...] except for two requirements of the iterators:
+  * list iterators (such as Table[i^2, {i, {1, 4, 9}}]) cannot be used
+  * iterators may be lists of iterators, in which the first element of the list is a normal Table-like iterator and the remaining iterators may not specify step-size; these iterators are bound such that they run from their min to their max over the sequence iterated in the first iterator.";
+FlatIterate::usage = "FlatIterate[args...] is identical to Iterate[args...] except that it yeilds a 1D map that is equivalent to a flattened version of the latter form.";
+
 WithOptions::usage = "WithOptions[f[args...], opts...] yields the result of calling the function f with the given arguments in args... followed by the options in the sequence of opts... where the options are filtered: WithOptions[f[args...], opts...] is equivalent to f[args..., Sequence@@FilterRules[{opts}, Options[f]].";
 
+RenderMovie::usage = "RenderMovie[body, iterator] is essentially equivalent to Iterate[body, iterator] except that it takes into account several optional arguments. These arguments deal either with rendering or with frames.
+ 
+Frames Options are specified by the arguments Frames, FrameRate, and Duration. If any of these arguments is not specified, an appropriate value will be chosen; if all are specified, they must agree (i.e., duration / frames = framerate). The duration prefers to be 6 seconds, 120 seconds in that order.
+ 
+Rendering Options are specified by the arguments ImageResolution and Format. Format may be either Identity or Image; if Format is Imate, then an image is rendered at the given ImageResolution. Otherwise, the graphics objects themselves are returned.";
+$FrameNumber::usage = "$FrameNumber is assigned the frame number in evaluation of the body during RenderMovie[] calls.";
+$ElapsedTime::usage = "$ElapsedTime is the number of seconds that have elapsed in the movie during evaluation of the body during RenderMovie[] calls.";
+RenderMovie::badarg = "Bad argument given to RenderMovie: `1`";
+Frames::usage = "Frames is an argument to RenderMovie[] that specifies the number of frames.";
+FrameRate::usage = "FrameRate is an argument to RenderMovie[] that specifies the number of frames per second.";
+Duration::usage = "Duration is an argument to RenderMovie[] that specifies the duration of the movie.";
+
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
+
+(*
+StatusReport::usage = "StatusReport[form] prints a temporary cell with the given form and yields a symbol q for which Value[q] is the given form, and, when assigned a value (q = val), changes the given form that is printed. The following options may be given:
+  * Temporary - (default: True) indicates whether the returned symbol is a temporary symbol or not.
+  * Style - (default: None) indicates the style of the given cell that is printed. If this is None, then no styling is added; the form is printed exactly as provided. Other values include Automatic (prints a blue box with the expression).
+  * ";
+*)
 
 GaussianInterpolation::usage = "GaussianInterpolation[data] yields a function that performs the Gaussian-weighted mean interpolation over the given data matrix. The following options may be given:
   * StandardDeviation - the standard deviation of the Guassian filter to use
@@ -833,6 +857,45 @@ Index[data_List] := Association@Last@Reap[
   Rule];
 Protect[Index];
 
+(* #Iterate ***************************************************************************************)
+Attributes[Iterate] = {HoldAll};
+
+ReifyIterator[mx_] := ReifyIterator[1, mx, 1];
+ReifyIterator[mn_, mx_] := ReifyIterator[mn, mx, 1];
+ReifyIterator[mn_, mx_, sp_] := With[
+  {els = Floor[(mx - mn)/sp + 1]},
+  {mn, mx, sp, els, mn + els*sp}];
+ReifyMatchingIterator[iter0_] := {iter0[[1]], iter0[[3]]};
+ReifyMatchingIterator[iter0_, mx_] := {1, (mx - 1)/(iter0[[4]] - 1)};
+ReifyMatchingIterator[iter0_, mn_, mx_] := {mn, (mx - mn)/(iter0[[4]] - 1)};
+
+Iterate[body_, iter1_List, iters__List] := Iterate[Iterate[body, iters], iter1];
+Iterate[body_, iter:{Except[_List], Repeated[_, {1, 3}]}] := Table[body, iter];
+Iterate[body_, {iter:{Except[_List], Repeated[_, {1, 3}]}}] := Table[body, iter];
+Iterate[body_] := body;
+Iterate[
+  body_,
+  {i0:{s0:Except[_List], sp0:Repeated[_, {1, 3}]},
+   {s1:Except[_List], sp1:Repeated[_, {0, 2}]},
+   is:{Except[_List], Repeated[_, {0, 2}]} ...}
+  ] := With[
+    {sym = Unique[],
+     pat = HoldPattern[s1],
+     dat0 = ReifyIterator[sp0]},
+    With[
+      {dat1 = ReifyMatchingIterator[dat0, sp1]},
+      With[
+        {mn0 = dat0[[1]], mx0 = dat0[[5]], md0 = dat0[[3]],
+         mn1 = dat1[[1]], md1 = dat1[[2]]},
+        With[
+          {bodyfix = Join[
+             Hold[{sym = mn1 + md1*((s0 - mn0)/md0)}],
+             Hold[body] /. s1 -> sym]},
+          Iterate@@ReplacePart[
+            Hold[bodyfix, {i0, is}],
+            {1, 0} -> With]]]]];
+Protect[Iterate, ReifyIterator, ReifyMatchingIterator];
+
 (* #FlatOuter *************************************************************************************)
 FlatOuter[args__] := With[
   {listArgs = TakeWhile[Rest[{args}], ListQ]},
@@ -846,6 +909,13 @@ FlatTable[args__] := Flatten[
 SetAttributes[FlatTable, HoldAll];
 SyntaxInformation[FlatTable] = SyntaxInformation[Table];
 Protect[FlatTable];
+
+(* #FlatIterator **********************************************************************************)
+FlatIterator[args__] := Flatten[
+  Iterate[args],
+  Length@Hold[args] - 2];
+SetAttributes[FlatIterate, HoldAll];
+Protect[FlatIterate];
 
 (* WithOptions ************************************************************************************)
 Attributes[WithOptions] = {HoldAll};
@@ -865,6 +935,45 @@ UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:{(Rule|RuleDelayed)[_,_]..
     SelectFirst[If[MemberQ[rnames, name], repl, opts], #[[1]] === name &],
     {name, Union[rnames, onames]}]];
 Protect[UpdateOptions];
+
+(* #RenderMovie ***********************************************************************************)
+Attributes[RenderMovie] = {HoldAll};
+Options[RenderMovie] = {
+   Export -> False,
+   Format -> Image,
+   ImageResolution -> 200,
+   Frames -> Automatic,
+   FrameRate -> Automatic,
+   Duration -> Automatic,
+   Restricted -> False};
+MovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, dur:(_?NumericQ)?Positive] := With[
+  {nn = Floor[dur*fr]},
+  If[nn == n,
+    {n, fr, dur},
+    Message[
+      RenderMovie::badarg,
+      "Frames, FrameRate, and Duration must have incompatible arguments; "
+        <> "try setting one to Automatic"]]];
+MovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, Automatic] := {n, fr, fr*n};
+MovieFrames[n_Integer?Positive, Automatic, dur:(_?NumericQ)?Positive] := {n, n/dur, dur};
+MovieFrames[Automatic, fr:(_?NumericQ)?Positive, dur:(_?NumericQ)?Positive] := {fr*dur, fr, dur};
+MovieFrames[Automatic, Automatic, dur:(_?NumericQ)?Positive] := MovieFrames[Automatic, 20, dur];
+MovieFrames[Automatic, fr:(_?NumericQ)?Positive, Automatic] := MovieFrames[Automatic, fr, 6];
+MovieFrames[Automatic, Automatic, Automatic] := {120, 20, 6};
+MovieFrames[_, _, _] := Message[
+   RenderMovie::badarg,
+   "FrameRate, Frames, and Duration must be a valid combination of "
+     <> "positive numbers and Automatic values"];
+RenderMovie[body_, iter_, opts:OptionsPattern[]] := With[
+  {frameDat = MovieFrames[OptionValue[Frames], OptionValue[FrameRate], OptionValue[Duration]]},
+  Block[
+    {$Frame, $Time},
+    Iterate @@ Hold[
+      body,
+      Evaluate@List[
+        {$FrameNumber, 1, frameDat[[1]], 1},
+        {$ElapsedTime, 0, frameDat[[3]]},
+        iter]]]];
 
 (* #StatusReport **********************************************************************************)
 Attributes[StatusReport] = {HoldAll};
