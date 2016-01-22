@@ -206,7 +206,7 @@ RemoveVertexProperty::usage = "RemoveVertexProperty[mesh, prop] is equivalent to
 RemoveEdgeProperty::usage   = "RemoveEdgeProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, EdgeList}, prop].";
 RemoveFaceProperty::usage   = "RemoveFaceProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, FaceList}, prop].";
 
-MapPropertyValues::usage = "MapPropertyValues[f, mesh] yields the result of applying the function f to each an association of the property values in the given mesh for each vertex in order; this is using MapNamed[] on the collection of property values for mesh, but any property not explicitly used in f will not be explicitly reified by the underlying mechanics, meaning unloaded properties remain unloaded.";
+MapPropertyValues::usage = "MapPropertyValues[f, mesh] yields the result of applying the function f to each an association of the property values in the given mesh for each vertex in order; this is using MapNamed[] on the collection of property values for mesh, but any property not explicitly used in f will not be explicitly reified by the underlying mechanics, meaning unloaded properties remain unloaded. Two additional properties are added to each vertex, edge, or face mapped over: for vertices these are \"Vertex\" (the vertex id) and \"Coordinate\" (the 2D or 3D coordinate vector); for edges and faces, these are \"Vertices\" and \"Coordinates\" which are a list of vertex ids and a list of coordinate vectors, respectively.";
 
 Reproject::usage = "Reproject[map, X] yields a map identical to the given map except that it reprojects its coordinates from the alternate coordinate list for the original mesh, given by X. If X is instead a mesh with the same number of elements as the original mesh, then its coordinates are used.";
 ReporjectTr::usage = "ReprojectTr[map, Xt] is equivalent to Reproject[map, Transpose[Xt]].";
@@ -1844,7 +1844,7 @@ DefineImmutable[
      (* #FaceCoordinates *)
      FaceCoordinatesTr[map] :> With[
        {Xt = VertexCoordinatesTr[map],
-        Ft = VertedIndex[map, FaceListTr[map]]},
+        Ft = VertexIndex[map, FaceListTr[map]]},
        Transpose @ {Xt[[All, Ft[[1]]]], Xt[[All, Ft[[2]]]], Xt[[All, Ft[[3]]]]}],
      FaceCoordinates[map] := Transpose[FaceCoordinatesTr[map], {3,2,1}],
 
@@ -2487,15 +2487,31 @@ MapPropertyValues[f_, {mesh_?CorticalObjectQ, type:VertexList|EdgeList|FaceList}
    count = Switch[type,
      VertexList, VertexCount[mesh], 
      EdgeList, EdgeCount[mesh],
-     FaceList, FaceCount[mesh]]},
-  f[Association[#]]& /@ Transpose@Map[
-    Function@If[Head[#] === Rule, 
-      Thread[#],
-      Replace[
-        Thread[{Range[count], ConstantArray[#, count]}],
-        {k_, x_ :> y_} :> (x :> Part[y, k]),
-        {1}]],
-    props]];
+     FaceList, FaceCount[mesh]],
+   coords = Switch[type,
+     VertexList, VertexCoordinates[mesh],
+     EdgeList, EdgeCoordinates[mesh],
+     FaceList, FaceCoordinates[mesh]],
+   ids = Switch[type,
+     VertexList, VertexList[mesh], 
+     EdgeList, EdgePairs[mesh],
+     FaceList, FaceList[mesh]],
+   ctxt = If[type === VertexList, "Coordinate", "Coordinates"],
+   vtct = If[type === VertexList, "Vertex", "Vertices"]},
+  MapThread[
+    Function[ f@Association@Join[#1, {ctxt -> #2, vtxt -> #3}] ],
+    With[
+      {typeProps = Map[
+         Function@If[Head[#] === Rule, 
+           Thread[#],
+           Replace[
+             Thread[{Range[count], ConstantArray[#, count]}],
+             {k_, x_ :> y_} :> (x :> Part[y, k]),
+             {1}]],
+         props]},
+      If[typeProps == {}, 
+        {ConstantArray[{}, count], coords, ids},
+        {Transpose[typeProps], coords, ids}]]]];
 MapPropertyValues[f_, mesh_?CorticalObjectQ] := MapPropertyValues[f, {mesh, VertexList}];
 
 Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList,
