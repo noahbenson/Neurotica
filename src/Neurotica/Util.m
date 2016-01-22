@@ -938,15 +938,15 @@ Protect[UpdateOptions];
 
 (* #RenderMovie ***********************************************************************************)
 Attributes[RenderMovie] = {HoldAll};
-Options[RenderMovie] = {
-   Export -> False,
-   Format -> Image,
-   ImageResolution -> 200,
+Options[RenderMovie] = Join[
+  {Format -> Image,
    Frames -> Automatic,
    FrameRate -> Automatic,
    Duration -> Automatic,
-   Restricted -> False};
-MovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, dur:(_?NumericQ)?Positive] := With[
+   Restricted -> False,
+   ImageResolution -> 200},
+  FilterRules[Options[Image], Except[ImageResolution]]];
+ParseMovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, dur:(_?NumericQ)?Positive] := With[
   {nn = Floor[dur*fr]},
   If[nn == n,
     {n, fr, dur},
@@ -954,26 +954,47 @@ MovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, dur:(_?NumericQ)?Posit
       RenderMovie::badarg,
       "Frames, FrameRate, and Duration must have incompatible arguments; "
         <> "try setting one to Automatic"]]];
-MovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, Automatic] := {n, fr, fr*n};
-MovieFrames[n_Integer?Positive, Automatic, dur:(_?NumericQ)?Positive] := {n, n/dur, dur};
-MovieFrames[Automatic, fr:(_?NumericQ)?Positive, dur:(_?NumericQ)?Positive] := {fr*dur, fr, dur};
-MovieFrames[Automatic, Automatic, dur:(_?NumericQ)?Positive] := MovieFrames[Automatic, 20, dur];
-MovieFrames[Automatic, fr:(_?NumericQ)?Positive, Automatic] := MovieFrames[Automatic, fr, 6];
-MovieFrames[Automatic, Automatic, Automatic] := {120, 20, 6};
-MovieFrames[_, _, _] := Message[
+ParseMovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, Automatic] := {n, fr, fr*n};
+ParseMovieFrames[n_Integer?Positive, Automatic, dur:(_?NumericQ)?Positive] := {n, n/dur, dur};
+ParseMovieFrames[Automatic, f:(_?NumericQ)?Positive, d:(_?NumericQ)?Positive] := {f*d, f, d};
+ParseMovieFrames[Automatic, Automatic, d:(_?NumericQ)?Positive] := ParseMovieFrames[
+  Automatic, 20, d];
+ParseMovieFrames[Automatic, fr:(_?NumericQ)?Positive, Automatic] := ParseMovieFrames[
+  Automatic, fr, 6];
+ParseMovieFrames[Automatic, Automatic, Automatic] := {120, 20, 6};
+ParseMovieFrames[_, _, _] := Message[
    RenderMovie::badarg,
    "FrameRate, Frames, and Duration must be a valid combination of "
      <> "positive numbers and Automatic values"];
-RenderMovie[body_, iter_, opts:OptionsPattern[]] := With[
-  {frameDat = MovieFrames[OptionValue[Frames], OptionValue[FrameRate], OptionValue[Duration]]},
-  Block[
-    {$Frame, $Time},
-    Iterate @@ Hold[
-      body,
-      Evaluate@List[
-        {$FrameNumber, 1, frameDat[[1]], 1},
-        {$ElapsedTime, 0, frameDat[[3]]},
-        iter]]]];
+RenderMovie[body0_, iter_, opts:OptionsPattern[]] := With[
+  {frameDat = ParseMovieFrames[OptionValue[Frames], OptionValue[FrameRate], OptionValue[Duration]],
+   fmt = Replace[
+     OptionValue[Format],
+     {Image -> Image,
+      Graphics -> Graphics,
+      _ :> Message[RenderMovie::badarg, "Format must be Image or Graphics"]}],
+   imgOpts = Sequence@@FilterRules[{opts}, Options[Image]]},
+  With[
+    {body = If[fmt =!= Image,
+       Hold[body0],
+       With[
+         {sym = Unique[]},
+         ReplacePart[
+           Hold@Evaluate@Hold[
+             {sym = body0},
+             Image[sym, imgOpts]],
+           {1,0} -> With]]]},
+    Block[
+      {$FrameNumber, $ElapsedTime},
+      Iterate @@ Join[
+        body,
+        ReplacePart[
+          Hold@Evaluate@List[
+            Evaluate@Hold[$FrameNumber, 1, Evaluate[frameDat[[1]]], 1],
+            Evaluate@Hold[$ElapsedTime, 0, Evaluate[frameDat[[3]]]],
+            Hold@@iter],
+          {1,_,0} -> List]]]]];
+Protect[RenderMovie, ParseMovieFrames];
 
 (* #StatusReport **********************************************************************************)
 Attributes[StatusReport] = {HoldAll};
