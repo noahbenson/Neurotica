@@ -1029,10 +1029,10 @@ ParseMovieFrames[Automatic, Automatic, d:(_?NumericQ)?Positive] := ParseMovieFra
 ParseMovieFrames[Automatic, fr:(_?NumericQ)?Positive, Automatic] := ParseMovieFrames[
   Automatic, fr, 6];
 ParseMovieFrames[Automatic, Automatic, Automatic] := {120, 20, 6};
-ParseMovieFrames[_, _, _] := Message[
+ParseMovieFrames[args__] := Message[
    RenderMovie::badarg,
    "FrameRate, Frames, and Duration must be a valid combination of "
-     <> "positive numbers and Automatic values"];
+     <> "positive numbers and Automatic values: " <> ToString[{args}]];
 RenderMovie[body0_, iter_, opts:OptionsPattern[]] := With[
   {frameDat = ParseMovieFrames[OptionValue[Frames], OptionValue[FrameRate], OptionValue[Duration]],
    fmt = Replace[
