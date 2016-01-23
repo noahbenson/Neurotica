@@ -52,6 +52,17 @@ MemoizeSafe::usage = "MemoizeSafe[f := expr, ...] is identical to calling Memoiz
 Forget::usage = "Forget[f] forces all memoized values associated with the symbol f to be forgotten.
 Forget[\!\(\*SubscriptBox[\(f\),\(1\)]\), \!\(\*SubscriptBox[\(f\),\(2\)]\), ...] forgets each of the symbols.";
 
+AutoManageData::usage = "AutoManageData[patt1 := form1, ...] defines the given patterns in such a way that, if the result takes longer than a second to calculate, it is automatically memoized, and, if it takes longer than 4 seconds to calculate, it is automatically cached. The exact timeout requirements can be manipulated with the options.
+
+Options:
+  * AutoMemoizeAfter (default: 0) is the number of seconds a calculation must take in order to be memoized.
+  * AutoCacheAfter (default: 1) is the number of seconds a calculation must take in order to be cached.
+  * Directory (default: Automatic) is passed to the AutoCache[] function to determine the directory.";
+AutoMemoizeAfter::usage = "AutoMemoizeAfter is an option for AutoManageData[] that specifies the number of seconds a calculation should be allowed to take without getting memoized. In other words, if a calculation declared inside an AutoManageData[...] form takes longer than <AutoMemoizeAfter> seconds, it is automatically memoized.";
+AutoCacheAfter::usage = "AutoCacheAfter is an option for AutoManageData[] that specifies the number of seconds a calculation should be allowed to take without getting cached. In other words, if a calculation declared inside an AutoManageData[...] form takes longer than <AutoCachefter> seconds, it is automatically cached.";
+$AutoMemoizeAfter::usage = "$AutoMemoizeAfter is the default value of the AutoMemoizeAfter option for AutoManageData[].";
+$AutoCacheAfter::usage = "$AutoCacheAfter is the default value of the AutoCacheAfter option for AutoManageData[].";
+
 Indices::usage = "Indices[list, patt] yields a list of the indices of elements that match patt in list; this is equivalent to Flatten[Position[list, patt, {1}, Heads->False]], but is considerably optimized.";
 Index::usage = "Index[list] yields an association containing, as keys, each unique element that occurs in the given list and, as values, the indices at which the corresponding element occurs in the list. For example, Index[{a,b,c,b}] == <|a -> {1}, b -> {2,4}, c -> {3}|>.";
 
@@ -648,6 +659,62 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                 SetAttributes[Evaluate[box], Protected];
                 True]]]]]]]],
   $Failed];
+Protect[DefineImmutable];
+
+(* #AutoManageData ********************************************************************************)
+$AutoMemoizeAfter = 0;
+$AutoCacheAfter = 1.0;
+
+DeHoldPattern[expr:Hold[y_[x___]]] := If[y === HoldPattern, DeHoldPattern@Hold[x], expr];
+(* Helper function; takes Hold[patt, form] and yeilds parsed-patt :> parsed-replacement *)
+PrepareDatumAutoManager[dat_, amt_, act_, cacheDir_] := With[
+  {patt = Unique["pattern"],
+   lhs = DeHoldPattern[dat[[{1}, 1]]]},
+  With[
+    {rule = ReleaseHold[RuleDelayed @@@ ReplacePart[dat, {1,1} -> (patt:HoldPattern@@lhs)]]},
+    Replace[
+      rule,
+      (p_ :> rhs_) :> (
+         p :> Catch@With[
+           {hash = Hash@HoldPattern[patt],
+            head = HoldPattern[patt][[1,0]]},
+           With[
+             {acname = "AutoManagedCache_" <> ToString[head] <> "_" <> ToString[hash]},
+             (* Check the existing auto-cache first... *)
+             With[
+               {ac = AutoCache[acname, $Failed, Directory -> cacheDir]},
+               If[ac =!= $Failed, (patt = ac; Throw[ac])]];
+             (* Okay, we have to calculate it *)
+             With[
+               {calc = Check[AbsoluteTiming[rhs], $Failed]},
+               (* Check for failure... *)
+               If[calc === $Failed, Throw[calc]];
+               (* See if we want to memoize it first... *)
+               If[calc[[1]] >= amt, patt = calc[[2]]];
+               (* Then see if we want to cache it... *)
+               If[calc[[1]] >= act, AutoCache[acname, calc[[2]], Directory -> cacheDir]];
+               (* Then we return it! *)
+               calc[[2]]]]])]]];
+
+Options[AutoManageData] = {
+  AutoCacheAfter :> $AutoCacheAfter,
+  AutoMemoizeAfter :> $AutoMemoizeAfter,
+  Directory -> Automatic};
+SetAttributes[AutoManageData, HoldAll];
+AutoManageData[data__SetDelayed, OptionsPattern[]] := With[
+  {amt = OptionValue[AutoMemoizeAfter],
+   act = OptionValue[AutoCacheAfter],
+   cacheDir = OptionValue[Directory]},
+  With[
+    {defs = SetDelayed@@@Hold@@Map[
+       PrepareDatumAutoManager[#, amt, act, cacheDir]&,
+       Apply[List, Hold /@ Hold[data]]]},
+    Block@@Join[
+      Hold[{$AutoMemoizeAfter = amt, $AutoCacheAfter = act}],
+      defs]]];
+
+Protect[AutoManageData, PrepareDatumAutoManager,
+        $AutoMemoizeAfter, $AutoCacheAfter, AutoMemoizeAfter, AutoCacheAfter];
 
 (* #Let *******************************************************************************************)
 SetAttributes[Let, HoldAll];
