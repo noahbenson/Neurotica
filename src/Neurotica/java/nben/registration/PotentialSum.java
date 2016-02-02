@@ -21,7 +21,7 @@
 
 package nben.registration;
 
-import nben.registration.PotentialFields;
+import nben.registration.Util;
 import nben.registration.APotentialField;
 
 import java.util.concurrent.ExecutorService;
@@ -119,8 +119,8 @@ class PotentialSum extends APotentialField {
             for (int i = 0; i < m_terms.length; ++i)
                m_calcs[i] = m_terms[i].potentialCalculator(ss, X0, G);
          } else {
-            ExecutorService exc = PotentialFields.pool();
-            int nworkers = PotentialFields.workers();
+            ExecutorService exc = Util.pool();
+            int nworkers = Util.workers();
             SumConstructor[] scs = new SumConstructor[nworkers];
             for (int i = 0; i < nworkers; ++i)
                scs[i] = new SumConstructor(i, nworkers, ss, X0, G);

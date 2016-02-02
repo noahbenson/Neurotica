@@ -21,7 +21,7 @@
 
 package nben.registration;
 
-import nben.registration.PotentialFields;
+import nben.registration.Util;
 import nben.registration.APotentialField;
 import nben.registration.IDifferentiatedFunction;
 
@@ -155,33 +155,38 @@ class AnglePotential extends APotentialField {
     */
    public AnglePotential(IDifferentiatedFunction f, int[][] faces, double[][] X0) {
       this.form = f;
-      int n = faces[0].length;
-      this.angles = new int[3][3*n];
-      this.angleIndex = new int[X0[0].length][];
-      // copy the array, build the index...
-      int[] u, v;
+      int n = faces[0].length; // number of faces
+      // check on perimeters if need be
+      int[] perim;
+      if (X0.length == 2) {
+         try {
+            perim = Util.perimeter(faces);
+         } catch (Exception e) {
+            // no biggie-- we just pretend there are no perimeters...
+            perim = null;
+         }
+      } else perim = null;
+      int perimAngles = (perim == null? 0 : perim.length);
       int q;
+      this.angles = new int[3][3*n + perimAngles];
+      // make the angles matrix...
       for (int j = 0; j < 3; ++j) { // angle number...
          for (int k = 0; k < 3; ++k) { // angle part (A, B, C)
             for (int i = 0; i < n; ++i) { // face number...
                q = faces[(j + k) % 3][i];
                this.angles[k][i + n*j] = q;
-               u = angleIndex[q];
-               if (u == null) {
-                  u = new int[1];
-                  u[0] = i + n*j;
-               } else {
-                  v = new int[u.length + 1];
-                  System.arraycopy(u, 0, v, 0, u.length);
-                  v[u.length] = i + n*j;
-                  u = v;
-               }
-               angleIndex[q] = u;
             }
          }
       }
+      // add the perimeter...
+      for (int i = 0; i < perimAngles; ++i) {
+         this.angles[0][i + n] = perim[i];
+         this.angles[1][i + n] = perim[(i + 1) % perimAngles];
+         this.angles[2][i + n] = perim[(i - 1) % perimAngles];
+      }
+      this.angleIndex = Util.buildSimplexIndex(X0[0].length, this.angles);
       // save the original angles
-      T0 = new double[3*n];
+      T0 = new double[3*n + perimAngles];
       for (int i = 0; i < T0.length; ++i) {
          T0[i] = calculateAngle(i, X0, null);
          if (T0[i] < 0) {
@@ -193,7 +198,7 @@ class AnglePotential extends APotentialField {
          }
       }
       // fill these in for convenience
-      allAngles = new int[3*n];
+      allAngles = new int[3*n + perimAngles];
       for (int i = 0; i < allAngles.length; ++i) allAngles[i] = i;
       allVertices = new int[X0[0].length];
       for (int i = 0; i < allVertices.length; ++i) allVertices[i] = i;
@@ -224,7 +229,7 @@ class AnglePotential extends APotentialField {
          if (ss == null) {
             this.asubset = allAngles;
          } else {
-            this.asubset = PotentialFields.subsampleIndex(subset, angleIndex);
+            this.asubset = Util.subsampleIndex(subset, angleIndex);
          }
       }
       // this class calculates the first stage (fill in AB and edat) -- operate over edges

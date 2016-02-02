@@ -21,7 +21,7 @@
 
 package nben.registration;
 
-import nben.registration.PotentialFields;
+import nben.registration.Util;
 import nben.registration.APotentialField;
 import nben.registration.IDifferentiatedFunction;
 
@@ -148,7 +148,7 @@ class AnchorPotential extends APotentialField {
          if (ss == null)
             this.asubset = allAnchors;
          else
-            this.asubset = PotentialFields.subsampleIndex(subset, vertexIndex);
+            this.asubset = Util.subsampleIndex(subset, vertexIndex);
       }
       // this class calculates the first stage (fill in AB and rdat) -- operate over anchors
       public final class AnchorWorker1 implements Runnable {

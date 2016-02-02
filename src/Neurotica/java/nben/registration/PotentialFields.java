@@ -41,44 +41,6 @@ import java.util.Iterator;
  */
 public final class PotentialFields {
 
-   // Data about how to optimally multi-thread
-   private static ExecutorService m_pool;
-   private static int m_nthreads;
-   public synchronized static final ExecutorService pool() {return m_pool;}
-   public synchronized static final int workers() {return m_nthreads;}
-   public synchronized static final void setWorkers(int n) {
-      m_nthreads = n;
-      m_pool.shutdown();
-      m_pool = Executors.newFixedThreadPool(n);
-   }
-
-   static {
-      m_nthreads = Runtime.getRuntime().availableProcessors();
-      m_pool = Executors.newFixedThreadPool(m_nthreads);
-   }
-
-   /** PotentialFields.subsampleIndex(subset, index) yields a set of all integers in the given
-    *  index that are pointed to by any element of the given subset.
-    */
-   public static int[] subsampleIndex(int[] subset, int[][] index) {
-      int i,j;
-      int[] ss;
-      HashSet<Integer> q = new HashSet<Integer>(5 * subset.length);
-      for (i = 0; i < subset.length; ++i) {
-         ss = index[subset[i]];
-         if (ss != null) {
-            for (j = 0; j < ss.length; ++j) 
-               q.add(new Integer(ss[j]));
-         }
-      }
-      int[] samp = new int[q.size()];
-      i = 0;
-      for (Iterator<Integer> it = q.iterator(); it.hasNext(); ++i)
-         samp[i] = it.next().intValue();
-      return samp;
-   }
-
-
    /** PotentialFields.newHarmonicEdgePotential(s, q, E, X) yields an EdgePotential object with a 
     *  HarmonicFunction form using scale parameter s/m and shape parameter q where where m is the
     *  number of edges.
@@ -296,5 +258,16 @@ public final class PotentialFields {
                                                             double[][] X) {
       return new AnchorPotential(new GaussianFunction(1.0/vertices.length, 1.0, 2.0),
                                  vertices, points, X);
+   }
+
+   /** newStandardMeshPotential(faces, X0) yields a SumPotential that includes:
+    *    (a) an edge potential for all edges in the given set of faces [harmonic: scale = 1/m, 
+    *        shape = 2], 
+    *    (b) an angle potential for the angles in the mesh [infinite-well: scale = 1/p, min = 0,
+    *        max = pi/2, shape = 0.5]
+    */
+   public static PotentialSum newStandardMeshPotential(int[][] faces, double[][] X) {
+      return new PotentialSum(newAngleWellPotential(faces, X),
+                              newHarmonicEdgePotential(Util.facesToEdges(X[0].length, faces), X));
    }
 }

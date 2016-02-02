@@ -21,7 +21,7 @@
 
 package nben.registration;
 
-import nben.registration.PotentialFields;
+import nben.registration.Util;
 import nben.registration.APotentialField;
 import nben.registration.IDifferentiatedFunction;
 
@@ -64,25 +64,13 @@ class EdgePotential extends APotentialField {
       this.form = f;
       int n = edges[0].length;
       this.edges = new int[2][n];
-      this.edgeIndex = new int[X0[0].length][];
-      // copy the array, build the index...
-      int[] u, v;
+      // copy the array...
       for (int j = 0; j < 2; ++j) {
-         for (int i = 0; i < n; ++i) {
+         for (int i = 0; i < n; ++i)
             this.edges[j][i] = edges[j][i];
-            u = edgeIndex[edges[j][i]];
-            if (u == null) {
-               u = new int[1];
-               u[0] = i;
-            } else {
-               v = new int[u.length + 1];
-               System.arraycopy(u, 0, v, 0, u.length);
-               v[u.length] = i;
-               u = v;
-            }
-            edgeIndex[edges[j][i]] = u;
-         }
       }
+      // build the index...
+      this.edgeIndex = Util.buildSimplexIndex(X0[0].length, edges);
       // save the original distances
       D0 = new double[n];
       for (int j = 0; j < X0.length; ++j) {
@@ -119,7 +107,7 @@ class EdgePotential extends APotentialField {
          if (ss == null) {
             this.esubset = allEdges;
          } else {
-            this.esubset = PotentialFields.subsampleIndex(subset, edgeIndex);
+            this.esubset = Util.subsampleIndex(subset, edgeIndex);
          }
       }
       // this class calculates the first stage (fill in AB and edat) -- operate over edges

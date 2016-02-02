@@ -21,7 +21,7 @@
 
 package nben.registration;
 
-import nben.registration.PotentialFields;
+import nben.registration.Util;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -80,7 +80,7 @@ public abstract class AInPlaceCalculator {
     *  to the number of processors on the system.
     */
    public void calculate() throws Exception {
-      calculate(PotentialFields.workers(), PotentialFields.pool());
+      calculate(Util.workers(), Util.pool());
    }
 
    /** runThreads(rs, exc) runs the given set of workers over the threads of the given executor 
@@ -88,7 +88,7 @@ public abstract class AInPlaceCalculator {
     *  null, then one is chosen automatically.
     */
    protected final boolean runThreads(Runnable[] rs, ExecutorService exc) throws Exception {
-      if (exc == null) exc = PotentialFields.pool();
+      if (exc == null) exc = Util.pool();
       if (rs == null || rs.length == 0) {
          return false;
       } else if (rs.length == 1) {
@@ -124,8 +124,8 @@ public abstract class AInPlaceCalculator {
    /** clear() resets the gradient at the given subset to be 0 and sets the potential value to 0.
     */
    public void clear(int nworkers, ExecutorService exc) {
-      if (nworkers == 0) nworkers = PotentialFields.workers();
-      if (exc == null) exc = PotentialFields.pool();
+      if (nworkers == 0) nworkers = Util.workers();
+      if (exc == null) exc = Util.pool();
       potential = 0;
       ClearWorker[] cw = new ClearWorker[nworkers];
       for (int i = 0; i < nworkers; ++i)
