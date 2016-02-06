@@ -36,7 +36,7 @@ import java.util.concurrent.Future;
  *
  *  @author Noah C. Benson
  */
-class AnglePotential extends APotentialField {
+public class AnglePotential extends APotentialField {
    // the form of the potential function
    public final IDifferentiatedFunction form;
    // The angles we manage; angle i consists of the vectors from angles[0][i] to angles[1][i] and 
@@ -153,41 +153,19 @@ class AnglePotential extends APotentialField {
     *               all in the same ordering (clockwise or counter-clockwise)
     *  @param X0 a (dims x n) array of the starting coordinates of the vertices
     */
-   public AnglePotential(IDifferentiatedFunction f, int[][] faces, double[][] X0) {
+   public AnglePotential(IDifferentiatedFunction f, int[][] angles, double[][] X0) {
       this.form = f;
-      int n = faces[0].length; // number of faces
-      // check on perimeters if need be
-      int[] perim;
-      if (X0.length == 2) {
-         try {
-            perim = Util.perimeter(faces);
-         } catch (Exception e) {
-            // no biggie-- we just pretend there are no perimeters...
-            perim = null;
-         }
-      } else perim = null;
-      int perimAngles = (perim == null? 0 : perim.length);
-      int q;
-      this.angles = new int[3][3*n + perimAngles];
-      // make the angles matrix...
-      for (int j = 0; j < 3; ++j) { // angle number...
-         for (int k = 0; k < 3; ++k) { // angle part (A, B, C)
-            for (int i = 0; i < n; ++i) { // face number...
-               q = faces[(j + k) % 3][i];
-               this.angles[k][i + n*j] = q;
-            }
-         }
-      }
-      // add the perimeter...
-      for (int i = 0; i < perimAngles; ++i) {
-         this.angles[0][i + n] = perim[i];
-         this.angles[1][i + n] = perim[(i + 1) % perimAngles];
-         this.angles[2][i + n] = perim[(i - 1) % perimAngles];
-      }
+      int n = angles[0].length; // number of angles
+
+      // make the angles matrix... we dup this just in case
+      this.angles = new int[3][n];
+      for (int i = 0; i < 3; ++i) System.arraycopy(angles[i], 0, this.angles[i], 0, n);
+      // build the index...
       this.angleIndex = Util.buildSimplexIndex(X0[0].length, this.angles);
       // save the original angles
-      T0 = new double[3*n + perimAngles];
-      for (int i = 0; i < T0.length; ++i) {
+      int q;
+      T0 = new double[n];
+      for (int i = 0; i < n; ++i) {
          T0[i] = calculateAngle(i, X0, null);
          if (T0[i] < 0) {
             // we want all angles to be positive...
@@ -198,12 +176,12 @@ class AnglePotential extends APotentialField {
          }
       }
       // fill these in for convenience
-      allAngles = new int[3*n + perimAngles];
-      for (int i = 0; i < allAngles.length; ++i) allAngles[i] = i;
+      allAngles = new int[n];
+      for (int i = 0; i < n; ++i) allAngles[i] = i;
       allVertices = new int[X0[0].length];
       for (int i = 0; i < allVertices.length; ++i) allVertices[i] = i;
    }
-
+   
    // Here we have the code/subclasses that handle the workers
    private final class AngleCalculation extends AInPlaceCalculator {
       // the scratch space we need...

@@ -38,11 +38,29 @@ class PotentialSum extends APotentialField {
 
    /** Constructs a PotentialSum object from the give list of fields */
    public PotentialSum(APotentialField... fields) {
-      if (fields == null) {
+      if (fields != null) {
+         PotentialSum ps;
+         // see if we have any potential sums...
+         int n = 0;
+         for (int i = 0; i < fields.length; ++i) {
+            if (fields[i] instanceof PotentialSum) {
+               ps = (PotentialSum)fields[i];
+               n += (ps.m_terms == null? 0 : ps.m_terms.length);
+            } else 
+               ++n;
+         }
          // copy the array just in case...
-         m_terms = new APotentialField[fields.length];
-         for (int i = 0; i < fields.length; ++i)
-            m_terms[i] = fields[i];
+         m_terms = new APotentialField[n];
+         int k = 0;
+         for (int i = 0; i < fields.length; ++i) {
+            if (fields[i] instanceof PotentialSum) {
+               ps = (PotentialSum)fields[i];
+               if (ps.m_terms != null)
+                  for (int j = 0; j < ps.m_terms.length; ++j)
+                     fields[k++] = ps.m_terms[j];
+            } else 
+               m_terms[k++] = fields[i];
+         }
       }
    }
 
@@ -85,6 +103,7 @@ class PotentialSum extends APotentialField {
    private final class SumCalculation extends AInPlaceCalculator {
       // all the data we need to store...
       private AInPlaceCalculator[] m_calcs;
+      public AInPlaceCalculator[] calculators() {return m_calcs;}
 
       public final class SumConstructor implements Runnable {
          public final int id;

@@ -21,11 +21,6 @@
 
 package nben.registration;
 
-import nben.registration.APotentialField;
-import nben.registration.IDifferentiatedFunction;
-import nben.registration.HarmonicFunction;
-import nben.registration.EdgePotential;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.Executors;
@@ -43,17 +38,29 @@ public final class PotentialFields {
 
    /** PotentialFields.newHarmonicEdgePotential(s, q, E, X) yields an EdgePotential object with a 
     *  HarmonicFunction form using scale parameter s/m and shape parameter q where where m is the
-    *  number of edges.
+    *  number of edges. If the parameter E is actually a list of faces, it is interpreted 
+    *  automatically.
     */
    public static EdgePotential newHarmonicEdgePotential(double scale, double shape,
                                                         int[][] E, double[][] X) {
-      return new EdgePotential(new HarmonicFunction(scale / E[0].length, shape), E, X);
+      if (E.length == 3) {
+         int[][] tmp = Util.facesToEdges(E);
+         return newHarmonicEdgePotential(scale, shape, tmp, X);
+      } else
+         return new EdgePotential(new HarmonicFunction(scale / E[0].length, shape), E, X);
    }
    public static EdgePotential newHarmonicEdgePotential(double scale, int[][] E, double[][] X) {
-      return new EdgePotential(new HarmonicFunction(scale / E[0].length), E, X);
+      if (E.length == 3) {
+         int[][] tmp = Util.facesToEdges(E);
+         return newHarmonicEdgePotential(scale, tmp, X);
+      } else
+         return new EdgePotential(new HarmonicFunction(scale / E[0].length), E, X);
    }
    public static EdgePotential newHarmonicEdgePotential(int[][] E, double[][] X) {
-      return new EdgePotential(new HarmonicFunction(1.0 / E[0].length), E, X);
+      if (E.length == 3)
+         return newHarmonicEdgePotential(Util.facesToEdges(E), X);
+      else
+         return new EdgePotential(new HarmonicFunction(1.0 / E[0].length), E, X);
    }
    /** PotentialFields.newLJEdgePotential(s, q, E, X) yields an EdgePotential object with a 
     *  LennardJonesFunction form using scale parameter s/m and shape parameter q where where m is
@@ -61,7 +68,10 @@ public final class PotentialFields {
     */
    public static EdgePotential newLJEdgePotential(double scale, double shape,
                                                   int[][] E, double[][] X) {
-      return new EdgePotential(new LennardJonesFunction(scale / E[0].length, shape), E, X);
+      if (E.length == 3) 
+         return newLJEdgePotential(scale, shape, Util.facesToEdges(E), X);
+      else
+         return new EdgePotential(new LennardJonesFunction(scale / E[0].length, shape), E, X);
    }
    /** PotentialFields.newHarmonicAnglePotential(s, q, E, X) yields an EdgePotential object with a 
     *  LennardJonesFunction form using scale parameter s/m and shape parameter q where where m is
@@ -69,7 +79,8 @@ public final class PotentialFields {
     */
    public static AnglePotential newHarmonicAnglePotential(double scale, double shape,
                                                           int[][] T, double[][] X) {
-      return new AnglePotential(new HarmonicFunction(scale / (3.0 * T[0].length), shape), T, X);
+      return new AnglePotential(new HarmonicFunction(scale / (3.0 * T[0].length), shape), 
+                                Util.facesToAngles(T), X);
    }
    /** PotentialFields.newLJAnglePotential(s, q, T, X) yields an AnglePotential object with a 
     *  LennardJonesFunction form using scale parameter s/m and shape parameter q where where m is
@@ -260,14 +271,40 @@ public final class PotentialFields {
                                  vertices, points, X);
    }
 
+   /** newHarmonicPerimeterPotential(scale, shape, faces, X0) yields a potential function that
+    *  includes a harmonic perimeter potential function with the given scale and shape (see
+    *  HarmonicFunction). This perimeter prevents vertices around the perimeter of the mesh from
+    *  moving very much. The scale passed to the HarmonicFunction is scale / q where q is the number
+    *  of vertices in the perimeter.
+    */
+   public static AnchorPotential newHarmonicPerimeterPotential(double scale, double shape,
+                                                               int[][] faces, double[][] X) {
+      int[] perim = Util.perimeter(faces);
+      double[][] perimX0 = new double[X.length][perim.length];
+      for (int j = 0; j < X.length; ++j)
+         for (int i = 0; i < perim.length; ++i)
+            perimX0[j][i] = X[j][perim[i]];
+      return new AnchorPotential(new HarmonicFunction(scale/perim.length, shape), 
+                                 perim, perimX0, X);
+   }
+   public static AnchorPotential newHarmonicPerimeterPotential(double scale,
+                                                               int[][] faces, double[][] X) {
+      return newHarmonicPerimeterPotential(scale, 2.0, faces, X);
+   }
+   public static AnchorPotential newHarmonicPerimeterPotential(int[][] faces, double[][] X) {
+      return newHarmonicPerimeterPotential(1.0, 2.0, faces, X);
+   }
+
    /** newStandardMeshPotential(faces, X0) yields a SumPotential that includes:
-    *    (a) an edge potential for all edges in the given set of faces [harmonic: scale = 1/m, 
-    *        shape = 2], 
-    *    (b) an angle potential for the angles in the mesh [infinite-well: scale = 1/p, min = 0,
+    *    (a) an angle potential for the angles in the mesh [infinite-well: scale = 1/p, min = 0,
     *        max = pi/2, shape = 0.5]
+    *    (b) an edge potential for all edges in the given set of faces [harmonic: scale = 1/m, 
+    *        shape = 2], 
     */
    public static PotentialSum newStandardMeshPotential(int[][] faces, double[][] X) {
-      return new PotentialSum(newAngleWellPotential(faces, X),
-                              newHarmonicEdgePotential(Util.facesToEdges(X[0].length, faces), X));
+      return new PotentialSum(newLJAnglePotential(1.0, 2.0, faces, X),
+                              newHarmonicEdgePotential(Util.facesToEdges(faces), X),
+                              newHarmonicPerimeterPotential(1.0, 2.0, faces, X));
    }
+
 }

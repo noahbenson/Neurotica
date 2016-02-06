@@ -58,7 +58,7 @@ public final class LennardJonesFunction implements IDifferentiatedFunction {
    static public double y(double x, double x0, double s, double q) {
       x = x0 / x;
       if (x == 0) return Double.POSITIVE_INFINITY;
-      return s * (Math.pow(x, q) - 2.0*Math.pow(x, 0.5*q));
+      return s * (1 + Math.pow(x, q) - 2.0*Math.pow(x, 0.5*q));
    }
 
    /** LennardJonesFunction.dy(x, x0, s, q) yields the derivative of the Lennard-Jones potential y
