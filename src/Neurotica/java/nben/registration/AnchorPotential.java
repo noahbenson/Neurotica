@@ -138,8 +138,8 @@ class AnchorPotential extends APotentialField {
       public int[] getss() {return subset;}
 
       // constructor
-      public AnchorCalculation(int[] ss, double[][] X0, double[][] G) {
-         super((ss == null? allVertices : ss), X0, G);
+      public AnchorCalculation(int[] ss, double[][] X0, double[][] G, double[] Gn) {
+         super((ss == null? allVertices : ss), X0, G, Gn);
          this.AB = new double[X.length][vertices.length];
          this.rdat = new double[vertices.length];
          this.gdat = new double[vertices.length];
@@ -175,7 +175,8 @@ class AnchorPotential extends APotentialField {
                a = asubset[i];
                tmp = Math.sqrt(rdat[a]);
                // normalize vectors...
-               for (j = 0; j < m_dims; ++j) AB[j][a] /= tmp;
+               if (!Util.zeroish(tmp))
+                  for (j = 0; j < m_dims; ++j) AB[j][a] /= tmp;
                // get potential and gradient data...
                gdat[a] = forms[a].dy(tmp, 0.0);
                rdat[a] = forms[a].y(tmp, 0.0);
@@ -226,7 +227,8 @@ class AnchorPotential extends APotentialField {
       }
    }
 
-   public final AnchorCalculation potentialCalculator(int[] subset, double[][] X, double[][] G) {
-      return new AnchorCalculation(subset, X, G);
+   public final AnchorCalculation potentialCalculator(int[] subset, double[][] X, 
+                                                      double[][] G, double[] Gn) {
+      return new AnchorCalculation(subset, X, G, Gn);
    }
 }

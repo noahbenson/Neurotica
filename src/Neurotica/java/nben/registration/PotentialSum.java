@@ -63,6 +63,10 @@ class PotentialSum extends APotentialField {
          }
       }
    }
+   public PotentialSum() {
+      m_terms = null;
+   }
+   
 
    /** Adds a potential field to this object */
    public void addField(APotentialField f) {
@@ -111,22 +115,25 @@ class PotentialSum extends APotentialField {
          public final int[] subset;
          public final double[][] X0;
          public final double[][] G;
-         public SumConstructor(int i, int nworkers, int[] ss, double[][] X0, double[][] G) {
+         public final double[] Gn;
+         public SumConstructor(int i, int nworkers, int[] ss, double[][] X0, 
+                               double[][] G, double[] Gn) {
             id = i;
             workers = nworkers;
             subset = ss;
             this.X0 = X0;
             this.G = G;
+            this.Gn = Gn;
          }
          public void run() {
             for (int i = id; i < m_calcs.length; i += workers)
-               m_calcs[i] = m_terms[i].potentialCalculator(subset, X0, G);
+               m_calcs[i] = m_terms[i].potentialCalculator(subset, X0, G, Gn);
          }
       }
 
       // constructor
-      public SumCalculation(int[] ss, double[][] X0, double[][] G) {
-         super(ss, X0, G);
+      public SumCalculation(int[] ss, double[][] X0, double[][] G, double[] Gn) {
+         super(ss, X0, G, Gn);
          // if ss is null, we basically know that construction will be super-fast;
          // if not, we multi-thread it to make it a little faster
          if (m_terms == null) {
@@ -134,15 +141,15 @@ class PotentialSum extends APotentialField {
             return;
          }
          m_calcs = new AInPlaceCalculator[m_terms.length];
-         if (ss == null) {
+         if (true) {
             for (int i = 0; i < m_terms.length; ++i)
-               m_calcs[i] = m_terms[i].potentialCalculator(ss, X0, G);
+               m_calcs[i] = m_terms[i].potentialCalculator(ss, X0, G, Gn);
          } else {
             ExecutorService exc = Util.pool();
             int nworkers = Util.workers();
             SumConstructor[] scs = new SumConstructor[nworkers];
             for (int i = 0; i < nworkers; ++i)
-               scs[i] = new SumConstructor(i, nworkers, ss, X0, G);
+               scs[i] = new SumConstructor(i, nworkers, ss, X0, G, Gn);
             try {
                runThreads(scs);
             } catch (Exception e) {
@@ -168,8 +175,9 @@ class PotentialSum extends APotentialField {
       }
    }
 
-   public final SumCalculation potentialCalculator(int[] subset, double[][] X, double[][] G) {
-      return new SumCalculation(subset, X, G);
+   public final SumCalculation potentialCalculator(int[] subset, double[][] X,
+                                                   double[][] G, double[] Gn) {
+      return new SumCalculation(subset, X, G, Gn);
    }
 
 }

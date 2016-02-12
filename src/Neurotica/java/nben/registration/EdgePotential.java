@@ -38,7 +38,7 @@ import java.util.concurrent.Future;
  */
 class EdgePotential extends APotentialField {
    // the form of the potential function
-   public final IDifferentiatedFunction form;
+   public final IDifferentiatedFunction[] forms;
    // The edges we manage
    public final int[][] edges;
    // edgeIndex[i] is a list of the edge indices for vertex i; i.e., if q = m_edgeIndex[i][j],
@@ -54,14 +54,21 @@ class EdgePotential extends APotentialField {
    public int[] getEdgeIndex(int i) {return edgeIndex[i];}
    public double[] getD0() {return D0;}
 
+   private static final IDifferentiatedFunction[] fill(IDifferentiatedFunction f, int n) {
+      IDifferentiatedFunction[] fs = new IDifferentiatedFunction[n];
+      for (int i = 0; i < n; ++i) fs[i] = f;
+      return fs;
+   }
+
    /** Constructs an EdgePotential object.
     *  
-    *  @param f an IDfferentiatedFunction that specifies the shape of the potential landscape
+    *  @param f an array of IDfferentiatedFunction's that specify the shape of the potential 
+    *           landscape for each edge.
     *  @param edges the (2 x n) list of edges; must be 0-indexed
     *  @param X0 a (dims x n) array of the starting coordinates of the vertices
     */
-   public EdgePotential(IDifferentiatedFunction f, int[][] edges, double[][] X0) {
-      this.form = f;
+   public EdgePotential(IDifferentiatedFunction[] f, int[][] edges, double[][] X0) {
+      this.forms = f;
       int n = edges[0].length;
       this.edges = new int[2][n];
       // copy the array...
@@ -88,6 +95,9 @@ class EdgePotential extends APotentialField {
       allVertices = new int[X0[0].length];
       for (int i = 0; i < allVertices.length; ++i) allVertices[i] = i;
    }
+   public EdgePotential(IDifferentiatedFunction f, int[][] edges, double[][] X0) {
+      this(EdgePotential.fill(f, edges[0].length), edges, X0);
+   }
 
    // Here we have the code/subclasses that handle the workers
    private final class EdgeCalculation extends AInPlaceCalculator {
@@ -97,9 +107,14 @@ class EdgePotential extends APotentialField {
       private double[][] AB; // the normalized vectors from a to b (dims x edges)
       private int[] esubset; // the subset of edges we operate over
 
+      public double[] getEDat() {return edat;}
+      public double[] getGDat() {return gdat;}
+      public double[][] getAB() {return AB;}
+      public int[] getESubset() {return esubset;}
+
       // constructor
-      public EdgeCalculation(int[] ss, double[][] X0, double[][] G) {
-         super(ss, X0, G);
+      public EdgeCalculation(int[] ss, double[][] X0, double[][] G, double[] Gn) {
+         super(ss, X0, G, Gn);
          this.AB = new double[X.length][D0.length];
          this.edat = new double[D0.length];
          this.gdat = new double[D0.length];
@@ -119,23 +134,26 @@ class EdgePotential extends APotentialField {
             int n = esubset.length, i, j, e;
             double tmp;
             double[] x;
+            for (i = id; i < n; i += workers)
+               edat[esubset[i]] = 0;
             for (j = 0; j < X.length; ++j) {
                x = X[j];
                for (i = id; i < n; i += workers) {
                   e = esubset[i];
                   tmp = x[edges[1][e]] - x[edges[0][e]];
                   AB[j][e] = tmp;
-                  edat[i] += tmp*tmp;
+                  edat[e] += tmp*tmp;
                }
             }
             for (i = id; i < n; i += workers) {
                e = esubset[i];
                edat[e] = Math.sqrt(edat[e]);
-               for (j = 0; j < AB.length; ++j)
-                  AB[j][e] /= edat[e];
+               if (!Util.zeroish(edat[e]))
+                  for (j = 0; j < AB.length; ++j)
+                     AB[j][e] /= edat[e];
                // now get potentials and gradient lengths
-               gdat[e] = form.dy(edat[e], D0[e]);
-               edat[e] = form.y(edat[e], D0[e]);
+               gdat[e] = forms[e].dy(edat[e], D0[e]);
+               edat[e] = forms[e].y(edat[e], D0[e]);
             }
          }
       }
@@ -184,8 +202,9 @@ class EdgePotential extends APotentialField {
       }
    }
 
-   public final EdgeCalculation potentialCalculator(int[] subset, double[][] X, double[][] G) {
-      return new EdgeCalculation(subset, X, G);
+   public final EdgeCalculation potentialCalculator(int[] subset, double[][] X, 
+                                                    double[][] G, double[] Gn) {
+      return new EdgeCalculation(subset, X, G, Gn);
    }
 
 }

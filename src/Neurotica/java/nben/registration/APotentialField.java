@@ -45,7 +45,12 @@ public abstract class APotentialField {
     *  @param G the (dims x vertices)-sized output matrix to which the gradient matrix should be
     *           added (note that overwriting this matrix would be an error)
     */
-   public abstract AInPlaceCalculator potentialCalculator(int[] subset, double[][] X, double[][] G);
+   public abstract AInPlaceCalculator potentialCalculator(int[] subset, double[][] X, 
+                                                          double[][] G, double[] Gnorm);
+   public final AInPlaceCalculator potentialCalculator(int[] subset, double[][] X, double[][] G) {
+      return potentialCalculator(subset, X, G, null);
+   }
+
 
    /** potential(subset, X, G) is simply a wrapper that constucts an in-place-calculator using
     *  potentialCalculator(subset, X, G), runs it, and returns the resulting potential value.

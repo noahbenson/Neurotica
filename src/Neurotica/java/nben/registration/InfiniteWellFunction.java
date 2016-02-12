@@ -98,7 +98,7 @@ public final class InfiniteWellFunction implements IDifferentiatedFunction {
     *  @param q the shape (exponent) of the potential well
     */
    static public double dy(double x, double x0, double s, double min, double max, double q) {
-      double tl = (min - x0)/(min - x), tr = (max - x0)/(max - x);
+      double tl = (x0 - min)/(x - min), tr = (max - x0)/(max - x);
       if (x <= min || x >= max) {
          return Double.POSITIVE_INFINITY;
       } if (q == 0.5) {

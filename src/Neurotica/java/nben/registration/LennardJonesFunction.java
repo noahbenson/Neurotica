@@ -57,7 +57,7 @@ public final class LennardJonesFunction implements IDifferentiatedFunction {
     */
    static public double y(double x, double x0, double s, double q) {
       x = x0 / x;
-      if (x == 0) return Double.POSITIVE_INFINITY;
+      if (x <= 0) return Double.POSITIVE_INFINITY;
       return s * (1 + Math.pow(x, q) - 2.0*Math.pow(x, 0.5*q));
    }
 
@@ -72,7 +72,7 @@ public final class LennardJonesFunction implements IDifferentiatedFunction {
     */
    static public double dy(double x, double x0, double s, double q) {
       x0 /= x;
-      if (x0 == 0) return Double.POSITIVE_INFINITY;
+      if (x0 <= 0) return Double.POSITIVE_INFINITY;
       return -s*q/x * (Math.pow(x0, q) - Math.pow(x0, 0.5*q));
    }
 

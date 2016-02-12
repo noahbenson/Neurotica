@@ -198,8 +198,8 @@ public class AnglePotential extends APotentialField {
       public double[][][] getDirs() {return dirs;}
 
       // constructor
-      public AngleCalculation(int[] ss, double[][] X0, double[][] G) {
-         super(ss, X0, G);
+      public AngleCalculation(int[] ss, double[][] X0, double[][] G, double[] Gn) {
+         super(ss, X0, G, Gn);
          this.dirs = new double[3][X0.length][T0.length];
          this.adat = new double[T0.length];
          this.gdat = new double[T0.length];
@@ -271,8 +271,9 @@ public class AnglePotential extends APotentialField {
       }
    }
 
-   public final AngleCalculation potentialCalculator(int[] subset, double[][] X, double[][] G) {
-      return new AngleCalculation(subset, X, G);
+   public final AngleCalculation potentialCalculator(int[] subset, double[][] X, 
+                                                     double[][] G, double[] Gn) {
+      return new AngleCalculation(subset, X, G, Gn);
    }
 
 }

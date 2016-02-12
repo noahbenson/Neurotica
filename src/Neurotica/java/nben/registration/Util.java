@@ -45,6 +45,9 @@ import java.util.Arrays;
  */
 public class Util {
 
+   static final double ZERO_TOL = 1e-30;
+   static final boolean zeroish(double d) {return Math.abs(d) < ZERO_TOL;}
+
    // Data about how to optimally multi-thread
    private static ExecutorService m_pool;
    private static int m_nthreads;
@@ -100,7 +103,7 @@ public class Util {
    public static int[] subsampleIndex(int[] subset, int[][] index) {
       int i,j;
       int[] ss;
-      HashSet<Integer> q = new HashSet<Integer>(5 * subset.length);
+      HashSet<Integer> q = new HashSet<Integer>();
       for (i = 0; i < subset.length; ++i) {
          ss = index[subset[i]];
          if (ss != null) {

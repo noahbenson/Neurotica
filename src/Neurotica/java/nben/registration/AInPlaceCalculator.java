@@ -55,8 +55,19 @@ public abstract class AInPlaceCalculator {
     *  each vertex as column vectors whenever the potential() function is called. 
     */
    public double[][] gradient;
+   /** gradientNorms is a (vertices)-sized vector into gradient norms are written by the gradNorms
+    *  function.
+    */
+   public double[] gradientNorms;
+   /** maxGradientNorm is the maximum gradient norm of all the vertices; it is filled in by the
+    *  gradNorms function.
+    */
+   public double maxGradientNorm;
+   /** gradientLength is the total length of the gradient vector
+    */
+   public double gradientLength;
 
-   public AInPlaceCalculator(int[] ss, double[][] x, double[][] g) {
+   public AInPlaceCalculator(int[] ss, double[][] x, double[][] g, double[] gnorm) {
       if (ss == null) {
          ss = new int[x[0].length];
          for (int i = 0; i < ss.length; ++i) ss[i] = i;
@@ -65,7 +76,14 @@ public abstract class AInPlaceCalculator {
       subset = ss;
       X = x;
       gradient = g;
+      gradientNorms = (gnorm == null? new double[x[0].length] : gnorm);
       potential = Double.NaN;
+   }
+   public AInPlaceCalculator(int[] ss, double[][] x, double[][] g) {
+      this (ss, x, g, null);
+   }
+   public AInPlaceCalculator(int[] ss, double[][] x) {
+      this (ss, x, null, null);
    }
 
    /** The calculate function updates the gradient array and the potential value based on the 
@@ -82,6 +100,50 @@ public abstract class AInPlaceCalculator {
    public void calculate() throws Exception {
       calculate(Util.workers(), Util.pool());
    }
+
+   private double[][] copyAr(double[][] a) {
+      double[][] b = new double[a.length][];
+      for (int i = 0; i < a.length; ++i) {
+         b[i] = new double[a[i].length];
+         System.arraycopy(a[i], 0, b[i], 0, a[0].length);
+      }
+      return b;         
+   }
+   private double[][] copyToAr(double[][] a, double[][] b) {
+      for (int i = 0; i < a.length; ++i) {
+         System.arraycopy(a[i], 0, b[i], 0, a[0].length);
+      }
+      return b;         
+   }
+
+   /** The calculateAt function calculates the gradient and potential at a particular position and
+    *  yields the result without modifying the rest of the calculator; note that this funciton is
+    *  note remotely thread-safe (as with most of the AInPlaceCalculator functions).
+    *  Note that this function clears the calculator before running the calculations.
+    *  If the argument grad is given and is not null, then the gradient is placed in that array;
+    *  otherwise it is placed in the calculator's gradient array.
+    */
+   public double calculateAt(double[][] atX, double[][] grad) throws Exception {
+      if (grad == null)
+         grad = gradient;
+      // swap out the potential, X, and the gradient..
+      double[][] Xtmp = copyAr(X);
+      double[][] Gtmp = copyAr(gradient);
+      double Ptmp = potential;
+      copyToAr(atX, X);
+      copyToAr(grad, gradient);
+      // run the calculation...
+      clear();
+      calculate();
+      // now replace things
+      if (atX != X) copyToAr(Xtmp, X);
+      if (gradient != grad) copyToAr(Gtmp, gradient);
+      double result = potential;
+      potential = Ptmp;
+      // return the result...
+      return result;
+   }
+   public double calculateAt(double[][] atX) throws Exception {return calculateAt(atX, gradient);}
 
    /** runThreads(rs, exc) runs the given set of workers over the threads of the given executor 
     *  service and returns true on success or throws an exception on error. If the executor is
@@ -141,5 +203,71 @@ public abstract class AInPlaceCalculator {
    }
    public void clear(int nworkers) {clear(nworkers, null);}
    public void clear() {clear(0, null);}
+
+   private class GradWorker implements Runnable {
+      int id;
+      int workers;
+      double maxgrad;
+      double gradlen;
+      public GradWorker(int i, int ws) {id = i; workers = ws;}
+      public void run() {
+         double tmp;
+         int i, j, u;
+         if (subset == null) {
+            for (i = id; i < gradientNorms.length; i += workers)
+               gradientNorms[i] = 0;
+            for (j = 0; j < gradient.length; ++j) {
+               for (i = id; i < gradientNorms.length; i += workers) {
+                  tmp = gradient[j][i];
+                  gradientNorms[i] += tmp*tmp;
+                  gradlen += tmp*tmp;
+               }
+            }
+            for (i = id; i < gradientNorms.length; i += workers) {
+               gradientNorms[i] = Math.sqrt(gradientNorms[i]);
+               if (i == id || gradientNorms[i] > maxGradientNorm) 
+                  maxgrad = gradientNorms[i];
+            }
+         } else {
+            for (i = id; i < subset.length; i += workers)
+               gradientNorms[subset[i]] = 0;
+            for (j = 0; j < gradient.length; ++j) {
+               for (i = id; i < subset.length; i += workers) {
+                  u = subset[i];
+                  tmp = gradient[j][u];
+                  gradientNorms[u] += tmp*tmp;
+                  gradlen += tmp*tmp;
+               }
+            }
+            for (i = id; i < subset.length; i += workers) {
+               u = subset[i];
+               gradientNorms[u] = Math.sqrt(gradientNorms[u]);
+               if (i == id || gradientNorms[u] > maxGradientNorm) 
+                  maxgrad = gradientNorms[u];
+            } 
+         }
+      }
+   }
+   /** gradNorms() fills in the gradientNorms member of the given calculator and returns the maximum
+    *  gradient across all vertices in the calculator's subset.
+    */
+   public double gradNorms(int nworkers, ExecutorService exc) throws Exception {
+      maxGradientNorm = 0;
+      GradWorker[] gw = new GradWorker[nworkers];
+      for (int i = 0; i < nworkers; ++i)
+         gw[i] = new GradWorker(i, nworkers);
+      runThreads(gw);
+      maxGradientNorm = gw[0].maxgrad;
+      gradientLength = 0;
+      for (int i = 1; i < nworkers; ++i) {
+         gradientLength += gw[i].gradlen;
+         if (gw[i].maxgrad > maxGradientNorm)
+            maxGradientNorm = gw[i].maxgrad;
+      }
+      gradientLength = Math.sqrt(gradientLength);
+      return maxGradientNorm;
+   }
+   public double gradNorms(int nw) throws Exception {return gradNorms(nw, Util.pool());}
+   public double gradNorms() throws Exception {return gradNorms(Util.workers(), Util.pool());}
 }
 

@@ -54,10 +54,11 @@ public final class HarmonicFunction implements IDifferentiatedFunction {
     *  @param q the shape (exponent) of the harmonic potential function
     */
    static public double y(double x, double x0, double s, double q) {
+      x -= x0;
       if (q == 2.0)
-         return (s/q)*(x - x0)*(x - x0);
+         return (s/q)*x*x;
       else
-         return s/q * Math.pow(Math.abs(x - x0), q);
+         return s/q * Math.pow(Math.abs(x), q);
    }
 
    /** HarmonicFunction.dy(x, x0, s, q) yields the derivative of the harmonic potential y in terms

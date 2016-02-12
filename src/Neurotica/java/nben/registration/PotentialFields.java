@@ -41,7 +41,46 @@ public final class PotentialFields {
     *  number of edges. If the parameter E is actually a list of faces, it is interpreted 
     *  automatically.
     */
-   public static EdgePotential newHarmonicEdgePotential(double scale, double shape,
+   public static EdgePotential newHarmonicEdgePotential(double[] scale, double[] shape,
+                                                        int[][] E, double[][] X) {
+      if (E.length == 3)
+         return newHarmonicEdgePotential(scale, shape, Util.facesToEdges(E), X);
+      int n = scale.length;
+      HarmonicFunction[] fs = new HarmonicFunction[n];
+      for (int i = 0; i < n; ++i)
+         fs[i] = new HarmonicFunction(scale[i] / n, shape[i]);
+      return new EdgePotential(fs, E, X);
+   }
+   public static EdgePotential newHarmonicEdgePotential(double[] scale, double shape,
+                                                        int[][] E, double[][] X) {
+      if (E.length == 3)
+         return newHarmonicEdgePotential(scale, shape, Util.facesToEdges(E), X);
+      int n = scale.length;
+      HarmonicFunction[] fs = new HarmonicFunction[n];
+      for (int i = 0; i < n; ++i)
+         fs[i] = new HarmonicFunction(scale[i] / n, shape);
+      return new EdgePotential(fs, E, X);
+   }
+   public static EdgePotential newHarmonicEdgePotential(double scale, double[] shape,
+                                                        int[][] E, double[][] X) {
+      if (E.length == 3)
+         return newHarmonicEdgePotential(scale, shape, Util.facesToEdges(E), X);
+      int n = shape.length;
+      HarmonicFunction[] fs = new HarmonicFunction[n];
+      for (int i = 0; i < n; ++i)
+         fs[i] = new HarmonicFunction(scale / n, shape[i]);
+      return new EdgePotential(fs, E, X);
+   }
+   public static EdgePotential newHarmonicEdgePotential(double[] scale, 
+                                                        int[][] E, double[][] X) {
+      if (E.length == 3)
+         return newHarmonicEdgePotential(scale, 2.0, Util.facesToEdges(E), X);
+      int n = scale.length;
+      HarmonicFunction[] fs = new HarmonicFunction[n];
+      for (int i = 0; i < n; ++i)
+         fs[i] = new HarmonicFunction(scale[i] / n, 2.0);
+      return new EdgePotential(fs, E, X);
+   }   public static EdgePotential newHarmonicEdgePotential(double scale, double shape,
                                                         int[][] E, double[][] X) {
       if (E.length == 3) {
          int[][] tmp = Util.facesToEdges(E);
@@ -88,7 +127,13 @@ public final class PotentialFields {
     */
    public static AnglePotential newLJAnglePotential(double scale, double shape,
                                                     int[][] T, double[][] X) {
-      return new AnglePotential(new LennardJonesFunction(scale / (3.0 * T[0].length), shape), T, X);
+      return new AnglePotential(new LennardJonesFunction(scale / (3.0 * T[0].length), shape), 
+                                Util.facesToAngles(T), X);
+   }
+   public static AnglePotential newLJAnglePotential(double scale,
+                                                    int[][] T, double[][] X) {
+      return new AnglePotential(new LennardJonesFunction(scale / (3.0 * T[0].length), 2.0), 
+                                Util.facesToAngles(T), X);
    }
    /** PotentialFields.newAngleWellPotential(s, q, T, X) yields an AnglePotential object with an
     *  InfinteWellFunction form using scale parameter s/m and shape parameter q where where m is
@@ -101,21 +146,23 @@ public final class PotentialFields {
                                                       int[][] T, double[][] X) {
       return new AnglePotential(new InfiniteWellFunction(scale / (3.0 * T[0].length), 
                                                          min, max, shape),
-                                T, X);
+                                Util.facesToAngles(T), X);
    }
    public static AnglePotential newAngleWellPotential(double scale, 
                                                       double min, double max,
                                                       int[][] T, double[][] X) {
       return new AnglePotential(new InfiniteWellFunction(scale / (3.0 * T[0].length), 
                                                          min, max),
-                                T, X);
+                                Util.facesToAngles(T), X);
    }
    public static AnglePotential newAngleWellPotential(double scale, 
                                                       int[][] T, double[][] X) {
-      return new AnglePotential(new InfiniteWellFunction(scale / (3.0 * T[0].length)), T, X);
+      return new AnglePotential(new InfiniteWellFunction(scale / (3.0 * T[0].length)), 
+                                Util.facesToAngles(T), X);
    }
    public static AnglePotential newAngleWellPotential(int[][] T, double[][] X) {
-      return new AnglePotential(new InfiniteWellFunction(1.0 / (3.0 * T[0].length)), T, X);
+      return new AnglePotential(new InfiniteWellFunction(1.0 / (3.0 * T[0].length)), 
+                                Util.facesToAngles(T), X);
    }
 
    /** newHarmonicAnchorPotential(s, q, vertices, anchorPoints, X) yields an AnchorPotential object
@@ -302,9 +349,16 @@ public final class PotentialFields {
     *        shape = 2], 
     */
    public static PotentialSum newStandardMeshPotential(int[][] faces, double[][] X) {
-      return new PotentialSum(newLJAnglePotential(1.0, 2.0, faces, X),
-                              newHarmonicEdgePotential(Util.facesToEdges(faces), X),
+      return new PotentialSum(newAngleWellPotential(faces, X),
+                              newHarmonicEdgePotential(10.0, 2.0, Util.facesToEdges(faces), X),
                               newHarmonicPerimeterPotential(1.0, 2.0, faces, X));
+   }
+
+   /** newSum(fields) yields a new potential field object that is the sum of the given lsit of
+    *  fields.
+    */
+   public static PotentialSum newSum() {
+      return new PotentialSum();
    }
 
 }
