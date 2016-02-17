@@ -174,6 +174,9 @@ GaussianInterpolationFunction::usage = "GaussianInterpolationFunction[...] is a 
 VectorDifferenceFunction::usage = "VectorDifferenceFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and v, f[u, v] is the vector from u to v. By default, this is (#2 - #1)&.";
 VectorScaleFunction::usage = "VectorScaleFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and real r, f[u, r] is the vector in the same direction as u but with length norm(u) / r. By default, this is Divide, or (#1/#2)&.";
 
+PrincipalAxes::usage = "PrincipalAxes[matrix] gives the principal axes matrix U such that U . Transpose[matrix] == Transpose@PrincipalComponents[matrix] (up to reflection).";
+PrincipalAxes::moptx = "Method option `1` in PrincipalAxes is not one of {\"Covariance\", \"Correlation\"}.";
+
 Begin["`Private`"];
 
 (* #FlipIntegerBytes ******************************************************************************)
@@ -801,12 +804,12 @@ Protect[NormalizeColumns];
 (* #RowNorms **************************************************************************************)
 RowNorms[X_] := Norm /@ X;
 RowNorms[{}] = {};
-Protext[RowNorms];
+Protect[RowNorms];
 
 (* #ColumnNorms ***********************************************************************************)
 ColumnNorms[Xt_] := Sqrt @ Total[Xt^2];
 ColumnNorms[{}] = {};
-Protext[ColumnNorms];
+Protect[ColumnNorms];
 
 (* #QuaternionToRotationMatrix *******************************************************************)
 QuaternionToRotationMatrix[{a_, b_, c_, d_}] := {
@@ -1324,6 +1327,16 @@ MakeBoxes[gi_GaussianInterpolationFunction, form_] := MakeBoxes[#, form]&[
       BaseStyle -> Darker[Gray]]]];
 Protect[VectorScaleFunction, VectorDifferenceFunction];
 
+(* #PrincipalAxes *********************************************************************************)
+Options[PrincipalAxes] = {Method -> "Covariance"};
+PrincipalAxes[mtx_?MatrixQ, OptionsPattern[]] := Catch@With[
+  {cofn = Replace[
+     OptionValue[Method],
+     {"Covariance" -> Covariance,
+      "Correlation" -> Correlation,
+      a_ :> (Message[PrincipalAxes::moptx, a]; Throw[$Failed])}]},
+  Eigenvectors@Covariance[mtx - ConstantArray[Mean[mtx], Length[mtx]]]];
+Protect[PrincipalAxes];
 
 End[];
 EndPackage[];

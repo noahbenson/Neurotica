@@ -3126,7 +3126,7 @@ CorticalLabelVertexList[mesh_?CorticalMeshQ, label_] := Which[
       VertexList[mesh], label, 1],
     True, (Message[CorticalLabelVertexList::notlab]; $Failed)],
   ArrayQ[label, 1|2], Which[
-    Length[label] == VertexCount[mesh] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, Pick[
+    Length[label] == VertexCount[mesh] && Complement[label, {0,1,True,False,0.0,1.0}] == {}, Pick[
       VertexList[mesh], label, 1|1.0|True],
     AllTrue[label, Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&], With[
       {fix = ReplaceAll[label, UndirectedEdge -> List]},
