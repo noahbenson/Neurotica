@@ -149,6 +149,10 @@ ManipulateSchiraModel[map, model :> var] assigns the updated model value to the 
 GaussianSchiraPotential::usage = "GaussianSchiraPotential[map, model] yields a potential function that describes the agreement between the given SchiraModel object, model, and the retinotopy data found in the properties \"PolarAngle\" and \"Eccentricity\" of map. If the property \"VertexWeight\" is also present, then all vertices with a value above 0 are included and they are weighted by the given weights. Otherwise, any vertex with missing polar angle or eccentricity values ($Failed, None, or Indeterminate) are excluded.";
 GaussianSchiraPotential::badarg = "Bad argument given to GaussianSchiraPotential: `1`";
 
+SchiraAnchors::usage = "SchiraAnchors[map, model] yields a list appropriate for specification of a Schira potential of the given model over the given mesh via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> SchiraAnchors[mesh, model]]. To construct these anchors, the function uses the retinotopy data found in the mesh properties \"PolarAngle\" and \"Eccentricity\" of the given mesh. If the property \"VertexWeight\" or \"Weight\" is also present, then all vertices with a value above 0 are included and they are weighted by the given weights. Otherwise, any vertex with missing polar angle or eccentricity values ($Failed, None, or Indeterminate) are excluded.";
+SchiraAnchors::badarg = "Bad argument given to SchiraAnchors: `1`";
+SchiraAnchorsParameter::usage = "SchiraAnchorsParameter[map, param] yields a list appropriate for specification of a Schira potential parameters via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> SchiraAnchors[mesh, model], Scale -> SchiraAnchorsParameter[map, scaleData]].";
+
 (**************************************************************************************************)
 (**************************************************************************************************)
 Begin["`Private`"];
@@ -1105,7 +1109,58 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
             CorticalMesh -> map,
             MetaInformation -> OptionValue[MetaInformation]]]]]]];
 Protect[GaussianSchiraPotential];
-             
+
+(* #SchiraAnchors *********************************************************************************)
+Options[SchiraAnchorsIndices] = {VertexWeight -> Automatic};
+SchiraAnchorsIndices[map_?CorticalMapQ, OptionsPattern[]] := With[
+  {angle = VertexPropertyValues[map, "PolarAngle"],
+   eccen = VertexPropertyValues[map, "Eccentricity"],
+   weights = Replace[
+     OptionValue[VertexWeight],
+     {list_ /; VectorQ[list] && Length[list] == VertexCount[map] :> list,
+      list:{(_Integer -> _)..} /; Length[list] == VertexCount[map] :> SparseArray[
+        Select[VertexIndex[map, list[[All,1]]] -> list[[All, 2]], NumericQ[#[[2]]]&],
+        VertexCount[map]],
+      s_ /; VectorQ[VertexPropertyValues[map, s]] :> VertexPropertyValues[map, s],
+      Automatic :> Which[
+        ListQ@VertexPropertyValues[map, "VertexWeight"], VertexPropertyValues[map, "VertexWeight"],
+        ListQ@VertexPropertyValues[map, "Weight"], VertexPropertyValues[map, "Weight"],
+        True, ConstantArray[1, VertexCount[map]]],
+      _ :> Message[SchiraAnchors::badarg, "Unrecognized VertexWeight option"]}]},
+  With[
+    {idcs = Indices[
+       Thread[{angle, eccen, weights}],
+       {a_?NumericQ, e_?NumericQ /; e >= 0, w_ /; NumericQ[w] && Positive[w]}]},
+    If[Length[idcs] == 0,
+      (Message[SchiraAnchors::badarg, "No vertices selected"]; $Failed),
+      idcs]]];
+
+Options[SchiraAnchors] = Options[SchiraAnchorsIndices];
+SchiraAnchors[map_?CorticalMapQ, model_SchiraModelObject, opts:OptionsPattern[]] := With[
+  {angle = VertexPropertyValues[map, "PolarAngle"],
+   eccen = VertexPropertyValues[map, "Eccentricity"],
+   idcs = SchiraAnchorsIndices[map, opts]},
+  With[
+    {preds = RetinotopyToCorticalMap[model, angle[[idcs]], eccen[[idcs]]]},
+    {Join@@ConstantArray[VertexList[map][[idcs]], 5],
+     Transpose[Join @@ Transpose[preds]]}]];
+
+Options[SchiraAnchorsParameter] = Options[SchiraAnchors];
+SchiraAnchorsParameter[map_?CorticalMapQ, paramArg_, opts:OptionsPattern[]] := With[
+  {param = Which[
+     StringQ[paramArg], VertexPropertyValues[map, paramArg],
+     ListQ[paramArg], paramArg,
+     True, Message[SchiraAnchors::badarg, "parameter must be a list or a property name"]],
+   idcs = SchiraAnchorsIndices[map, opts]},
+  Join@@ConstantArray[
+    Which[
+      Length[param] == VertexCount[map], param[[idcs]],
+      Length[param] == Length[idcs], param,
+      True, Message[SchiraAnchors::badarg, "given parameter is wrong size"]],
+    5]];
+
+Protect[SchiraAnchors, SchiraAnchorsParameter, SchiraAnchorsIndices];
+            
 
 End[];
 EndPackage[];
