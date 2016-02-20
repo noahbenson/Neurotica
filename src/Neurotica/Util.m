@@ -22,6 +22,10 @@ BeginPackage["Neurotica`Util`", {"Neurotica`Global`"}];
 Unprotect["Neurotica`Util`*", "Neurotica`Util`Private`*"];
 ClearAll ["Neurotica`Util`*", "Neurotica`Util`Private`*"];
 
+(* If this is running on Mathematica prior to 10.2, add in the MissingQ function *)
+If[$VersionNumber < 10.2 && !ValueQ[MissingQ[Null]],
+  MissingQ::usage = "MissingQ[expr] gives True if expr has head Missing."];
+
 $CacheDirectory::usage = "$CacheDirectory is the directory in which cached data for this user is placed. If the directory does not exist at cache time and $AutoCreateCacheDirectory is True, then this directory is automatically created. By default it is the directory FileNameJoin[{$UserBaseDirectory, \"AutoCache\"}]. If set to Temporary, then the next use of AutoCache will create a temporary directory and set the $CacheDirectory to this path.";
 
 $AutoCreateCacheDirectory::usage = "$AutoCreateCacheDirectory is True if and only if the $CacheDirectory should be automatically created when AutoCache requires it.";
@@ -178,6 +182,11 @@ PrincipalAxes::usage = "PrincipalAxes[matrix] gives the principal axes matrix U 
 PrincipalAxes::moptx = "Method option `1` in PrincipalAxes is not one of {\"Covariance\", \"Correlation\"}.";
 
 Begin["`Private`"];
+
+(* MissingQ, if we need to define it... *)
+If[$VersionNumber < 10.2 && !ValueQ[MissingQ[Null]],
+  (MissingQ[expr_] := (Head[expr] === Missing);
+   Protect[MissingQ])];
 
 (* #FlipIntegerBytes ******************************************************************************)
 (* This code was adapted (by Noah C. Benson, <nben@nyu.edu>) from a pull request given by 
