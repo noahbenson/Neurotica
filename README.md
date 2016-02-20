@@ -90,15 +90,15 @@ Neurotica Author's preference:
 
 1. Edit your init file to include the following lines:
 
-       <<JLink`;
-       SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
-       SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
-       ReinstallJava[];
+     <<JLink`;
+     SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
+     SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
+     ReinstallJava[];
 
    (Note that this will allow the JVM to take up at most 2 GB of RAM; for a
    different amount you can edit the JVMArguments).  Neurotica provides a
    function that will make this edit for you:
-   NeuroticaFixJLinkMemoryPermanent[amount] where amount is a string that
+   `NeuroticaFixJLinkMemoryPermanent[amount]` where amount is a string that
    contains the memory allocation, e.g., "2g" for 2 gigabytes. This makes a
    permanent edit to the beginning of your init.m file.
 
@@ -106,22 +106,22 @@ Neurotica Author's preference:
    fix is quick and easy; in the cell of your notebook in which you load Neurotica,
    include these lines, ending with your inclusion of Neurotica:
 
-       <<Jlink`
-       SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
-       SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
-       ReinstallJava[];
-       <<Neurotica`
+     <<Jlink`
+     SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
+     SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
+     ReinstallJava[];
+     <<Neurotica`
 
 3. Reinstall Java yourself, then reload Neurotica. This can be done with the
    following code:
 
-       ReinstallJava[JVMArguments->"Xmx2g"];
-       NeuroticaReload[];
+     ReinstallJava[JVMArguments->"Xmx2g"];
+     NeuroticaReload[];
 
    Neurotica provides a function that will perform this fix for you, which is
-   identical to the NeuroticaFixJLinkMemoryPermanent[] amount except that it
-   provides only a temporary fix: NeuroticaJLinkFixMemory[amount],
-   e.g. NeuroticaJLinkFixMemory["2g"] to allocate JLink a max of 2 GB of
+   identical to the `NeuroticaFixJLinkMemoryPermanent[]` amount except that it
+   provides only a temporary fix: `NeuroticaJLinkFixMemory[amount]`,
+   e.g. `NeuroticaJLinkFixMemory["2g"]` to allocate JLink a max of 2 GB of
    RAM. The downsides of this method are that it interrupts existing JLink
    connections (if you have any) and causes Neurotica to forget certain cached
    data, the latter of which is not usually a significant problem. As long as
