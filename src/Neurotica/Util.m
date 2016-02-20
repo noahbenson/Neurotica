@@ -68,7 +68,7 @@ $AutoMemoizeAfter::usage = "$AutoMemoizeAfter is the default value of the AutoMe
 $AutoCacheAfter::usage = "$AutoCacheAfter is the default value of the AutoCacheAfter option for AutoManageData[].";
 
 Indices::usage = "Indices[list, patt] yields a list of the indices of elements that match patt in list; this is equivalent to Flatten[Position[list, patt, {1}, Heads->False]], but is considerably optimized.";
-Index::usage = "Index[list] yields an association containing, as keys, each unique element that occurs in the given list and, as values, the indices at which the corresponding element occurs in the list. For example, Index[{a,b,c,b}] == <|a -> {1}, b -> {2,4}, c -> {3}|>.";
+IndexList::usage = "IndexList[list] yields an association containing, as keys, each unique element that occurs in the given list and, as values, the indices at which the corresponding element occurs in the list. For example, IndexList[{a,b,c,b}] == <|a -> {1}, b -> {2,4}, c -> {3}|>.";
 
 TemporarySymbol::usage = "TemporarySymbol[] yields a unique symbol that is marked as temporary.
 TemporarySymbol[string] yields a unique symbol that begins with the given string and is marked temporary.";
@@ -929,12 +929,12 @@ DivideCheck[a_, b_, c_:0] := With[
 SetAttributes[DivideCheck, NumericFunction];
 Protect[DivideCheck];
 
-(* #Index *****************************************************************************************)
-Index[data_List] := Association@Last@Reap[
+(* #IndexList *************************************************************************************)
+IndexList[data_List] := Association@Last@Reap[
   MapThread[Sow, {Range@Length[data], data}],
   _,
   Rule];
-Protect[Index];
+Protect[IndexList];
 
 (* #Iterate ***************************************************************************************)
 Attributes[Iterate] = {HoldAll};
