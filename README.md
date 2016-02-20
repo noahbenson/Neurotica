@@ -82,14 +82,15 @@ Mathematica interacts with Java libraries through an interface it calls
 JLink. The JLink interface boots up an instance of the Java Virtual Machine
 (JVM) whenever the JLink package is loaded (via <<JLink`). By default,
 Mathematica only allows the JVM to use a small amount of RAM, and this can cause
-Neurotica to encounter problems when interfacing with nben library
-(https://github.com/noahbenson/nben) that it uses to perform registrations, due
-to the moderate memory requirements of keeping coordinate matrices and meta-data
-in memory. There are multiple ways to fix this, listed here in the order of the
-Neurotica Author's preference:
+Neurotica to encounter problems when interfacing with the nben library
+(https://github.com/noahbenson/nben), which Neurotica uses to perform mesh
+registration, due to the moderate memory requirements of keeping coordinate
+matrices and meta-data in memory. There are multiple ways to fix this listed
+here in the order of the Neurotica Author's preference:
 
 1. Edit your init file to include the following lines:
-   <br/><br/><pre><code>Needs["Jlink`"];
+   
+   <br/><pre><code>Needs["Jlink`"];
 SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
 SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
 ReinstallJava[];</code></pre>
@@ -104,6 +105,7 @@ ReinstallJava[];</code></pre>
 2. In a notebook, load JLink first, setup the memory, then load Neurotica. This
    fix is quick and easy; in the cell of your notebook in which you load Neurotica,
    include these lines, ending with your inclusion of Neurotica:
+   
    <br/><pre><code>Needs["Jlink`"];
 SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
 SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
@@ -112,7 +114,8 @@ Needs["Neurotica`"];</code></pre>
 
 3. Reinstall Java yourself, then reload Neurotica. This can be done with the
    following code:
-   <br/><br/><pre><code>ReinstallJava[JVMArguments->"Xmx2g"];
+   
+   <br/><pre><code>ReinstallJava[JVMArguments->"Xmx2g"];
 NeuroticaReload[];</code></pre>
 
    Neurotica provides a function that will perform this fix for you, which is
