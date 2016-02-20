@@ -22,6 +22,10 @@ BeginPackage["Neurotica`Util`", {"Neurotica`Global`"}];
 Unprotect["Neurotica`Util`*", "Neurotica`Util`Private`*"];
 ClearAll ["Neurotica`Util`*", "Neurotica`Util`Private`*"];
 
+(* If this is running on Mathematica prior to 10.2, add in the MissingQ function *)
+If[$VersionNumber < 10.2 && !ValueQ[MissingQ[Null]],
+  MissingQ::usage = "MissingQ[expr] gives True if expr has head Missing."];
+
 $CacheDirectory::usage = "$CacheDirectory is the directory in which cached data for this user is placed. If the directory does not exist at cache time and $AutoCreateCacheDirectory is True, then this directory is automatically created. By default it is the directory FileNameJoin[{$UserBaseDirectory, \"AutoCache\"}]. If set to Temporary, then the next use of AutoCache will create a temporary directory and set the $CacheDirectory to this path.";
 
 $AutoCreateCacheDirectory::usage = "$AutoCreateCacheDirectory is True if and only if the $CacheDirectory should be automatically created when AutoCache requires it.";
@@ -51,6 +55,17 @@ The function Forget may be used to forget the memoized values of functions defin
 MemoizeSafe::usage = "MemoizeSafe[f := expr, ...] is identical to calling Memoize except that it uses SetSafe instead of Set to memoize values, so of the evaluation of the expression fails or generates a message, the result is not memoized and $Failed is yielded.";
 Forget::usage = "Forget[f] forces all memoized values associated with the symbol f to be forgotten.
 Forget[\!\(\*SubscriptBox[\(f\),\(1\)]\), \!\(\*SubscriptBox[\(f\),\(2\)]\), ...] forgets each of the symbols.";
+
+AutoManageData::usage = "AutoManageData[patt1 := form1, ...] defines the given patterns in such a way that, if the result takes longer than a second to calculate, it is automatically memoized, and, if it takes longer than 4 seconds to calculate, it is automatically cached. The exact timeout requirements can be manipulated with the options.
+
+Options:
+  * AutoMemoizeAfter (default: 0) is the number of seconds a calculation must take in order to be memoized.
+  * AutoCacheAfter (default: 1) is the number of seconds a calculation must take in order to be cached.
+  * Directory (default: Automatic) is passed to the AutoCache[] function to determine the directory.";
+AutoMemoizeAfter::usage = "AutoMemoizeAfter is an option for AutoManageData[] that specifies the number of seconds a calculation should be allowed to take without getting memoized. In other words, if a calculation declared inside an AutoManageData[...] form takes longer than <AutoMemoizeAfter> seconds, it is automatically memoized.";
+AutoCacheAfter::usage = "AutoCacheAfter is an option for AutoManageData[] that specifies the number of seconds a calculation should be allowed to take without getting cached. In other words, if a calculation declared inside an AutoManageData[...] form takes longer than <AutoCachefter> seconds, it is automatically cached.";
+$AutoMemoizeAfter::usage = "$AutoMemoizeAfter is the default value of the AutoMemoizeAfter option for AutoManageData[].";
+$AutoCacheAfter::usage = "$AutoCacheAfter is the default value of the AutoCacheAfter option for AutoManageData[].";
 
 Indices::usage = "Indices[list, patt] yields a list of the indices of elements that match patt in list; this is equivalent to Flatten[Position[list, patt, {1}, Heads->False]], but is considerably optimized.";
 Index::usage = "Index[list] yields an association containing, as keys, each unique element that occurs in the given list and, as values, the indices at which the corresponding element occurs in the list. For example, Index[{a,b,c,b}] == <|a -> {1}, b -> {2,4}, c -> {3}|>.";
@@ -122,9 +137,33 @@ Note that DivideCheck works with arrays as well as single values.";
 FlatOuter::usage = "FlatOuter[args...] is identical to Outer[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 FlatTable::usage = "FlatTable[args...] is identical to Table[args...] except that it yields a 1D map that is equivalent to a flattened version of the latter form.";
 
-ForwardOptions::usage = "ForwardOptions[f[args...], opts...] yields the result of calling the function f with the given arguments in args... followed by the options in the sequence of opts... where the options are filtered: ForwardOptions[f[args...], opts...] is equivalent to f[args..., Sequence@@FilterRules[{opts}, Options[f]].";
+Iterate::usage = "Iterate[body, iterators...] is like Table[body, iterators...] except for two requirements of the iterators:
+  * list iterators (such as Table[i^2, {i, {1, 4, 9}}]) cannot be used
+  * iterators may be lists of iterators, in which the first element of the list is a normal Table-like iterator and the remaining iterators may not specify step-size; these iterators are bound such that they run from their min to their max over the sequence iterated in the first iterator.";
+FlatIterate::usage = "FlatIterate[args...] is identical to Iterate[args...] except that it yeilds a 1D map that is equivalent to a flattened version of the latter form.";
+
+WithOptions::usage = "WithOptions[f[args...], opts...] yields the result of calling the function f with the given arguments in args... followed by the options in the sequence of opts... where the options are filtered: WithOptions[f[args...], opts...] is equivalent to f[args..., Sequence@@FilterRules[{opts}, Options[f]].";
+
+RenderMovie::usage = "RenderMovie[body, iterator] is essentially equivalent to Iterate[body, iterator] except that it takes into account several optional arguments. These arguments deal either with rendering or with frames.
+ 
+Frames Options are specified by the arguments Frames, FrameRate, and Duration. If any of these arguments is not specified, an appropriate value will be chosen; if all are specified, they must agree (i.e., duration / frames = framerate). The duration prefers to be 6 seconds, 120 seconds in that order.
+ 
+Rendering Options are specified by the arguments ImageResolution and Format. Format may be either Identity or Image; if Format is Imate, then an image is rendered at the given ImageResolution. Otherwise, the graphics objects themselves are returned.";
+$FrameNumber::usage = "$FrameNumber is assigned the frame number in evaluation of the body during RenderMovie[] calls.";
+$ElapsedTime::usage = "$ElapsedTime is the number of seconds that have elapsed in the movie during evaluation of the body during RenderMovie[] calls.";
+RenderMovie::badarg = "Bad argument given to RenderMovie: `1`";
+Frames::usage = "Frames is an argument to RenderMovie[] that specifies the number of frames.";
+FrameRate::usage = "FrameRate is an argument to RenderMovie[] that specifies the number of frames per second.";
+Duration::usage = "Duration is an argument to RenderMovie[] that specifies the duration of the movie.";
 
 $NeuroticaPermanentData::usage = "$NeuroticaPermanentData is an Association of the permanent Neurotica data, as saved using the NeuroticaPermanentDatum function.";
+
+(*
+StatusReport::usage = "StatusReport[form] prints a temporary cell with the given form and yields a symbol q for which Value[q] is the given form, and, when assigned a value (q = val), changes the given form that is printed. The following options may be given:
+  * Temporary - (default: True) indicates whether the returned symbol is a temporary symbol or not.
+  * Style - (default: None) indicates the style of the given cell that is printed. If this is None, then no styling is added; the form is printed exactly as provided. Other values include Automatic (prints a blue box with the expression).
+  * ";
+*)
 
 GaussianInterpolation::usage = "GaussianInterpolation[data] yields a function that performs the Gaussian-weighted mean interpolation over the given data matrix. The following options may be given:
   * StandardDeviation - the standard deviation of the Guassian filter to use
@@ -139,7 +178,15 @@ GaussianInterpolationFunction::usage = "GaussianInterpolationFunction[...] is a 
 VectorDifferenceFunction::usage = "VectorDifferenceFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and v, f[u, v] is the vector from u to v. By default, this is (#2 - #1)&.";
 VectorScaleFunction::usage = "VectorScaleFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and real r, f[u, r] is the vector in the same direction as u but with length norm(u) / r. By default, this is Divide, or (#1/#2)&.";
 
+PrincipalAxes::usage = "PrincipalAxes[matrix] gives the principal axes matrix U such that U . Transpose[matrix] == Transpose@PrincipalComponents[matrix] (up to reflection).";
+PrincipalAxes::moptx = "Method option `1` in PrincipalAxes is not one of {\"Covariance\", \"Correlation\"}.";
+
 Begin["`Private`"];
+
+(* MissingQ, if we need to define it... *)
+If[$VersionNumber < 10.2 && !ValueQ[MissingQ[Null]],
+  (MissingQ[expr_] := (Head[expr] === Missing);
+   Protect[MissingQ])];
 
 (* #FlipIntegerBytes ******************************************************************************)
 (* This code was adapted (by Noah C. Benson, <nben@nyu.edu>) from a pull request given by 
@@ -190,7 +237,7 @@ AutoCacheFilename[name_String, OptionsPattern[]] := With[
           First[splitName] == "", FileNameJoin[Most[splitName]],
           First[splitName] == "~", FileNameJoin[Most[splitName]],
           $CacheDirectory === Temporary, ($CacheDirectory = CreateDirectory[]),
-          True, $CacheDirectory],
+          True, FileNameJoin@Prepend[Most[splitName], $CacheDirectory]],
         Except[_String] :> (
           Message[AutoCache::badopt, "Directory must be Automatic or a string"];
           Throw[$Failed])}],
@@ -624,6 +671,62 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                 SetAttributes[Evaluate[box], Protected];
                 True]]]]]]]],
   $Failed];
+Protect[DefineImmutable];
+
+(* #AutoManageData ********************************************************************************)
+$AutoMemoizeAfter = 0;
+$AutoCacheAfter = 1.0;
+
+DeHoldPattern[expr:Hold[y_[x___]]] := If[y === HoldPattern, DeHoldPattern@Hold[x], expr];
+(* Helper function; takes Hold[patt, form] and yeilds parsed-patt :> parsed-replacement *)
+PrepareDatumAutoManager[dat_, amt_, act_, cacheDir_] := With[
+  {patt = Unique["pattern"],
+   lhs = DeHoldPattern[dat[[{1}, 1]]]},
+  With[
+    {rule = ReleaseHold[RuleDelayed @@@ ReplacePart[dat, {1,1} -> (patt:HoldPattern@@lhs)]]},
+    Replace[
+      rule,
+      (p_ :> rhs_) :> (
+         p :> Catch@With[
+           {hash = Hash@HoldPattern[patt],
+            head = HoldPattern[patt][[1,0]]},
+           With[
+             {acname = "AutoManagedCache_" <> ToString[head] <> "_" <> ToString[hash]},
+             (* Check the existing auto-cache first... *)
+             With[
+               {ac = AutoCache[acname, $Failed, Directory -> cacheDir]},
+               If[ac =!= $Failed, (patt = ac; Throw[ac])]];
+             (* Okay, we have to calculate it *)
+             With[
+               {calc = Check[AbsoluteTiming[rhs], $Failed]},
+               (* Check for failure... *)
+               If[calc === $Failed, Throw[calc]];
+               (* See if we want to memoize it first... *)
+               If[calc[[1]] >= amt, patt = calc[[2]]];
+               (* Then see if we want to cache it... *)
+               If[calc[[1]] >= act, AutoCache[acname, calc[[2]], Directory -> cacheDir]];
+               (* Then we return it! *)
+               calc[[2]]]]])]]];
+
+Options[AutoManageData] = {
+  AutoCacheAfter :> $AutoCacheAfter,
+  AutoMemoizeAfter :> $AutoMemoizeAfter,
+  Directory -> Automatic};
+SetAttributes[AutoManageData, HoldAll];
+AutoManageData[data__SetDelayed, OptionsPattern[]] := With[
+  {amt = OptionValue[AutoMemoizeAfter],
+   act = OptionValue[AutoCacheAfter],
+   cacheDir = OptionValue[Directory]},
+  With[
+    {defs = SetDelayed@@@Hold@@Map[
+       PrepareDatumAutoManager[#, amt, act, cacheDir]&,
+       Apply[List, Hold /@ Hold[data]]]},
+    Block@@Join[
+      Hold[{$AutoMemoizeAfter = amt, $AutoCacheAfter = act}],
+      defs]]];
+
+Protect[AutoManageData, PrepareDatumAutoManager,
+        $AutoMemoizeAfter, $AutoCacheAfter, AutoMemoizeAfter, AutoCacheAfter];
 
 (* #Let *******************************************************************************************)
 SetAttributes[Let, HoldAll];
@@ -710,12 +813,12 @@ Protect[NormalizeColumns];
 (* #RowNorms **************************************************************************************)
 RowNorms[X_] := Norm /@ X;
 RowNorms[{}] = {};
-Protext[RowNorms];
+Protect[RowNorms];
 
 (* #ColumnNorms ***********************************************************************************)
 ColumnNorms[Xt_] := Sqrt @ Total[Xt^2];
 ColumnNorms[{}] = {};
-Protext[ColumnNorms];
+Protect[ColumnNorms];
 
 (* #QuaternionToRotationMatrix *******************************************************************)
 QuaternionToRotationMatrix[{a_, b_, c_, d_}] := {
@@ -833,6 +936,45 @@ Index[data_List] := Association@Last@Reap[
   Rule];
 Protect[Index];
 
+(* #Iterate ***************************************************************************************)
+Attributes[Iterate] = {HoldAll};
+
+ReifyIterator[mx_] := ReifyIterator[1, mx, 1];
+ReifyIterator[mn_, mx_] := ReifyIterator[mn, mx, 1];
+ReifyIterator[mn_, mx_, sp_] := With[
+  {els = Floor[(mx - mn)/sp + 1]},
+  {mn, mx, sp, els, mn + els*sp}];
+ReifyMatchingIterator[iter0_] := {iter0[[1]], iter0[[3]]};
+ReifyMatchingIterator[iter0_, mx_] := {1, (mx - 1)/(iter0[[4]] - 1)};
+ReifyMatchingIterator[iter0_, mn_, mx_] := {mn, (mx - mn)/(iter0[[4]] - 1)};
+
+Iterate[body_, iter1_List, iters__List] := Iterate[Iterate[body, iters], iter1];
+Iterate[body_, iter:{Except[_List], Repeated[_, {1, 3}]}] := Table[body, iter];
+Iterate[body_, {iter:{Except[_List], Repeated[_, {1, 3}]}}] := Table[body, iter];
+Iterate[body_] := body;
+Iterate[
+  body_,
+  {i0:{s0:Except[_List], sp0:Repeated[_, {1, 3}]},
+   {s1:Except[_List], sp1:Repeated[_, {0, 2}]},
+   is:{Except[_List], Repeated[_, {0, 2}]} ...}
+  ] := With[
+    {sym = Unique[],
+     pat = HoldPattern[s1],
+     dat0 = ReifyIterator[sp0]},
+    With[
+      {dat1 = ReifyMatchingIterator[dat0, sp1]},
+      With[
+        {mn0 = dat0[[1]], mx0 = dat0[[5]], md0 = dat0[[3]],
+         mn1 = dat1[[1]], md1 = dat1[[2]]},
+        With[
+          {bodyfix = Join[
+             Hold[{sym = mn1 + md1*((s0 - mn0)/md0)}],
+             Hold[body] /. s1 -> sym]},
+          Iterate@@ReplacePart[
+            Hold[bodyfix, {i0, is}],
+            {1, 0} -> With]]]]];
+Protect[Iterate, ReifyIterator, ReifyMatchingIterator];
+
 (* #FlatOuter *************************************************************************************)
 FlatOuter[args__] := With[
   {listArgs = TakeWhile[Rest[{args}], ListQ]},
@@ -844,14 +986,22 @@ FlatTable[args__] := Flatten[
   Table[args],
   Length@Hold[args] - 2];
 SetAttributes[FlatTable, HoldAll];
+SyntaxInformation[FlatTable] = SyntaxInformation[Table];
 Protect[FlatTable];
 
-(* #ForwardOptions ********************************************************************************)
-Attributes[ForwardOptions] = {HoldFirst};
-ForwardOptions[f_[args___], opts___] := With[
+(* #FlatIterator **********************************************************************************)
+FlatIterator[args__] := Flatten[
+  Iterate[args],
+  Length@Hold[args] - 2];
+SetAttributes[FlatIterate, HoldAll];
+Protect[FlatIterate];
+
+(* WithOptions ************************************************************************************)
+Attributes[WithOptions] = {HoldAll};
+WithOptions[f_[args___], opts___] := With[
   {head = f},
   head[args, Sequence@@FilterRules[{opts}, Options[head]]]];
-Protect[ForwardOptions];
+Protect[WithOptions];
 
 (* #UpdateOptions *********************************************************************************)
 UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:(Rule|RuleDelayed)[name_,_]] := Prepend[
@@ -864,6 +1014,71 @@ UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:{(Rule|RuleDelayed)[_,_]..
     SelectFirst[If[MemberQ[rnames, name], repl, opts], #[[1]] === name &],
     {name, Union[rnames, onames]}]];
 Protect[UpdateOptions];
+
+(* #RenderMovie ***********************************************************************************)
+Attributes[RenderMovie] = {HoldAll};
+Options[RenderMovie] = Join[
+  {Format -> Image,
+   Frames -> Automatic,
+   FrameRate -> Automatic,
+   Duration -> Automatic,
+   Restricted -> False,
+   ImageResolution -> 200},
+  FilterRules[Options[Image], Except[ImageResolution]]];
+ParseMovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, dur:(_?NumericQ)?Positive] := With[
+  {nn = Floor[dur*fr]},
+  If[nn == n,
+    {n, fr, dur},
+    Message[
+      RenderMovie::badarg,
+      "Frames, FrameRate, and Duration must have incompatible arguments; "
+        <> "try setting one to Automatic"]]];
+ParseMovieFrames[n_Integer?Positive, fr:(_?NumericQ)?Positive, Automatic] := {n, fr, fr*n};
+ParseMovieFrames[n_Integer?Positive, Automatic, dur:(_?NumericQ)?Positive] := {n, n/dur, dur};
+ParseMovieFrames[Automatic, f:(_?NumericQ)?Positive, d:(_?NumericQ)?Positive] := {f*d, f, d};
+ParseMovieFrames[Automatic, Automatic, d:(_?NumericQ)?Positive] := ParseMovieFrames[
+  Automatic, 20, d];
+ParseMovieFrames[Automatic, fr:(_?NumericQ)?Positive, Automatic] := ParseMovieFrames[
+  Automatic, fr, 6];
+ParseMovieFrames[Automatic, Automatic, Automatic] := {120, 20, 6};
+ParseMovieFrames[args__] := Message[
+   RenderMovie::badarg,
+   "FrameRate, Frames, and Duration must be a valid combination of "
+     <> "positive numbers and Automatic values: " <> ToString[{args}]];
+RenderMovie[body0_, iter_, opts:OptionsPattern[]] := With[
+  {frameDat = ParseMovieFrames[OptionValue[Frames], OptionValue[FrameRate], OptionValue[Duration]],
+   fmt = Replace[
+     OptionValue[Format],
+     {Image -> Image,
+      Graphics -> Graphics,
+      _ :> Message[RenderMovie::badarg, "Format must be Image or Graphics"]}],
+   imgOpts = Sequence@@FilterRules[{opts}, Options[Image]]},
+  With[
+    {body = If[fmt =!= Image,
+       Hold[body0],
+       With[
+         {sym = Unique[]},
+         ReplacePart[
+           Hold@Evaluate@Hold[
+             {sym = body0},
+             Image[sym, imgOpts]],
+           {1,0} -> With]]]},
+    Block[
+      {$FrameNumber, $ElapsedTime},
+      Iterate @@ Join[
+        body,
+        ReplacePart[
+          Hold@Evaluate@List[
+            Evaluate@Hold[$FrameNumber, 1, Evaluate[frameDat[[1]]], 1],
+            Evaluate@Hold[$ElapsedTime, 0, Evaluate[frameDat[[3]]]],
+            Hold@@iter],
+          {1,_,0} -> List]]]]];
+Protect[RenderMovie, ParseMovieFrames];
+
+(* #StatusReport **********************************************************************************)
+Attributes[StatusReport] = {HoldAll};
+Options[StatusReport] = Options[Row];
+StatusReport[body_, opts:OptionsPattern[]] := Null;
 
 (* #GaussianInterpolation *************************************************************************)
 $GaussianInterpolationDefaultNormFunction = Norm;
@@ -1121,6 +1336,16 @@ MakeBoxes[gi_GaussianInterpolationFunction, form_] := MakeBoxes[#, form]&[
       BaseStyle -> Darker[Gray]]]];
 Protect[VectorScaleFunction, VectorDifferenceFunction];
 
+(* #PrincipalAxes *********************************************************************************)
+Options[PrincipalAxes] = {Method -> "Covariance"};
+PrincipalAxes[mtx_?MatrixQ, OptionsPattern[]] := Catch@With[
+  {cofn = Replace[
+     OptionValue[Method],
+     {"Covariance" -> Covariance,
+      "Correlation" -> Correlation,
+      a_ :> (Message[PrincipalAxes::moptx, a]; Throw[$Failed])}]},
+  Eigenvectors@Covariance[mtx - ConstantArray[Mean[mtx], Length[mtx]]]];
+Protect[PrincipalAxes];
 
 End[];
 EndPackage[];

@@ -206,7 +206,7 @@ RemoveVertexProperty::usage = "RemoveVertexProperty[mesh, prop] is equivalent to
 RemoveEdgeProperty::usage   = "RemoveEdgeProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, EdgeList}, prop].";
 RemoveFaceProperty::usage   = "RemoveFaceProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, FaceList}, prop].";
 
-MapPropertyValues::usage = "MapPropertyValues[f, mesh] yields the result of applying the function f to each an association of the property values in the given mesh for each vertex in order; this is using MapNamed[] on the collection of property values for mesh, but any property not explicitly used in f will not be explicitly reified by the underlying mechanics, meaning unloaded properties remain unloaded.";
+MapPropertyValues::usage = "MapPropertyValues[f, mesh] yields the result of applying the function f to each an association of the property values in the given mesh for each vertex in order; this is using MapNamed[] on the collection of property values for mesh, but any property not explicitly used in f will not be explicitly reified by the underlying mechanics, meaning unloaded properties remain unloaded. Two additional properties are added to each vertex, edge, or face mapped over: for vertices these are \"Vertex\" (the vertex id) and \"Coordinate\" (the 2D or 3D coordinate vector); for edges and faces, these are \"Vertices\" and \"Coordinates\" which are a list of vertex ids and a list of coordinate vectors, respectively.";
 
 Reproject::usage = "Reproject[map, X] yields a map identical to the given map except that it reprojects its coordinates from the alternate coordinate list for the original mesh, given by X. If X is instead a mesh with the same number of elements as the original mesh, then its coordinates are used.";
 ReporjectTr::usage = "ReprojectTr[map, Xt] is equivalent to Reproject[map, Transpose[Xt]].";
@@ -1844,7 +1844,7 @@ DefineImmutable[
      (* #FaceCoordinates *)
      FaceCoordinatesTr[map] :> With[
        {Xt = VertexCoordinatesTr[map],
-        Ft = VertedIndex[map, FaceListTr[map]]},
+        Ft = VertexIndex[map, FaceListTr[map]]},
        Transpose @ {Xt[[All, Ft[[1]]]], Xt[[All, Ft[[2]]]], Xt[[All, Ft[[3]]]]}],
      FaceCoordinates[map] := Transpose[FaceCoordinatesTr[map], {3,2,1}],
 
@@ -2487,15 +2487,31 @@ MapPropertyValues[f_, {mesh_?CorticalObjectQ, type:VertexList|EdgeList|FaceList}
    count = Switch[type,
      VertexList, VertexCount[mesh], 
      EdgeList, EdgeCount[mesh],
-     FaceList, FaceCount[mesh]]},
-  f[Association[#]]& /@ Transpose@Map[
-    Function@If[Head[#] === Rule, 
-      Thread[#],
-      Replace[
-        Thread[{Range[count], ConstantArray[#, count]}],
-        {k_, x_ :> y_} :> (x :> Part[y, k]),
-        {1}]],
-    props]];
+     FaceList, FaceCount[mesh]],
+   coords = Switch[type,
+     VertexList, VertexCoordinates[mesh],
+     EdgeList, EdgeCoordinates[mesh],
+     FaceList, FaceCoordinates[mesh]],
+   ids = Switch[type,
+     VertexList, VertexList[mesh], 
+     EdgeList, EdgePairs[mesh],
+     FaceList, FaceList[mesh]],
+   ctxt = If[type === VertexList, "Coordinate", "Coordinates"],
+   vtct = If[type === VertexList, "Vertex", "Vertices"]},
+  MapThread[
+    Function[ f@Association@Join[#1, {ctxt -> #2, vtxt -> #3}] ],
+    With[
+      {typeProps = Map[
+         Function@If[Head[#] === Rule, 
+           Thread[#],
+           Replace[
+             Thread[{Range[count], ConstantArray[#, count]}],
+             {k_, x_ :> y_} :> (x :> Part[y, k]),
+             {1}]],
+         props]},
+      If[typeProps == {}, 
+        {ConstantArray[{}, count], coords, ids},
+        {Transpose[typeProps], coords, ids}]]]];
 MapPropertyValues[f_, mesh_?CorticalObjectQ] := MapPropertyValues[f, {mesh, VertexList}];
 
 Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList,
@@ -2631,7 +2647,7 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
                 {assoc = Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]},
                 With[
                   {res = f[assoc]},
-                  If[ColorQ[res],
+                  If[ColorQ[res] || Head[res] === Opacity,
                     res,
                     With[
                       {clrDat = CorticalColorData[res]},
@@ -2740,7 +2756,7 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
                 {assoc = Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]},
                 With[
                   {res = f[assoc]},
-                  If[ColorQ[res],
+                  If[ColorQ[res] || Head[res] === Opacity,
                     res,
                     With[
                       {clrDat = CorticalColorData[res]},
@@ -2831,7 +2847,8 @@ CorticalColorSchema[property_ -> f:Except[{_, _}]][assoc_?AssociationQ] := If[
       $Failed,
       f[val]]],
   $Failed];
-CorticalColorSchema[f:Except[_Rule]][assoc_?AssociationQ] := f[assoc];
+CorticalColorSchema[f:Except[_Rule]][arg_] := f[arg];
+(schema:CorticalColorSchema[prop_ -> _])[arg:Except[_?AssociationQ]] := schema[<|prop -> arg|>];
 Protect[CorticalColorSchema];
 
 (* #CorticalColorData *****************************************************************************)
@@ -2917,7 +2934,7 @@ ColorCortex[instructions___] := With[
              Hold[
                {result = CompoundExpression @@ instr},
                Which[
-                 ColorQ[result], result,
+                 ColorQ[result] || Head[result] === Opacity, result,
                  CorticalColorData[result] =!= $Failed, CorticalColorData[result][#1, #2, #3],
                  result === $Failed || result === None, RGBColor[1,1,1,0],
                  True, RGBColor[1,1,1,0]]]]]]},
@@ -3109,7 +3126,7 @@ CorticalLabelVertexList[mesh_?CorticalMeshQ, label_] := Which[
       VertexList[mesh], label, 1],
     True, (Message[CorticalLabelVertexList::notlab]; $Failed)],
   ArrayQ[label, 1|2], Which[
-    Length[label] == VertexCount[mesh] && Complement[label, {0,1,True,False,0.0,1.0}] == 0, Pick[
+    Length[label] == VertexCount[mesh] && Complement[label, {0,1,True,False,0.0,1.0}] == {}, Pick[
       VertexList[mesh], label, 1|1.0|True],
     AllTrue[label, Or[Head[#]===UndirectedEdge, VectorQ[label] && Length[label] == 2]&], With[
       {fix = ReplaceAll[label, UndirectedEdge -> List]},

@@ -19,18 +19,30 @@
  *)
 
 (**************************************************************************************************)
-BeginPackage["Neurotica`Registration`", {"Neurotica`Global`","Neurotica`Util`","Neurotica`Mesh`"}];
+BeginPackage[
+  "Neurotica`Registration`", 
+  {"JLink`", "Neurotica`Global`","Neurotica`Util`","Neurotica`Mesh`"}];
 Unprotect["Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 ClearAll[ "Neurotica`Registration`*", "Neurotica`Registration`Private`*"];
 
 CorticalPotentialFunction::usage = "CorticalPotentialFunction[{F, G, H}] yields a cortical potential function object with potential function F, gradient function G, and Hessian function H (which may be None). These functions are only ever called with a single argument, a 2 or 3 by n matrix, when the potential/gradient/hessian is evaluated. The following options may be given:
   * Print (default: Subscript[\"F\", \"Potential\"]) specifies what symbol should be used to display the potential function.
   * MetaInformation (default: {}) specifies any optional meta-information to attach to the potential function.
-  * CorticalMesh (default: None) specifies the (optional) cortical mesh for which this potential function was defined.";
-PotentialFunction::usage = "PotentialFunction[f] yields a pure functional form of the cortical potential function instance, f.";
-GradientFunction::usage = "GradientFunction[f] yields a pure functional form of the gradient of the cortical potential function instance, f.";
-HessianFunction::usage = "HessianFunction[f] yields a pure functional form of the Hessian of the cortical potential function instance, f.";
-CorticalPotentialFunctionInstance::usage = "CorticalPotentialFunctionInstance is the head given to CorticalPotentialFunction objects.";
+  * CorticalMesh (default: None) specifies the (optional) cortical mesh for which this potential function was defined.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
+PotentialFunction::usage = "PotentialFunction[f] yields a pure functional form of the cortical potential function instance, f.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
+GradientFunction::usage = "GradientFunction[f] yields a pure functional form of the gradient of the cortical potential function instance, f.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
+HessianFunction::usage = "HessianFunction[f] yields a pure functional form of the Hessian of the cortical potential function instance, f.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
+CorticalPotentialFunctionInstance::usage = "CorticalPotentialFunctionInstance is the head given to CorticalPotentialFunction objects.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 
 CalculateAngleIntermediateData::usage = "CalculateAngleIntermediateData[a,b,c] yields the numerical array equivalent to Flatten[{u1,u2,n1,n2,{d1,d2,cos}}, 1] where u1, u2, n1, and n2 are the vectors b - a, c - a, Normalize[b - a], and Normalize[c - a], respectively, and where d1 and d2 are the lengths of the b-a and c-a, respectively, and where cos is the cosine of the angle centered at a. Note that a, b, and c are expected to be 2 or 3 by n arrays where each column of the array corresponds to a single point.";
 CalculateAngle::usage = "CalculateAngle[a,b,c] yields the angle between the vectors b-a and c-a; the three arguments must be 2D arrays with length 2 or 3 (for 2d or 3d points) and the return value is a vector of angles, one for each column of a,b, and c."
@@ -38,15 +50,23 @@ CalculateAngleGradient::usage = "CalculateAngleGradient[a,b,c] yields the gradie
 CalculateAngleHessian::usage = "CalculateAngleHessian[a,b,c] yields the Hessian of the angle between the vectors b-a and c-a in terms of the vertices of a, b, and c; the three arguments must be 2D arrays with length 2 or 3 (for 2d or 3d points) and the return value is a 3x3x3x3xn or 3x2x3x2xn (for 3D or 2D points, respectively) matrix of Hessians, one for each column of a,b, and c."
 
 HarmonicEdgePotential::usage = "HarmonicEdgePotential[mesh] yields a function symbol f such that f[X] is the harmonic edge potential where X is a possible vertex coordinate list for the given cortical mesh. The potential is calculated as the total of (d - d0)^2 where d is the distance between two vertices in X and d0 is the distance in the coordinates of the given mesh. Note that Grad[f, X] yields the numerical gradient of the potential at the vertex configuration given in X.
-The potential function of a HarmonicEdgePotential is U[d] = 0.5 / n * (d - d0)^2 where d is the distance between a pair of vertices connected by an edge, n is the number of edges in the system, and d0 is the distance, in the initial mesh, between the two vertices.";
+The potential function of a HarmonicEdgePotential is U[d] = 0.5 / n * (d - d0)^2 where d is the distance between a pair of vertices connected by an edge, n is the number of edges in the system, and d0 is the distance, in the initial mesh, between the two vertices.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 
 HarmonicAnglePotential::usage = "HarmonicAnglePotential[mesh] yields a function symbol f such that f[X] is the harmonic angle potential where X is a possible vertex coordinate list for the given cortical mesh. The potential is calculated as the total of (a - a0)^2 where a is the angle of a face in X and a0 is the angle of the same face corner in the original mesh. Note that Grad[f, X] yields the numerical gradient of the potential at the vertex configuration given in X.
-The potential function of a HarmonicAnglePotential is U[a] = 0.5 / n * (a - a0)^2 where a is the angle of a corner of a face, n is the number of faces in the system, and a0 is the angle of the same face in the initial mesh.";
+The potential function of a HarmonicAnglePotential is U[a] = 0.5 / n * (a - a0)^2 where a is the angle of a corner of a face, n is the number of faces in the system, and a0 is the angle of the same face in the initial mesh.
 
-VDWEdgePotential::usage = "VDWEdgePotential[mesh] is identical to HarmonicEdgePotential[mesh], but uses a much different potential function, based on the physical model of the van der Waals force. This potential function is experimental.";
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
+
+VDWEdgePotential::usage = "VDWEdgePotential[mesh] is identical to HarmonicEdgePotential[mesh], but uses a much different potential function, based on the physical model of the van der Waals force. This potential function is experimental.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 VDWEdgePotential::badarg = "Bad argument given to VDWEdgePotential: `1`";
 
-VDWAnglePotential::usage = "VDWAnglePotential[mesh] is identical to HarmonicAnglePotential[mesh], but uses a much different potential function, based on the physical model of the van der Waals force. This potential function is experimental.";
+VDWAnglePotential::usage = "VDWAnglePotential[mesh] is identical to HarmonicAnglePotential[mesh], but uses a much different potential function, based on the physical model of the van der Waals force. This potential function is experimental.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 
 
 GaussianPotentialWell::usage = "GaussianPotentialWell[mesh, u -> {x0, std}] yields a function symbol f such that f[X] is the potential and Grad[f, X] is the gradient of an inverted Gaussian potential well that draws vertex u toward position x0 with the standard deviation std. In addition to the center and standard deviation, the following rules may be appended to the list on the right hand side of the rule:
@@ -63,7 +83,9 @@ Given the following values:
   * d[x] is equal to Norm[x - x0], the distance of the vertex from the center of the well,
 the Gaussian potential function f and its gradient are defined as:
   * f[x] = -w Exp[-(d[x]/\[Sigma])^\[Beta] / \[Beta]]
-  * \[Gradient]f[x] = w (d[x]/\[Sigma])^(\[Beta] - 1) / \[Sigma] Exp[-(d[x]/\[Sigma])^\[Beta] / \[Beta]]";
+  * \[Gradient]f[x] = w (d[x]/\[Sigma])^(\[Beta] - 1) / \[Sigma] Exp[-(d[x]/\[Sigma])^\[Beta] / \[Beta]]
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 GaussianPotentialWell::badarg = "Bad argument given to GaussianPotentialWell: `1`";
 
 HarmonicPotentialWell::usage = "HarmonicPotentialWell[mesh, u -> x0] yields a function symbol f such that f[X] is the potential and Grad[f, X] is the gradient of a harmonic potential well that draws vertex u toward position x0 with the potential function Norm[x - x0]^2.
@@ -80,54 +102,96 @@ Given the following values:
   * d[x] is equal to Norm[x - x0], the distance of the vertex to the center of the well,
 the harmonic potential function f and its gradient are defined as:
   * f[x] = w/\[Beta] (d[x]/k)^\[Beta]
-  * \[Gradient]f[x] = w/k (d[x]/k)^(\[Beta] - 1)";
+  * \[Gradient]f[x] = w/k (d[x]/k)^(\[Beta] - 1)
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 HarmonicPotentialWell::badarg = "Bad argument given to HarmonicPotentialWell: `1`";
 
 RegionDistancePotential::usage = "RegionDistancePotential[mesh, reg, {F, G}] yields a cortical potential function with potential function F and gradient G. Both F and G must be functions such that F[dists] and G[dists], for a vector dists of the distances of the relevant vertices to the region, yield a total potential and a vector of gradient magnitudes, respectively. Note that the direction of the gradient is calculated automatically. The following additional options may be given:
   * Print (default: Style[\"\[GothicCapitalG]\", FontWeight -> Bold]) specifies the default display name for the function.
   * MetaInformation (default: {}) specifies extra meta information attached to the function.
   * VertexWeight (default: Automatic) specifies the relative strength of each vertex in the field; the region will have a repulsive, neutral, or attractive effect on any vertex with a weight less than, equal to, or greater than 0, respectively. If a property is named by this argument, then its values are used. The default value, Automatic, applies the field to all vertices.
-See also SignedRegionDistancePotential.";
+See also SignedRegionDistancePotential.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 RegionDistancePotential::badarg = "Bad argument given to RegionDistancePotential: `1`";
 
-SignedRegionDistancePotential::usage = "SignedRegionDistancePotential[mesh, reg, {F, G}] is identical to RegionDistancePotential[mesh, reg, {F, G}] except that the functions F and G are given signed distances to the BoundaryMeshRegion reg for the relevant vertices instead of the absolute distances.";
+SignedRegionDistancePotential::usage = "SignedRegionDistancePotential[mesh, reg, {F, G}] is identical to RegionDistancePotential[mesh, reg, {F, G}] except that the functions F and G are given signed distances to the BoundaryMeshRegion reg for the relevant vertices instead of the absolute distances.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 SignedRegionDistancePotential::badarg = "Bad argument given to SignedRegionDistancePotential: `1`";
 
-HarmonicPerimeterPotential::usage = "HarmonicPerimeterPotential[map] yields a cortical potential function that operates on the vertices on the perimeter of the given map to hold them in place using a harmonic potential well tied to their initial positions.";
+HarmonicPerimeterPotential::usage = "HarmonicPerimeterPotential[map] yields a cortical potential function that operates on the vertices on the perimeter of the given map to hold them in place using a harmonic potential well tied to their initial positions.
 
-PotentialShape::usage = "To define a potential shape that can be used with the Potential[] function, one simply needs to overload the PotentialShape function. PotentialShape is always called with 1 or more argument, the first of which is the name of the potential shape, such as \"Harmonic\" or \"VDW\". The remaining arguments are any options passed along to the shape. The potentialShape[] function should return a list of three functions; each of these should accept a list of values and should return the (1) potential, (2) gradient, and (3) hessian for these values. The first of these should be simply a scalar, while the latter two should be the first and second derivatives of the potential function, thus should be lists the same length as the input list. The Hessian function may be None if the Hessian is not supported.";
-PotentialShape::badopt = "Bad option given to potential shape: `1`";
-PotentialDirection::usage = "To define a direction that can be used with the Potential[] function, one simply needs to overload the PotentialDirection function. PotentialDirection is always called with 2 or more argument, the first of which is always the mesh, the second of which is always the name of the direction, and the rest of which are any options that are passed along with the direction name. Examples of directions are \"EdgeLengths\" or \"\[CapitalDelta]Angle\". PotentialDirection should always yield a list of three functions. The first should yield a 1D list of the variable over which this potential direction operates; for example a list of the lengths of the edges or of the change in angles. The second function should accept a list the same length as the list returned by the first function that contains scalar values by which the gradient of these values should be multiplied and must retun the gradient of the particular values. For example, the EdgeLength potential direction yields, from its first function, a list of edge lengths; its second function takes a length of scalar values, one for each edge, and yields the gradient in terms of vertices, assuming that the values it is given are scalars to be multiplied by the edge gradients. The final function is equivalent, but yields the Hessian matrix for the given direction; this function may be None to indicate that the Hessian is not supported.";
-Potential::usage = "Potential[mesh, direction, shape] yields a cortical potential function for use with the given mesh based on the requiested direction and shape of the potential field. Direction specifies the value over which the potential is computed while shape specifies the kind of shape that the potential takes.
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
+
+PotentialField::usage = "PotentialField[mesh, direction, shape] yields a cortical potential function for use with the given mesh based on the requiested direction and shape of the potential field. Direction specifies the value over which the potential is computed while shape specifies the kind of shape that the potential takes.
+
 Possible values of direction include:
-  * \"EdgeLengths\": a function of the lengths of the edges is minimized
-  * \"DEdgeLengths\": a function of the change of the lengths of the edges is minimized
-  * \"Angles\": a function of the angles is minimized
-  * \"DAngles\": a function of the change of the angles is minimized
-  * \"FixedDistance\": a function of the distance to a fixed point in minimized
-  * \"DFixedDistance\": a function of the change in the distance to a fixed point in minimized
-Possible shapes include:
-  * \"Harmonic\": the value raised to a power (default Order: 2)";
+  * \"Edges\": A function of the changes in the lengths of the edges is minimized.
+  * \"Angles\": a function of the changes in the angles is minimized.
+  * \"Anchors\" -> {vertices, points}: a function of the distance of the given set of vertices to the given set of fixed points is minimized.
+  * \"Perimeter\": like \"Anchors\" but assumes that the vertices are the vertices along the perimeter of the (2D) mesh and that the points are the initial starting points of those vertices.
+  * \"Mesh\": a combination of three potential fields: a harmonic edge potential with scale 250, an infinite-well angle potential with scale 1, and a harmonic perimeter potential with scale 1. This combination is generally useful for mesh deformation along with an anchor potential. If mesh is a 3D mesh, then the perimeter potential is not included.
+
+Possible shapes include the following; note that x is used as the value of the variable and x0 is the reference value:
+  * \"Harmonic\": the formula for a harmonic potential is (1/q Abs[x - x0]^q) where q is the order of the harmonic. The following options are available:
+    * Order (default: 2) the order (q) of the harmonic.
+  * \"Gaussian\": the formula for a Gaussian potential is (1 - Exp[-Abs[(x - x0)/s]^q]) where q is the order of the Gaussian and s is the standard deviation of the Gaussian. Options include:
+    * Order (default: 2) the order (q) of the Gaussian.
+    * StandardDeviation (default: 1) the standard deviation of the Gaussian.
+  * \"LennardJones\": the formula for a Lennard-Jones potential is (1 + (x0/x)^q - 2 (x0/x)^(q/2)) where q is the order of the Lennard-Jones function. Options include:
+    * Order (deatuls: 2) the order (q) of the Lennard-Jones function.
+  * \"InfiniteWell\": the formula for an infinite-well potential is (((x0 - min)/(x - min))^(1/q))^2 + (((max - x0)/(min - x))^(1/q))^2 where q is the order of the infinite-well function, min is the minimum of the well, and max is the maximum of the well. Options include:
+    * Min: (default: 0) the minimum of the well.
+    * Max: (default: Pi) the maximum of the well; the default is Pi because infinite-well potentials are primarily used to prevent angles from increasing past Pi or below 0.
+    * Order: (default: 0.5) the order of the infinite-well function.
+
+Note that if the potential direction is given as \"Mesh\", then no other options are required and, in fact, all other options are ignored with the exception of ReferenceCoordinates.
+
+Additionally, all potential functions accept the following arguments:
+  * Scale (default: 1) the scale of the potential field (this value is multiplied by the overall potential formula
+  * ReferenceCoordinates (default: VertexCoordinates[mesh]) the reference coordinates to use when determining reference values.
+
+Note that in all cases, a list of values may be given for the parameters, in which case, a separate parameterization is setup for each unit of the potential field. The unit for edges, angles, anchors, and perimeter is the edge, face, vertex, or perimeter-vertex, thus the length of the list must match the length of the corresponding unit list.";
+PotentialField::badarg = "Bad argument given to Potential: `1`";
+ReferenceCoordinates::usage = "ReferenceCoordinates is an option for the Potential function that specifies the reference coordinates for the mesh.";
+PotentialFieldQ::usage = "PotentialFieldQ[p] yields True if p is a potential field and false otherwise.";
+
+MeshRegister::usage = "MeshRegister[field] yields the mesh that results from minimizing the given potential field by warping the vertices of its associated mesh.
+MeshRegister[mesh, {fieldDescriptions...}] registers the given mesh using the given set of field descriptions; each description should be a list consisting of arguments to PotentialField[] (excepting the mesh argument).
+The following options may be given:
+  * MaxSteps (default: 10,000) the maximum number of minimization steps to take
+  * MaxStepSize (default: 0.1) the maximum distance any vertex should move in a single step
+  * MaxPotentialChange (default: 1) the fraction of change in the potential that should be allowed to occur";
+MeshRegister::badarg = "Bad argument given to MeshRegistar: `1`";
+MaxPotentialChange::usage = "";
 
 CortexGradientPlot::usage = "CortexGradientPlot[mesh, functions] yields a plot of the edges in the given mesh with the arrows representing the gradient of the vertices in the mesh, according to the list of potential functions given in the list functions. In addition to all options that are valid for CortexPlot, the following options may be given:
   * Arrowheads (default: Small) indicates that the arrowheads should be the given size in the plot.
   * PlotStyle (default: Automatic) should be a list of style instructions for the arrows of the gradients; these are cycled across the potential functions as in ListPlot.
   * Scaled (default: Automatic) indicates the absolute plotting length of the largest single gradient vector for any of the vertices; effectively, all gradients are scaled such that the largest gradient is equal to this value. If Automatic is given, then the value used is 75% of the mean edge length.";
 
-CurvaturePotential::usage = "CurvaturePotential[mesh, template, sigma] yields a cortical potential function that enforces an aligment of the curvature in the cortical mesh, mesh, to the curvature in the cortical mesh, template, using a Gaussian smoothing function with shape parameter sigma over the cortical surface.";
+CurvaturePotential::usage = "CurvaturePotential[mesh, template, sigma] yields a cortical potential function that enforces an aligment of the curvature in the cortical mesh, mesh, to the curvature in the cortical mesh, template, using a Gaussian smoothing function with shape parameter sigma over the cortical surface.
+
+Note: This function, along with the RegistrationTrajectory package, has been depricated and may be removed in the future. As an alternative, see the MeshRegister function and the Potential function.";
 
 MapTangledQ::usage = "MapTangledQ[map] yields True if and only if the given cortical map is tangled (has faces that are inverted); otherwise yields False.
 MapTangledQ[map, X] is identical to MapTangledQ[map] except that it uses the coordinates given in X.";
-MapTangles::usage = "MapTangles[map] yields a list of the vertices in the given cortical map that are tangles (their neighbors are not in the correct counter-clockwise ordering).
+MapTangles::usage = "MapTangles[map] yields a list of the vertex indices in the given cortical map that are tangles (their neighbors are not in the correct counter-clockwise ordering). Note that this yields the indices in map as opposed to the vertex id's.
 MapTangles[map, X] uses the coordinates given in X for the map.";
 MapUntangle::usage = "MapUntangle[map] attempts to untangle the map given by repeatedly moving tangled vertices to their centroids (with respect to their neighbors); this may not succeed, but will return the coordinates regardless after 50 such attempts.
 MapUntangle[map, X] uses the coordinates X as the map coordinates.
 MapUntangle[map, X, max] attempts at most max times to untangle the map.";
 
-RegistrationFrame::usage = "RegistrationFrame[PF,X0] yields a registration frame with the given potential function PF and starting coordinates X0.";
+RegistrationFrame::usage = "RegistrationFrame[PF,X0] yields a registration frame with the given potential function PF and starting coordinates X0.
+
+Note: The RegistrationFrame, RegistrationTrajectory, and related functions are now depricated in favor of MeshRegister. They may be removed in the future.";
 RegistrationFrame::badarg = "Bad argument given to RegistrationFrame: `1`";
 RegistrationFrameData::usage = "RegistrationFrameData[...] is used to represent a registration frame object.";
-RegistrationFrameQ::usage = "RegistrationFrameQ[frame] yields True if and only if frame is a valid registration frame; otherwise yields False.";
+RegistrationFrameQ::usage = "RegistrationFrameQ[frame] yields True if and only if frame is a valid registration frame; otherwise yields False.
+
+Note: The RegistrationFrame, RegistrationTrajectory, and related functions are now depricated in favor of MeshRegister. They may be removed in the future.";
 StepNumber::usage = "StepNumber[frame] yields the step number of the given registration frame.";
 StepSize::usage = "StepSize[frame] yields the recommended step-size for the given frame.";
 MinStepSize::usage = "MinStepSize[frame] yields the minimum step-size the registration will descend to; once the step-size is below this length, the registration is considered converged.";
@@ -137,7 +201,9 @@ RegistrationTrajectory::usage = "RegistrationTrajectory[mesh, F] yields a regist
   * InitialVertexCoordinates (default: Automatic) specifies the starting coordinates in the registration; the default, Automatic, specifies that it should start with VertexCoordinates[mesh].
   * MaxVertexChange (default: 0.1) specifies the maximum distance a single vertex is allowed to move during a single step of the minimization.
   * MinStepSize (default: 10^-5) specifies that the minimum gradient length that must be reached for the minimization to be considered complete.
-  * CacheFrequency (default: 50) specifies that the registration will save every <n>'th frame during minimization.";
+  * CacheFrequency (default: 50) specifies that the registration will save every <n>'th frame during minimization.
+
+Note: The RegistrationFrame, RegistrationTrajectory, and related functions are now depricated in favor of MeshRegister. They may be removed in the future.";
 RegistrationTrajectory::badarg = "Bad argument given to RegistrationTrajectory: `1`";
 RegistrationTrajectory::nocnv = "Failure to converge: `1`";
 RegistrationTrajectoryData::usage = "RegistrationTrajectoryData[...] is used to represent a registration trajectory object.";
@@ -147,18 +213,29 @@ InitialFrame::usage = "InitialFrame[traj] yields the initial frame of the given 
 FinalFrame::usage = "FinalFrame[traj] yields the final frame of the given registration trajectory, traj; note that this may take a long time to calculate.";
 InitialVertexCoordinates::usage = "InitialVertexCoordinates is an option to RegistrationTrajectory and MapRegister that indicates the coordinates that should be used in the initial frame.";
 
-MeshRegister::usage = "MeshRegister[mesh, pf] yields the result of registering the given mesh to the given potential field, pf. The pf variable must be a valid CorticalPotentialFunction, including named potential functions.
-MeshRegister[mesh, {pf1, pf2...}] feeds the registration through each of the given potential functions in order, using the result of the registration in the previous function as input to the next function.
-MeshRegister[mesh, pf :> prolog] evaluates prolog before beginning the minimization of pf.
-MeshRegister[mesh, pf :> {prolog, epilog}] evaluates prolog before beginning the minimization of pf and evaluates epilog after it.
-MeshRegister[{mesh, X0}, ...] uses X0 as the starting vertex coordinates of the given mesh.
-
-The following options may be given:
-  * Method (default: \"ConjugateGradient\") must be either \"ConjugateGradient\" or \"Newton\"; if the latter is specified, then the Hessian of the potential field will be used.
-  * StepMonitor (default: None) is evaluated during every step of minimization.
-  * ";
-
 Begin["`Private`"];
+
+(* #Java ******************************************************************************************)
+(* Here, we load the Java libraries that we require... start by putting nben.jar on the classpath *)
+With[
+  {nben = Select[JavaClassPath[], Last@FileNameSplit[#] == "nben.jar" &]},
+  If[!ListQ[nben] || nben == {},
+    (* we need to add it... we can do this via the $InputFileName variable *)
+    AddToClassPath@FileNameJoin@Join[
+      Most@FileNameSplit[$InputFileName], 
+      {"lib", "nben", "target"}]]];
+(* Okay, now we need to make sure to load some classes; if these raise exceptions, then probably
+   git submodules were not initialized *)
+Check[
+  (LoadJavaClass["nben.mesh.registration.Minimizer"];
+   LoadJavaClass["nben.mesh.registration.Fields"];
+   LoadJavaClass["nben.mesh.registration.Util"]),
+  Message[
+    Neurotica::initwarn,
+    StringJoin[
+      "Neurotica's Java registration subsystem failed to initialize, which breaks the ",
+      "MeshRegister and PotentialField functions. This is usually because git submodules ",
+      "were not initialized and updated. See the Neurotica README for more information."]]];
 
 (* #CorticalPotentialFunction *********************************************************************)
 Options[CorticalPotentialFunction] = {
@@ -179,7 +256,7 @@ DefineImmutable[
    (* And a call form for the gradient. *)
    Grad[P, M_ /; ArrayQ[M, 2, NumericQ]] := With[
      {f = GradientFunction[P]},
-     Join @@ If[Length[M] <= Length[M[[1]]], f[M], Transpose[f[Transpose @ M]]]],
+     Join @@ If[Length[M] <= Length@First[M], f[M], Transpose@f@Transpose[M]]],
    (* And a call form for the Hessian. *)
    Hessian[P, M_ /; ArrayQ[M, 2, NumericQ]] := With[
      {f = HessianFunction[P]},
@@ -508,7 +585,7 @@ CalculateVDWAnglePotential = Compile[
   With[
     {data = CalculateAngleIntermediateData[a,b,c]},
     With[
-      {ratio = 2.0 * Last[data] / th0},
+      {ratio = (# + (1 - Unitize[#]))&[2.0 * Last[data] / th0]},
       Total[0.25 + 1.0/ratio^2 - 1.0/ratio]]],
   {{CalculateAngleIntermediateData[_,_,_], _Real, 2}},
   RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False},
@@ -1092,72 +1169,283 @@ HarmonicPerimeterPotential[map_?CorticalMapQ, OptionsPattern[]] := With[
     MetaInformation -> OptionValue[MetaInformation]]];
 Protect[HarmonicPerimeterPotential];
 
-(* #PotentialDirection ****************************************************************************)
-PotentialDirection[mesh_?CorticalObjectQ, "EdgeLength"] := With[
-  {E = EdgePairsTr[mesh],
-   dims = If[CorticalMeshQ[mesh], 3, 2]},
-  {Function@ColumnNorms[#[[All, E[[2]]]] - #[[All, E[[1]]]]],
-   Function@SumOverEdgesDirectedTr[
-     mesh,
-     ConstantArray[#2, dims] * NormalizeColumns[#1[[All, E[[2]]]] - #1[[All, E[[1]]]]]],
-   None}];
-PotentialDirection[mesh_?CorticalObjectQ,
-                   "\[CapitalDelta]EdgeLength"|"DEdgeLength"|"DeltaEdgeLength"] := With[
-  {E = EdgePairsTr[mesh],
-   R0 = EdgeLengths[mesh],
-   dims = If[CorticalMeshQ[mesh], 3, 2]},
-  {Function[ColumnNorms[#[[All, E[[1]]]] - #[[All, E[[2]]]]] - R0],
-   Function@With[
-     {V = #1[[All, E[[1]]]] - #1[[All, E[[2]]]]},
-     With[
-       {R = ColumnNorms[V]},
-       SumOverEdgesDirectedTr[
-         mesh,
-         ConstantArray[#2, dims] * NormalizeColumns[(R - R0) * V]]]],
-   None}];
-PotentialDirection[mesh_?CorticalObjectQ, "Angle"] := With[
-  {F = FaceListTr[mesh],
-   dims = If[CorticalMeshQ[mesh], 3, 2]},
-  {Function[Join@@FaceAnglesTr[mesh, #]],
-   Function@With[
-     {Xf = {#1[[F[[1]]]], #1[[F[[2]]]], #1[[F[[3]]]]}},
-     With[
-       {dirs = Join@@Table[
-          CalculateAngleGradient[Xf[[i+1]], Xf[[Mod[i+1,3]+1]], Xf[[Mod[i+2,3]+1]]],
-          {i,0,2}]},
-       Table[SumOverFaceVerticesTr[mesh, #2 * dirs[[k]]], {k,1,dims}]]],
-   None}];
-PotentialDirection[mesh_?CorticalObjectQ, "\[CapitalDelta]Angle"|"DeltaAngle"|"DAngle"] := With[
-  {F = FaceListTr[mesh],
-   T0 = Join@@FaceAnglesTr[mesh],
-   dims = If[CorticalMeshQ[mesh], 3, 2]},
-  {Function[Join@@FaceAnglesTr[mesh, #] - T0],
-   Function@With[
-     {Xf = {#1[[F[[1]]]], #1[[F[[2]]]], #1[[F[[3]]]]},
-      T = FaceAnglesTr[mesh, #2]},
-     With[
-       {dirs = MapThread[
-          Apply[Join, #]&,
-          Table[
-            CalculateAngleGradient[Xf[[i+1]], Xf[[Mod[i+1,3]+1]], Xf[[Mod[i+2,3]+1]]],
-            {i,0,2}]]},
-       Table[SumOverFaceVerticesTr[mesh, #2 * dirs[[k]]], {k,1,dims}]]],
-   None}];
+(* #MeshPotentialField ****************************************************************************)
+Options[MeshPotentialField] = {
+  Scale -> 1.0,
+  ReferenceCoordinates -> Automatic,
+  Order -> Automatic,
+  StandardDeviation -> 1.0,
+  Min -> 0.0,
+  Max -> N[Pi]};
+DefineImmutable[
+  MeshPotentialField[mesh_?CorticalObjectQ,
+                     dir:(_String|(_String -> {_List, _List})|_List), 
+                     shape_String,
+                     opts:OptionsPattern[]
+                    ] :> field,
+  {SourceMesh[field] -> mesh,
+   PotentialFieldQ[field] -> True,
+   Direction[field] -> Switch[
+     ToLowerCase@Which[
+       StringQ[dir], dir, 
+       Head[dir] === Rule, First[dir],
+       VectorQ[dir, PotentialFieldQ], "sum",
+       True, Message[
+         PotentialField::badarg,
+         "direction must be a string, rule, or list of potential fields"]],
+     "edges"|"edge"|"edgelength", "Edges",
+     "angles"|"angle", "Angles",
+     "anchor"|"anchors", "Anchors",
+     "perimeter", "Perimeter",
+     "mesh"|"standard", "Mesh",
+     "sum", "Sum",
+     _, Message[PotentialField::badarg, "unrecognized potential direction"]],
+   Shape[field] -> If[Direction[field] == "Mesh" || Direction[field] == "Sum",
+     Automatic,
+     Switch[
+       ToLowerCase[shape],
+       "harmonic", "Harmonic",
+       "gaussian", "Gaussian",
+       "lennardjones"|"lj"|"lennard-jones", "LennardJones",
+       "well"|"infinitewell"|"infinite-well", "InfiniteWell",
+       _, Message[PotentialField::badarg, "unrecognized potential shape"]]],
+   Options[field] -> With[
+     {d = Direction[field],
+      sh = Shape[field]},
+     Join[
+       {Scale -> Replace[
+          OptionValue[Scale],
+          {s_?NumericQ :> s,
+           s_ /; VectorQ[s, NumericQ] :> s,
+           _ :> Message[
+             PotentialField::badarg,
+             "Scale must be a numeric quantity or a vector of numeric quantities"]}],
+        ReferenceCoordinates -> Replace[
+          OptionValue[ReferenceCoordinates],
+          {Automatic :> VertexCoordinatesTr[mesh],
+           X0_ /; And[MatrixQ[X0, NumericQ],
+                      Dimensions[X0] == Dimensions@VertexCoordinatesTr[mesh]] :> X0,
+           X0_ /; And[MatrixQ[X0, NumericQ],
+                      Dimensions[X0] == Dimensions@VertexCoordinates[mesh]] :> Transpose[X0],
+           _ :> Message[
+             PotentialField::badarg,
+             "ReferenceCoordinates was not Automatic or validly-sized matrix"]}]},
+       If[d == "Anchors",
+         With[
+           {vtcs = dir[[2,1]],
+            pts = dir[[2,2]]},
+           Which[
+             !VectorQ[vtcs, IntegerQ], Message[PotentialField::badarg, "incorrect anchor specification"],
+             !MatrixQ[pts, NumericQ], Message[PotentialField::badarg, "Points must be a numeric matrix"],
+             Length[pts] != Length[vtcs] && Length@First[pts] != Length[vtcs], Message[
+               Potentia::badarg,
+               "Anchors points specification must be the same size as the number of vertices"],
+             And[Length[pts] != Length@VertexCoordinatesTr[mesh],
+                 Length@First[pts] != Length@VertexCoordinatesTr[mesh]], Message[
+               Potentia::badarg,
+               "Anchors points specification must have the same dimensionality as the mesh"],
+             True, {
+               VertexList -> vtcs,
+               Indices -> VertexIndex[mesh, vtcs],
+               Points -> If[Length[pts] != Length[vtcs], pts, Transpose[pts]]}]],
+         {}],
+       {Order -> Replace[
+          OptionValue[Order],
+          {q_?NumericQ /; q > 0 :> q,
+           q_ /; VectorQ[q, NumericQ] :> q,
+           Automatic :> If[StringQ[sh] && sh == "InfiniteWell", 0.5, 2.0],
+           _ :> Message[PotentialField::badarg, "Invalid order parameter"]}]},
+       If[StringQ[sh] && sh == "InfiniteWell",
+         With[
+           {min = OptionValue[Min], max = OptionValue[Max]},
+           Which[
+             !NumericQ[min] && !VectorQ[min, NumericQ], Message[
+               PotentialField::badarg,
+               "Min must be a numeric quantity"],
+             !NumericQ[max] && !VectorQ[max, NumericQ], Message[
+               PotentialField::badarg, 
+               "Max must be a numeric quantity"],
+             True, {Min -> min, Max -> max}]],
+         {}],
+       If[StringQ[sh] && sh == "Gaussian",
+         {StandardDeviation -> Replace[
+            OptionValue[StandardDeviation],
+            {s_?NumericQ /; s > 0 :> s,
+             _ :> Message[PotentialField::badarg, "standard deviation must be a positive number"]}]},
+         {}]]],
+   Options[field, name_] := Replace[name, Append[Options[field], name :> $Failed]],
+   JavaObject[field] -> With[
+     {ops = Options[field],
+      faces = VertexIndex[mesh, FaceListTr[mesh]] - 1,
+      X0 = ReferenceCoordinates /. Options[field]},
+     Switch[
+       {Direction[field], Shape[field]},
+       {"Sum", _}, With[
+          {PE = nben`mesh`registration`Fields`newSum[]},
+          Do[PE@addField[JavaObject[f]], {f, dir}];
+          PE],
+       {"Edges", "Harmonic"}, nben`mesh`registration`Fields`newHarmonicEdgePotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          faces, X0],
+       {"Edges", "Gaussian"}, nben`mesh`registration`Fields`newGaussianEdgePotential[
+          N[Scale /. ops], 
+          N[StandardDeviation /. ops],
+          N[Order /. ops],
+          faces, X0],
+       {"Edges", "LennardJones"}, nben`mesh`registration`Fields`newLJEdgePotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          faces, X0],
+       {"Edges", "InfiniteWell"}, nben`mesh`registration`Fields`newWellEdgePotential[
+          N[Scale /. ops],
+          N[Order /. ops],
+          N[Min /. ops],
+          N[Max /. ops],
+          faces, X0],
+       {"Angles", "Harmonic"}, nben`mesh`registration`Fields`newHarmonicAnglePotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          faces, X0],
+       {"Angles", "Gaussian"}, nben`mesh`registration`Fields`newGaussianAnglePotential[
+          N[Scale /. ops], 
+          N[StandardDeviation /. ops],
+          N[Order /. ops],
+          faces, X0],
+       {"Angles", "LennardJones"}, nben`mesh`registration`Fields`newLJAnglePotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          faces, X0],
+       {"Angles", "InfiniteWell"}, nben`mesh`registration`Fields`newWellAnglePotential[
+          N[Scale /. ops],
+          N[Order /. ops],
+          N[Min /. ops],
+          N[Max /. ops],
+          faces, X0],
+       {"Anchors", "Harmonic"}, nben`mesh`registration`Fields`newHarmonicAnchorPotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          (Indices /. ops) - 1,
+          (Points /. ops),
+          X0],
+       {"Anchors", "Gaussian"}, nben`mesh`registration`Fields`newGaussianAnchorPotential@@(Global`dbg=List[
+          N[Scale /. ops], 
+          N[StandardDeviation /. ops],
+          N[Order /. ops],
+          (Indices /. ops) - 1,
+          (Points /. ops),
+          X0]),
+       {"Anchors", "LennardJones"}, nben`mesh`registration`Fields`newLJAnchorPotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          (Indices /. ops) - 1,
+          (Points /. ops),
+          X0],
+       {"Anchors", "InfiniteWell"}, nben`mesh`registration`Fields`newWellAnchorPotential[
+          N[Scale /. ops],
+          N[Order /. ops],
+          N[Min /. ops],
+          N[Max /. ops],
+          (Indices /. ops) - 1,
+          (Points /. ops),
+          X0],
+       {"Perimeter", "Harmonic"}, nben`mesh`registration`Fields`newHarmonicPerimeterPotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          faces, X0],
+       {"Perimeter", "Gaussian"}, nben`mesh`registration`Fields`newGaussianPerimeterPotential[
+          N[Scale /. ops], 
+          N[StandardDeviation /. ops],
+          N[Order /. ops],
+          faces, X0],
+       {"Perimeter", "LennardJones"}, nben`mesh`registration`Fields`newLJPerimeterPotential[
+          N[Scale /. ops], 
+          N[Order /. ops],
+          faces, X0],
+       {"Perimeter", "InfiniteWell"}, nben`mesh`registration`Fields`newWellPerimeterPotential[
+          N[Scale /. ops],
+          N[Order /. ops],
+          N[Min /. ops],
+          N[Max /. ops],
+          faces, X0],
+       {"Mesh", _}, nben`mesh`registration`Fields`newStandardMeshPotential[faces, X0]]]},
+  SetSafe -> True,
+  Symbol -> MeshPotentialField];
+Unprotect[MeshPotentialField];
 
-(* #PotentialShape ********************************************************************************)
-PotentialShape[mesh_?CorticalObjectQ, "Harmonic", ref_, OptionsPattern[{Order -> 2}]] := With[
-  {q = Replace[
-     OptionValue[Order],
-     {q_ /; NumericQ[q] && q >= 1 :> q,
-      _ :> Message[PotentialShape::badopt, "Harmonic potential option Order must be >= 1"]}]},
-  {Function[1.0 / (q * Length[#]) * Abs[#]^q],
-   Function[Sign[#]*Abs[#]^(q-1) / Length[#]],
-   Function[(q - 1) / Length[#] * Abs[#]^(q - 2)]}];
-(* #here *)
+PotentialFieldQ[_] := False;
 
-(* #Potential *************************************************************************************)
+(* MakeBoxes for potential fields... *)
+MakeBoxes[p_MeshPotentialField, form_] := MakeBoxes[#, form]&@With[
+  {dir = Direction[p], sh = Shape[p]},
+  With[
+    {name = Which[
+       dir === "Mesh", "StandardMeshPotentialField",
+       dir === "Sum", "PotenfialFieldSum", 
+       True, Subscript[dir <> "PotentialField", sh]]},
+    Row[{name["..."]}]]];
+
+MeshPotentialField /: Plus[f___MeshPotentialField] := With[
+  {fields = {f}},
+  If[Length@Union[SourceMesh /@ fields] != 1,
+    Message[PotentialField::badarg, "cannot add potential fields with different meshes"],
+    MeshPotentialField[
+      SourceMesh@First[fields],
+      fields,
+      "-"]]];
+
+Protect[MeshPotentialField, ReferenceCoordinates, PotentialFieldQ];
+
+(* #PotentialField ********************************************************************************)
+Options[PotentialField] = Options[MeshPotentialField];
+PotentialField[mesh_?CorticalObjectQ,
+               dir_String, shape_String,
+               opts:OptionsPattern[]] := MeshPotentialField[mesh, dir, shape, opts];
+PotentialField[mesh_?CorticalObjectQ, 
+               dir:(_String -> {_,_}), shape_String,
+               opts:OptionsPattern[]] := MeshPotentialField[mesh, dir, shape, opts];
+PotentialField[mesh_?CorticalObjectQ, 
+               str_String /; StringMatchQ[ToLowerCase[str], "mesh"|"standard"],
+               opts:OptionsPattern[]] := MeshPotentialField[mesh, str, "-", opts];
+Protect[PotentialField];
 
 
+(* #MeshRegister **********************************************************************************)
+Options[MeshRegister] = {
+  MaxSteps -> 10000,
+  MaxStepSize -> 0.1,
+  MaxPotentialChange -> 1.0,
+  VertexCoordinates -> Automatic};
+MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
+  {steps = Replace[
+     OptionValue[MaxSteps],
+     {x_Integer?Positive :> x,
+      _ :> Message[MeshRegister::badarg, "MaxSteps must be a postive integer"]}],
+   stepsz = Replace[
+     OptionValue[MaxStepSize],
+     {x_?NumericQ /; Positive[x] :> x,
+      _ :> Message[MeshRegister::badarg, "MaxStepSize must be a postive number"]}],
+   pchange = Replace[
+     OptionValue[MaxPotentialChange],
+     {x_?NumericQ /; 0 <= x <= 1 :> x,
+      _ :> Message[MeshRegister::badarg, "MaxPotentialChange must be a number between 0 and 1"]}],
+   X = Replace[
+     OptionValue[VertexCoordinates],
+     {x_ /; MatrixQ[x, NumericQ] :> If[Length[x] > Length@First[x], Transpose[x], x],
+      Automatic :> VertexCoordinatesTr@SourceMesh[field],
+      _ :> Message[MeshRegister::badarg, "VertexCoordinates must be a numerical matrix"]}],
+   mesh = SourceMesh[field],
+   PE = JavaObject[field]},
+  With[
+    {min = JavaNew["nben.mesh.registration.Minimizer", PE, X]},
+    min@step[pchange, steps, stepsz];
+    Clone[mesh, VertexCoordinatesTr -> (min@getX[])]]];
+MeshRegister[mesh_?CorticalObjectQ, instr_List, opts:OptionsPattern[]] := MeshRegister[
+  Plus@@Table[
+    PotentialField[mesh, Sequence@@q],
+    {q, instr}],
+  opts];
+Protect[MeshRegister, MaxPotentialChange];
 
 (* #CortexGradientPlot ****************************************************************************)
 Options[CortexGradientPlot] = Join[
@@ -1206,44 +1494,60 @@ CortexGradientPlot[Rule[X_ /; ArrayQ[X, 2, NumericQ], mesh_?CorticalMapQ],
 Protect[CortexGradientPlot];
 
 (* #MapTangledQ ***********************************************************************************)
-MapTangledQ[map_?CorticalMapQ, Xarg_] := With[
-  {X = If[Length[Xarg] == 2, Xarg, Transpose[Xarg]]},
+(* This compiled function does the work, but expects the triangle coordinates to be rows of the
+   given matrix FX, which should have the triangles in either clockwise or counter-clockwise order;
+   in other words, this is to be called by MapTangledQ privately. *)
+TrianglesTangledQ = Compile[
+  {{FX, _Real, 3}},
+  (* The basic check here:
+     We know that all triangles should be expressed in the same order (clockwise or
+     counterclockwise); accordingly, all angles should be either positive or negative (when the
+     smallest angle is taken in the ordered direction). *)
   With[
-    {FX = X[[All, #]]& /@ VertexIndex[map, FaceListTr[map]]},
-    (* The basic check here:
-       We know that all triangles should be expressed in the same order (clockwise or
-       counterclockwise); accordingly, all angles should be either positive or negative (when the
-       smallest angle is taken in the ordered direction). *)
+    {th1 = ArcTan[FX[[2, 1]] - FX[[1, 1]], FX[[2, 2]] - FX[[1, 2]]],
+     th2 = ArcTan[FX[[3, 1]] - FX[[1, 1]], FX[[3, 2]] - FX[[1, 2]]]},
+    With[
+      {th = th2 - th1},
+      (* For angles that are over pi or under -pi, we want to invert the sign; then we just check
+         to make sure all signes are the same. *)
+      Length@Union@Sign[Sign[Pi - Abs[th]] * th] != 1]],
+  RuntimeOptions -> {"Speed", "EvaluateSymbolically" -> False}];
+(* Here are the MapTangledQ wrappers: *)
+MapTangledQ[map_?CorticalMapQ, Xarg_List, vtxIdcs_List] := With[
+  {X = If[Length[Xarg] == 2, Xarg, Transpose[Xarg]],
+   idcs = Union@Apply[Join, VertexFaceList[map][[vtxIdcs]]]},
+  TrianglesTangledQ[X[[All, #]]& /@ VertexIndex[map, FaceListTr[map][[All, idcs]]]]];
+MapTangledQ[map_?CorticalMapQ, Xarg_List] := With[
+  {X = If[Length[Xarg] == 2, Xarg, Transpose[Xarg]]},
+  TrianglesTangledQ[X[[All, #]]& /@ VertexIndex[map, FaceListTr[map]]]];
+MapTangledQ[map_?CorticalMapQ, Automatic, is_] := MapTangledQ[map, VertexCoordinatesTr[map], is];
+MapTangledQ[map_?CorticalMapQ, Automatic] := MapTangledQ[map, VertexCoordinatesTr[map]];
+MapTangledQ[map_?CorticalMapQ] := MapTangledQ[map, VertexCoordinatesTr[map]];
+Protect[MapTangledQ];
+
+(* #MapTangles ************************************************************************************)
+MapTangles[map_?CorticalMapQ, Xarg_] := With[
+  {X = If[Length[Xarg] == 2, Xarg, Transpose[Xarg]],
+   Ft = VertexIndex[map, FaceListTr[map]]},
+  With[
+    {FX = X[[All, #]]& /@ Ft},
     With[
       {th1 = ArcTan[FX[[2, 1]] - FX[[1, 1]], FX[[2, 2]] - FX[[1, 2]]],
        th2 = ArcTan[FX[[3, 1]] - FX[[1, 1]], FX[[3, 2]] - FX[[1, 2]]]},
       With[
-        {th = th2 - th1},
-        (* For angles that are over pi or under -pi, we want to invert the sign; then we just check
-           to make sure all signes are the same. *)
-        Length@Union@Unitize[Sign[Pi - Abs[th]] * th] != 1]]]];
-(* The old way of doing this:
-MapTangledQ[map_?CorticalMapQ, X_] := With[
-  {nei = VertexIndex[map, NeighborhoodList[map]]},
-  Catch[
-    MapThread[
-      Function[{x, n},
-        If[Length[n] > 2,
-          With[
-            {xnei = X[[#]] & /@ n},
+        {th = Sign[Sign[Pi - Abs[#]] * #]&[th2 - th1]},
+        With[
+          {signs = Tally[th]},
+          (* if signs has 1 value, there are no tangles *)
+          If[Length[signs] == 1, 
+            {},
+            (* otherwise, we take the more common value to be the 'correct' one *)
             With[
-              {ord = Ordering[ArcTan[#[[1]] - x[[1]], #[[2]] - x[[2]]] & /@ xnei]},
+              {bad = SortBy[signs, Last][[1 ;; -2, 1]]},
               With[
-                {rot = RotateLeft[ord, Position[ord, 1, {1}][[1, 1]] - 1]},
-                If[Range[Length[rot]] != rot || !Graphics`Mesh`InPolygonQ[xnei, x],
-                  Throw[True]]]]]]],
-      {X, nei}];
-    False]];
-*)
-MapTangledQ[map_?CorticalMapQ] := MapTangledQ[map, VertexCoordinates[map]];
-Protect[MapTangledQ];
-
-(* #MapTangles ************************************************************************************)
+                {angIDs = Union@Indices[th, If[Length[bad] == 1, bad[[1]], Alternatives@@bad]]},
+                Union@Flatten@Part[Ft, All, angIDs]]]]]]]]];                  
+(*
 MapTangles[map_?CorticalMapQ, X_] := With[
   {nei = VertexIndex[map, NeighborhoodList[map]]},
   Flatten@Last@Reap[
@@ -1260,6 +1564,7 @@ MapTangles[map_?CorticalMapQ, X_] := With[
                If[Range[Length[rot]] != rot || !Graphics`Mesh`InPolygonQ[xnei, x],
                  Sow[k]]]]]]],
       {X, nei, Range[Length@X]}]]];
+*)
 MapTangles[map_?CorticalMapQ] := MapTangles[map, VertexCoordinates[map]];
 Protect[MapTangles];
 
@@ -1283,19 +1588,84 @@ MapUntangle[map_?CorticalMapQ, opts:OptionsPattern[]] := MapUntangle[
   opts];
 Protect[MapUntangle];
 
-(* # *******************************************************************************************)
+(* #RegistrationChooseStepSize ********************************************************************)
+$RegistrationChooseStepSizeCutoff = 0.05;
+RegistrationChooseStepSize[
+  potential_, (* Potential Function *)
+  map_, (* The original map *)
+  X0_List, (* The starting coordinates for this step *)
+  PE0_, (* initial potential energy *)
+  J0_ (* Initial Jacobian/Gradient *)
+ ] := With[
+  {nJ0 = ColumnNorms[J0]},
+   With[
+    {maxNormJ0 = Max[nJ0]},
+    With[
+      {scaledJ0 = J0 / maxNormJ0,
+       scnormJ0 = nJ0 / maxNormJ0},
+      (* okay, partition the list into high and low and grab the vtcs in the faces for the highs *)
+      With[
+        {faceIDs = Union@@Part[
+             VertexFaceList[map],
+             Pick[Range@Length[scnormJ0], Sign[scnormJ0 - 0.05], 1]]},
+        With[
+          {vtxIDs = VertexIndex[map, FaceListTr[map][[All, faceIDs]]]},
+          (* we now minimize with these, starting with stepsize = 1...
+             We are primarily looking for a decrease in the potential function... *)
+          NestWhile[
+            (* So if the step-size is two high, halve it... *)
+            Function@If[Chop[#] == 0, 0, 0.5 * #],
+            (* We look for the starting step size ss0 such that size ss0 does not tangle the map,
+               but size 2*ss does; this should be a good place to start the search, and guarantees
+               that we will never tangle the map. *)
+            With[
+              {grad = J0[[All, #]]& /@ vtxIDs,
+               x = X0[[All, #]]& /@ vtxIDs},
+              With[
+                {ss0 = NestWhile[
+                   (* We either increase or decrease stepsize, depending on last result *)
+                   Function@With[
+                     {ss = #[[1]] * If[#[[2]], 0.5, 2.0]},
+                     If[Chop[ss] == 0, 0, {ss, TrianglesTangledQ[x - ss*grad]}]],
+                   (* start with a stepsize of 1 *)
+                   {1/maxNormJ0, TrianglesTangledQ[x - (1/maxNormJ0)*grad]},
+                   (* run until one step is true and one is false *)
+                   Function@Which[
+                     #1 === 0, False,
+                     Xor[#1[[2]], #2[[2]]], False,
+                     True, True],
+                   (* provide two arguments to the test *)
+                   2]},
+                If[ss0[[2]], 0.5*ss0[[1]], ss0[[1]]]]],
+            (* okay, we basically just want to check if the function has decreased *)
+            Function@If[# == 0, 
+              False,
+              With[
+                {X1 = X0 - #*J0},
+                potential[X1] >= PE0 || MapTangledQ[map, X1]]]]]]]]];
+Protect[RegistrationChooseStepSize];
+
+(* #RegistrationFrame *****************************************************************************)
 Options[RegistrationFrame] = {
+  Method -> "GradientDescent",
   MaxVertexChange -> 0.1,
-  MinStepSize -> 10^-5};
+  MinStepSize -> 10^-5,
+  CorticalMap -> None};
 DefineImmutable[
   RegistrationFrame[P_CorticalPotentialFunctionInstance, X0_, OptionsPattern[]] :> frame,
   {VertexCount[frame] -> Length@First[X0],
    Dimensions[frame] -> Dimensions[X0],
 
    PotentialFunction[frame] = P,
-   VertexCoordinatesTr[frame] = X0,
+   VertexCoordinatesTr[frame] = If[Length[X0] < Length[X0[[1]]], X0, Transpose[X0]],
    MaxVertexChange[frame] = OptionValue[MaxVertexChange],
    MinStepSize[frame] = OptionValue[MinStepSize],
+   Method[frame] = OptionValue[Method],
+   CorticalMap[frame] -> Replace[
+     OptionValue[CorticalMap],
+     Except[None | _?CorticalMapQ] :> Message[
+       RegistrationFrame::badarg,
+       "CorticalMap option to RegistrationFrame must be a cortical map or None"]],
    StepNumber[frame] = 0,
    
    VertexCoordinates[frame] := Transpose@VertexCoordinatesTr[frame],
@@ -1304,12 +1674,14 @@ DefineImmutable[
    Gradient[frame] :> Partition[
      Grad[PotentialFunction[frame], VertexCoordinatesTr[frame]],
      VertexCount[frame]],
+   (*
    StepSize[frame] :> With[
      {grad = Gradient[frame],
       x0 = VertexCoordinatesTr[frame],
       pe0 = Value[frame],
       pf = PotentialFunction[frame],
-      minss = MinStepSize[frame]},
+      minss = MinStepSize[frame],
+      map = CorticalMap[frame]},
      With[
        {gradNorms = ColumnNorms[grad]},
        With[
@@ -1317,7 +1689,18 @@ DefineImmutable[
          NestWhile[
            (0.5*#) &,
            MaxVertexChange[frame]/maxVtxNorm,
-           # > minss && pe0 < pf[x0 - #*grad] &]]]],
+           If[map === None,
+             # > minss && pe0 < pf[x0 - #*grad] &,
+             Function@With[
+               {x1 = x0 - #*grad},
+               # > minss && pe0 < pf[x1] && !MapTangledQ[map, x1]]]]]]],
+      *)
+   StepSize[frame] :> RegistrationChooseStepSize[
+     PotentialFunction[frame],
+     CorticalMap[frame],
+     VertexCoordinatesTr[frame],
+     Value[frame],
+     Gradient[frame]],
    Next[frame] := If[StepSize[frame] <= MinStepSize[frame],
      None,
      Clone[
@@ -1330,6 +1713,9 @@ DefineImmutable[
        RegistrationFrame::badarg,
        "coordinates have the wrong dimensions: " <> ToString[Dimensions@VertexCoordinatesTr[frame]]
          <> " and " <> ToString@Dimensions[frame]],
+     Method[frame] == "ConjugateGradient" || Method[frame] == "MonteCarlo", Message[
+       RegistrationFrame::badarg,
+       "Method option must be \"ConjucateGradient\" or \"MonteCarlo\""],
      MaxVertexChange[frame] <= 0, Message[
        RegistrationFrame::badarg,
        "MaxVertexChange must be > 0"],
@@ -1365,15 +1751,15 @@ Protect[RegistrationFrame, RegistrationFrameData, RegistrationFrameQ, StepNumber
 (* #RegistrationTrajectory ************************************************************************)
 RegistrationTrajectorySymbolLookup[sym_, k_] := With[
   {f = sym["CacheFrequency"],
-   ac = sym["AutoCache"],
+   autoCacheFn = sym["AutoCache"],
    F0 = sym["InitialFrame"],
    cmesh = sym["Mesh"],
-   minss = sym["MinStepSize"]},
+   ss0 = sym["MinStepSize"]},
   Check[
     If[k > Last[sym],
       sym[Last[sym]],
       With[
-        {cache = If[Mod[k, f] == 0,
+        {cache = If[ac =!= None && Mod[k, f] == 0,
            AutoCache[ac[k], $Failed],
            $Failed],
          prev = f*Floor[(k - 1)/f]},
@@ -1389,11 +1775,9 @@ RegistrationTrajectorySymbolLookup[sym_, k_] := With[
                         {ln = If[nexts == {}, None, Last[nexts]]},
                         Which[
                           nexts == {}, prev -> VertexCoordinatesTr[#],
-                          Or[!RegistrationFrameQ[ln],
-                             !ArrayQ[VertexCoordinatesTr[ln], 2, NumericQ],
-                             MapTangledQ[cmesh, VertexCoordinates[ln]]], Clone[
-                               #,
-                               MaxVertexChange -> 0.5 * Min[MaxVertexChange /@ {#, ln}]],
+                          !RegistrationFrameQ[ln], $Failed,
+                          !ArrayQ[VertexCoordinatesTr[ln], 2, NumericQ], $Failed,
+                          MapTangledQ[cmesh, VertexCoordinates[ln]], $Failed,
                           Length[nexts] < k - prev, Rule[
                             prev + Length[nexts],
                             VertexCoordinatesTr[ln]],
@@ -1405,11 +1789,12 @@ RegistrationTrajectorySymbolLookup[sym_, k_] := With[
                         Message[RegistrationTrajectory::nocnv, "could not take valid step"];
                         False),
                       MaxVertexChange[#] <= minss, (
-                        Message[RegistrationTrajectory::nocnv, "stepsize reduced to 0"];
+                        Message[RegistrationTrajectory::nocnv, "max stepsize reduced to 0"];
                         False),
                       True, True]],
                   $Failed]},
-               If[Mod[k, f] == 0 && prev < Last[sym] && res =!= $Failed && cache === $Failed,
+               If[And[ac =!= None, Mod[k, f] == 0, prev < Last[sym], 
+                      res =!= $Failed, cache === $Failed],
                  AutoCache[ac[k], res],
                  res]]]},
           If[rule === $Failed,
@@ -1467,7 +1852,9 @@ DefineImmutable[
            _ :> Message[
              RegistrationTrajectory::badarg,
              "InitialVertexCoordinaets must be Automatic or an appropriately sized matrix"]}],
-        Sequence @@ FilterRules[{opts}, Options[RegistrationFrame]]]},
+        Sequence @@ Join[
+          FilterRules[{opts}, Options[RegistrationFrame]],
+          If[CorticalMapQ[mesh], {CorticalMap -> mesh}, {}]]]},
      Which[
        !RegistrationFrameQ[f0], Message[
          RegistrationTrajectory::badarg,

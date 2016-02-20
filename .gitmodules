@@ -1,0 +1,6 @@
+[submodule "src/lib/nben"]
+	path = src/lib/nben
+	url = https://github.com/noahbenson/nben.git
+[submodule "src/Neurotica/lib/nben"]
+	path = src/Neurotica/lib/nben
+	url = https://github.com/noahbenson/nben
