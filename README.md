@@ -89,7 +89,7 @@ in memory. There are multiple ways to fix this, listed here in the order of the
 Neurotica Author's preference:
 
 1. Edit your init file to include the following lines:
-   <br/><br/><pre><code><<JLink`;
+   <br/><br/><pre><code>Needs["Jlink`"];
 SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
 SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
 ReinstallJava[];</code></pre>
@@ -104,11 +104,11 @@ ReinstallJava[];</code></pre>
 2. In a notebook, load JLink first, setup the memory, then load Neurotica. This
    fix is quick and easy; in the cell of your notebook in which you load Neurotica,
    include these lines, ending with your inclusion of Neurotica:
-   <br/><br/><pre><code><<Jlink`
+   <br/><pre><code>Needs["Jlink`"];
 SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
 SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
 ReinstallJava[];
-<<Neurotica`</code></pre>
+Needs["Neurotica`"];</code></pre>
 
 3. Reinstall Java yourself, then reload Neurotica. This can be done with the
    following code:
