@@ -38,17 +38,20 @@ documents all currently supported public functions.
 
 ## Installation ################################################################
 
-To install Neurotica, you will need to make sure that Mathematica can find a
-copy of it in its library directories. On Linux/Unix systems, the local library
-directory is "~/.Mathematica/Applications"; on Mac OSX, it is
-"~/Library/Mathematica/Applications"; and in Windows it is
-"C:\Users\<username>\AppData\Roaming\Mathematica\Applications". To obtain the
-library's code itself, you can download the library from GitHub:
-https://github.com/noahbenson/Neurotica. The recommended installation method is
-to clone this github repository then to make a symbolic link to Mathematica's
-library directory for the file src/Neurotica.m and the directory
-src/Neurotica. The following code demonstrates how this installation occurs on
-Mac OSX from the Terminal:
+To install Neurotica, you will need to make sure that Mathematica can
+find a copy of it in its library directories. On Linux/Unix systems,
+the local library directory is "~/.Mathematica/Applications"; on Mac
+OSX, it is "~/Library/Mathematica/Applications"; and in Windows it is
+"C:\Users\<username>\AppData\Roaming\Mathematica\Applications". To
+obtain the library's code itself, you can download the library from
+GitHub: https://github.com/noahbenson/Neurotica. Note that, in order
+to use the registration library, you will additionally need to
+initialize Neurotica's github submodules (shown in the block
+below). The recommended installation method is to clone this github
+repository then to make a symbolic link to Mathematica's library
+directory for the file src/Neurotica.m and the directory
+src/Neurotica. The following code demonstrates how this installation
+occurs on Mac OSX from the Terminal:
 
     ~$ cd Code
     ~/Code$ git clone https://github.com/noahbenson/Neurotica
@@ -60,6 +63,16 @@ Mac OSX from the Terminal:
     Resolving deltas : 100% (427/427), done.
     Checking connectivity ... done.
     ~/Code$ cd Neurotica
+    ~/Code$ git submodule init
+    Submodule 'src/Neurotica/lib/nben' (https://github.com/noahbenson/nben) registered for path 'src/Neurotica/lib/nben'
+    ~/Code$ git submodule upgrade
+    Cloning into 'src/Neurotica/lib/nben'...
+    remote: Counting objects: 270, done.
+    remote: Compressing objects: 100% (94/94), done.
+    remote: Total 270 (delta 38), reused 0 (delta 0), pack-reused 151
+    Receiving objects: 100% (270/270), 1.41 MiB, done.
+    Resolving deltas: 100% (85/85), done.
+    Submodule path 'src/Neurotica/lib/nben': checked out 'cd129f7d626d42df1cc1d4d3d6e574f017059e43'
     ~/Code/Neurotica$ ls
     LICENSE     README.md   Tutorial.nb src
     ~/Code/Neurotica$ cd src
