@@ -224,10 +224,18 @@ With[
     AddToClassPath@FileNameJoin@Join[
       Most@FileNameSplit[$InputFileName], 
       {"lib", "nben", "target"}]]];
-(* Okay, now we need to make sure to load some classes... *)
-LoadJavaClass["nben.mesh.registration.Minimizer"];
-LoadJavaClass["nben.mesh.registration.Fields"];
-LoadJavaClass["nben.mesh.registration.Util"];
+(* Okay, now we need to make sure to load some classes; if these raise exceptions, then probably
+   git submodules were not initialized *)
+Check[
+  (LoadJavaClass["nben.mesh.registration.Minimizer"];
+   LoadJavaClass["nben.mesh.registration.Fields"];
+   LoadJavaClass["nben.mesh.registration.Util"]),
+  Message[
+    Neurotica::initwarn,
+    StringJoin[
+      "Neurotica's Java registration subsystem failed to initialize, which breaks the ",
+      "MeshRegister and PotentialField functions. This is usually because git submodules ",
+      "were not initialized and updated. See the Neurotica README for more information."]]];
 
 (* #CorticalPotentialFunction *********************************************************************)
 Options[CorticalPotentialFunction] = {
