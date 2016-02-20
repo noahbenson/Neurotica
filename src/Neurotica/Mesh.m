@@ -2464,6 +2464,14 @@ RemoveProperty[mesh_?CorticalObjectQ] := Clone[
   EdgeProperties -> {},
   FaceProperties -> {}];
 
+(* We also setup a convenience syntax for properties: /. to add a property *)
+Unprotect[CorticalMesh2D, CorticalMesh3D];
+CorticalMesh2D /: ReplaceRepeated[m_CorticalMesh2D, repl_] := SetProperty[{m, VertexList}, repl];
+CorticalMesh3D /: ReplaceRepeated[m_CorticalMesh3D, repl_] := SetProperty[{m, VertexList}, repl];
+CorticalMesh2D /: ReplaceAll[repl_, m_CorticalMesh2D] := PropertyValue[{m, VertexList}, repl];
+CorticalMesh3D /: ReplaceAll[repl_, m_CorticalMesh3D] := PropertyValue[{m, VertexList}, repl];
+Protect[CorticalMesh2D, CorticalMesh3D];
+
 (* Individualized property functions *)
 VertexPropertyList[mesh_?CorticalObjectQ] := PropertyList[{mesh, VertexList}];
 EdgePropertyList[mesh_?CorticalObjectQ] := PropertyList[{mesh, EdgeList}];
