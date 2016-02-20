@@ -119,14 +119,14 @@ Needs["Neurotica`"];</code></pre>
 NeuroticaReload[];</code></pre>
 
    Neurotica provides a function that will perform this fix for you, which is
-   identical to the `NeuroticaFixJLinkMemoryPermanent[]` amount except that it
-   provides only a temporary fix: `NeuroticaJLinkFixMemory[amount]`,
+   identical to the `NeuroticaFixJLinkMemoryPermanent[amount]` function except
+   that it provides only a temporary fix: `NeuroticaJLinkFixMemory[amount]`,
    e.g. `NeuroticaJLinkFixMemory["2g"]` to allocate JLink a max of 2 GB of
    RAM. The downsides of this method are that it interrupts existing JLink
    connections (if you have any) and causes Neurotica to forget certain cached
-   data, the latter of which is not usually a significant problem. As long as
-   you run this function early in your initialization, such as immediately after
-   loading Neurotica, there shouldn't be any problems.
+   data, the latter of which is not usually noticeable. As long as you run this
+   function early in your initialization, such as immediately after loading
+   Neurotica, there shouldn't be any problems.
 
 ### FreeSurfer #################################################################
 
