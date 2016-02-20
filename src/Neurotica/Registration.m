@@ -1465,7 +1465,7 @@ MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
     Clone[mesh, VertexCoordinatesTr -> (min@getX[])]]];
 MeshRegister[mesh_?CorticalObjectQ, instr_List, opts:OptionsPattern[]] := MeshRegister[
   Plus@@Table[
-    PotentialField[mesh, Sequence@@q],
+    PotentialField[mesh, If[ListQ[q], Sequence@@q, q]],
     {q, instr}],
   opts];
 Protect[MeshRegister, MaxPotentialChange];
