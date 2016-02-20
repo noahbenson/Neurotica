@@ -2289,7 +2289,7 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
       (* If the property doesn't yet exist, add it. *)
       list === prop || list === $Failed, Which[
         prop === VertexCoordinates, If[type === VertexList,
-          Clone[mesh, VertexCoordinates -> vals],
+          Clone[mesh, VertexCoordinatesTr -> Transpose[vals]],
           $Failed],
         prop === EdgeWeight, $Failed,
         True, Clone[mesh, propType -> Append[allList, prop -> vals]]],
@@ -2317,7 +2317,7 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
       (* If the property doesn't yet exist, add it. *)
       Which[
         prop === VertexCoordinates, If[type === VertexList,
-          Clone[mesh, VertexCoordinates -> vals],
+          Clone[mesh, VertexCoordinatesTr -> Transpose[vals]],
           $Failed],
         prop === EdgeWeight, $Failed,
         True, Clone[mesh, propType -> Append[allList, (prop :> sym)]]],
