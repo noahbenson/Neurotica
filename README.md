@@ -90,7 +90,7 @@ here in the order of the Neurotica Author's preference:
 
 1. Edit your init file to include the following lines:
    
-   <br/><pre><code>Needs["Jlink`"];
+   <pre><code>Needs["Jlink`"];
 SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
 SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
 ReinstallJava[];</code></pre>
@@ -106,7 +106,7 @@ ReinstallJava[];</code></pre>
    fix is quick and easy; in the cell of your notebook in which you load Neurotica,
    include these lines, ending with your inclusion of Neurotica:
    
-   <br/><pre><code>Needs["Jlink`"];
+   <pre><code>Needs["Jlink`"];
 SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
 SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
 ReinstallJava[];
@@ -115,7 +115,7 @@ Needs["Neurotica`"];</code></pre>
 3. Reinstall Java yourself, then reload Neurotica. This can be done with the
    following code:
    
-   <br/><pre><code>ReinstallJava[JVMArguments->"Xmx2g"];
+   <pre><code>ReinstallJava[JVMArguments->"Xmx2g"];
 NeuroticaReload[];</code></pre>
 
    Neurotica provides a function that will perform this fix for you, which is
