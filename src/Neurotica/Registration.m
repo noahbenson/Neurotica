@@ -132,7 +132,7 @@ Possible values of direction include:
   * \"Angles\": a function of the changes in the angles is minimized.
   * \"Anchors\" -> {vertices, points}: a function of the distance of the given set of vertices to the given set of fixed points is minimized.
   * \"Perimeter\": like \"Anchors\" but assumes that the vertices are the vertices along the perimeter of the (2D) mesh and that the points are the initial starting points of those vertices.
-  * \"Mesh\": a combination of three potential fields: a harmonic edge potential with scale 250, an infinite-well angle potential with scale 1, and a harmonic perimeter potential with scale 1. This combination is generally useful for mesh deformation along with an anchor potential. If mesh is a 3D mesh, then the perimeter potential is not included.
+  * \"Mesh\": a combination of three potential fields: a harmonic edge potential (default scale: 500), an infinite-well angle potential (default scale: 1), and a harmonic perimeter potential with scale 1. This combination is generally useful for mesh deformation along with an anchor potential. If mesh is a 3D mesh, then the perimeter potential is not included.
 
 Possible shapes include the following; note that x is used as the value of the variable and x0 is the reference value:
   * \"Harmonic\": the formula for a harmonic potential is (1/q Abs[x - x0]^q) where q is the order of the harmonic. The following options are available:
@@ -146,6 +146,9 @@ Possible shapes include the following; note that x is used as the value of the v
     * Min: (default: 0) the minimum of the well.
     * Max: (default: Pi) the maximum of the well; the default is Pi because infinite-well potentials are primarily used to prevent angles from increasing past Pi or below 0.
     * Order: (default: 0.5) the order of the infinite-well function.
+  * \"Mesh\": two parameters are supported:
+    * EdgePotentialScale (default: 500) specifies the scale of the edge potential field.
+    * AnglePotentialScale (default: 1) specifies the scale of the angle potential field.
 
 Note that if the potential direction is given as \"Mesh\", then no other options are required and, in fact, all other options are ignored with the exception of ReferenceCoordinates.
 
@@ -157,6 +160,8 @@ Note that in all cases, a list of values may be given for the parameters, in whi
 PotentialField::badarg = "Bad argument given to Potential: `1`";
 ReferenceCoordinates::usage = "ReferenceCoordinates is an option for the Potential function that specifies the reference coordinates for the mesh.";
 PotentialFieldQ::usage = "PotentialFieldQ[p] yields True if p is a potential field and false otherwise.";
+EdgePotentialScale::usage = "EdgePotentialScale is an option to PotentialField that specifies the scale of the edge potential.";
+AnglePotentialScale::usage = "AnglePotentialScale is an option to PotentialField that specifies the scale of the angle potential.";
 
 MeshRegister::usage = "MeshRegister[field] yields the mesh that results from minimizing the given potential field by warping the vertices of its associated mesh.
 MeshRegister[mesh, {fieldDescriptions...}] registers the given mesh using the given set of field descriptions; each description should be a list consisting of arguments to PotentialField[] (excepting the mesh argument).
@@ -1179,7 +1184,9 @@ Options[MeshPotentialField] = {
   Order -> Automatic,
   StandardDeviation -> 1.0,
   Min -> 0.0,
-  Max -> N[Pi]};
+  Max -> N[Pi],
+  EdgePotentialScale -> Automatic,
+  AnglePotentialScale -> Automatic};
 DefineImmutable[
   MeshPotentialField[mesh_?CorticalObjectQ,
                      dir:(_String|(_String -> {_List, _List})|_List), 
@@ -1275,6 +1282,16 @@ DefineImmutable[
             OptionValue[StandardDeviation],
             {s_?NumericQ /; s > 0 :> s,
              _ :> Message[PotentialField::badarg, "standard deviation must be a positive number"]}]},
+         {}],
+       If[d == "Mesh",
+         With[
+           {Se = Replace[OptionValue[EdgePotentialScale], Automatic -> 500],
+            Sa = Replace[OptionValue[AnglePotentialScale], Automatic -> 1]},
+           If[!NumericQ[Se] || Se <= 0,
+             Message[PotentialField::badarg, "EdgePotentialScale must be a number > 0"]];
+           If[!NumericQ[Sa] || Sa <= 0,
+             Message[PotentialField::badarg, "AnglePotentialScale must be a number > 0"]];
+           {EdgePotentialScale -> Se, AnglePotentialScale -> Sa}],
          {}]]],
    Options[field, name_] := Replace[name, Append[Options[field], name :> $Failed]],
    JavaObject[field] -> With[
@@ -1371,7 +1388,10 @@ DefineImmutable[
           N[Min /. ops],
           N[Max /. ops],
           faces, X0],
-       {"Mesh", _}, nben`mesh`registration`Fields`newStandardMeshPotential[faces, X0]]]},
+       {"Mesh", _}, nben`mesh`registration`Fields`newStandardMeshPotential[
+          N[EdgePotentialScale /. ops],
+          N[AnglePotentialScale /. ops],
+          faces, X0]]]},
   SetSafe -> True,
   Symbol -> MeshPotentialField];
 Unprotect[MeshPotentialField];
@@ -1410,7 +1430,7 @@ PotentialField[mesh_?CorticalObjectQ,
 PotentialField[mesh_?CorticalObjectQ, 
                str_String /; StringMatchQ[ToLowerCase[str], "mesh"|"standard"],
                opts:OptionsPattern[]] := MeshPotentialField[mesh, str, "-", opts];
-Protect[PotentialField];
+Protect[PotentialField, EdgePotentialField, AnglePotentialField];
 
 
 (* #MeshRegister **********************************************************************************)
