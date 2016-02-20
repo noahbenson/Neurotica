@@ -226,10 +226,13 @@ With[
       {"lib", "nben", "target"}]]];
 (* Okay, now we need to make sure to load some classes; if these raise exceptions, then probably
    git submodules were not initialized *)
-Check[
-  (LoadJavaClass["nben.mesh.registration.Minimizer"];
-   LoadJavaClass["nben.mesh.registration.Fields"];
-   LoadJavaClass["nben.mesh.registration.Util"]),
+If[!Check[
+     Quiet[
+       LoadJavaClass["nben.mesh.registration.Minimizer"];
+       LoadJavaClass["nben.mesh.registration.Fields"];
+       LoadJavaClass["nben.mesh.registration.Util"];
+       True],
+     False],
   Message[
     Neurotica::initwarn,
     StringJoin[
