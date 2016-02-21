@@ -30,7 +30,7 @@ ClearAll[ "Neurotica`Mesh`*", "Neurotica`Mesh`Private`*"];
 
 CorticalMesh::usage = "CorticalMesh[vertexList, faceList] yields a CorticalMesh3D mesh form that can be used with the various CorticalMesh interface functions.
 A cortical mesh resembles both a graph object and a boundary mesh region object. They are immutable data structures defined using the DefineImmutable function found in the Neurotica`Util` namespace; accordingly, they aren't designed to be edited, but to be copied (while reusing and sharing data between copies efficiently). To edit the options or data in a CorticalMesh m, call CorticalMesh[m, <option> -> <value>...]. Valid options for such a call are any option that may be passed to CorticalMesh normally, FaceList, and VertexCoordinates. Cortical meshes support the following queries:
-  * Properties, PropertyValue, SetProperty, RemoveProperty: All property functions supported by Graphs are also supported by cortical meshes. It is recommended that all data attached to nodes, faces, or edges be attached using properties. Note that the Properties option is accepted by CorticalMesh (see ?Properties) and Property wrappers in the vertex and face lists are parsed as well (see ?Property).
+  * Properties, PropertyValue, SetProperty, RemoveProperty: All property functions supported by Graphs are also supported by cortical meshes. It is recommended that all data attached to nodes, faces, or edges be attached using properties. Note that the Properties option is accepted by CorticalMesh (see ?Properties) and Property wrappers in the vertex and face lists are parsed as well (see ?Property). Additionally, for programming convenience, the ReplaceAll (/.) and ReplaceRepeated (//.) operators are overloaded for meshes such that mesh /. name -> values is equivalent to SetProperty[{mesh, VertexList}, name -> values] (mesh //. data is the same, buf for edge properties), and name /. mesh is equivalent to PropertyValue[{mesh, VertexList}, name] (again, //. is for edge properties).
   * VertexList, VertexCount, EdgeList, EdgeCount, EdgePairs: Most graph functions can be used with a cortical mesh as if the cortical mesh were a graph. In addition, the function EdgePairs[mesh] yields the same result as EdgeList[mesh] but with lists if neighboring vertices rather than UndirectedEdge forms.
   * VertexCoordinates[mesh] additionally yields the list of vertex coordinates for the given mesh.
   * VertexNormals[mesh], FaceNormals[mesh] yields a list of the normal vector to each vertex or face in the mesh.
@@ -2466,10 +2466,18 @@ RemoveProperty[mesh_?CorticalObjectQ] := Clone[
 
 (* We also setup a convenience syntax for properties: /. to add a property *)
 Unprotect[CorticalMesh2D, CorticalMesh3D];
-CorticalMesh2D /: ReplaceRepeated[m_CorticalMesh2D, repl_] := SetProperty[{m, VertexList}, repl];
-CorticalMesh3D /: ReplaceRepeated[m_CorticalMesh3D, repl_] := SetProperty[{m, VertexList}, repl];
+(* Add a Vertex property *)
+CorticalMesh2D /: ReplaceAll[m_CorticalMesh2D, repl_] := SetProperty[{m, VertexList}, repl];
+CorticalMesh3D /: ReplaceAll[m_CorticalMesh3D, repl_] := SetProperty[{m, VertexList}, repl];
+(* Add an Edge property *)
+CorticalMesh2D /: ReplaceRepeated[m_CorticalMesh2D, repl_] := SetProperty[{m, EdgeList}, repl];
+CorticalMesh3D /: ReplaceRepeated[m_CorticalMesh3D, repl_] := SetProperty[{m, EdgeList}, repl];
+(* Get a Vertex property *)
 CorticalMesh2D /: ReplaceAll[repl_, m_CorticalMesh2D] := PropertyValue[{m, VertexList}, repl];
 CorticalMesh3D /: ReplaceAll[repl_, m_CorticalMesh3D] := PropertyValue[{m, VertexList}, repl];
+(* Get an Edge property *)
+CorticalMesh2D /: ReplaceRepeated[repl_, m_CorticalMesh2D] := PropertyValue[{m, EdgeList}, repl];
+CorticalMesh3D /: ReplaceRepeated[repl_, m_CorticalMesh3D] := PropertyValue[{m, EdgeList}, repl];
 Protect[CorticalMesh2D, CorticalMesh3D];
 
 (* Individualized property functions *)
