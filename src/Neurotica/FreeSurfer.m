@@ -1079,7 +1079,6 @@ AutoFindFreeSurferSubjects[] := With[
 Protect[AutoFindFreeSurferSubjects];
 
 $FreeSurferSubjects := $FreeSurferSubjects = AutoFindFreeSurferSubjects[];
-Protect[$FreeSurferSubjects];
 
 UpdateSubjectsDirectories[] := (
   Unprotect[$FreeSurferSubjectsDirectories];
