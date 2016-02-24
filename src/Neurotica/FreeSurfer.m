@@ -1039,7 +1039,7 @@ ExportLabel[filename_, data, options___] := Check[
 *)
 
 (* FreeSurfer Directory/filesystem data ***********************************************************)
-$FreeSurferHomes = Union[
+$FreeSurferHomes := $FreeSurferHomes = Union[
   Flatten[
     Last[
       Reap[
@@ -1053,7 +1053,7 @@ $FreeSurferHomes = Union[
           {1}]]]]];
 Protect[$FreeSurferHomes];
 
-$FreeSurferSubjectsDirectories = Union[
+$FreeSurferSubjectsDirectories := $FreeSurferSubjectsDirectories = Union[
   Flatten[
     Last[
       Reap[
@@ -1080,7 +1080,7 @@ AutoFindFreeSurferSubjects[] := With[
     subs]];
 Protect[AutoFindFreeSurferSubjects];
 
-$FreeSurferSubjects = AutoFindFreeSurferSubjects[];
+$FreeSurferSubjects := $FreeSurferSubjects = AutoFindFreeSurferSubjects[];
 Protect[$FreeSurferSubjects];
 
 UpdateSubjectsDirectories[] := (
