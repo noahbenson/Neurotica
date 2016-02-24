@@ -1061,7 +1061,7 @@ $FreeSurferSubjectsDirectories = Union[
           Prepend[
             Map[FileNameJoin[{#, "subjects"}]&, $FreeSurferHomes],
             Environment["SUBJECTS_DIR"]],
-          s_String /; FreeSurferSubjectPathQ[s] :> Sow[s],
+          s_String /; DirectoryQ[s] :> Sow[s],
           {1}]]]]];
 Protect[$FreeSurferSubjectsDirectories];
 
