@@ -1051,7 +1051,6 @@ $FreeSurferHomes := $FreeSurferHomes = Union[
            "/Applications/freesurfer"},
           s_String /; DirectoryQ[s] && FileExistsQ[s <> "/FreeSurferEnv.sh"] :> Sow[s],
           {1}]]]]];
-Protect[$FreeSurferHomes];
 
 $FreeSurferSubjectsDirectories := $FreeSurferSubjectsDirectories = Union[
   Flatten[
@@ -1063,7 +1062,6 @@ $FreeSurferSubjectsDirectories := $FreeSurferSubjectsDirectories = Union[
             Environment["SUBJECTS_DIR"]],
           s_String /; DirectoryQ[s] :> Sow[s],
           {1}]]]]];
-Protect[$FreeSurferSubjectsDirectories];
 
 AutoFindFreeSurferSubjects[] := With[
   {subs = Union @ Flatten @ Map[
