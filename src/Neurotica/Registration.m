@@ -1285,7 +1285,7 @@ DefineImmutable[
          {}],
        If[d == "Mesh",
          With[
-           {Se = Replace[OptionValue[EdgePotentialScale], Automatic -> 500],
+           {Se = Replace[OptionValue[EdgePotentialScale], Automatic -> 1],
             Sa = Replace[OptionValue[AnglePotentialScale], Automatic -> 1]},
            If[!NumericQ[Se] || Se <= 0,
              Message[PotentialField::badarg, "EdgePotentialScale must be a number > 0"]];
