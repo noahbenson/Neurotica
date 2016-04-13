@@ -168,7 +168,8 @@ MeshRegister[mesh, {fieldDescriptions...}] registers the given mesh using the gi
 The following options may be given:
   * MaxSteps (default: 10,000) the maximum number of minimization steps to take
   * MaxStepSize (default: 0.1) the maximum distance any vertex should move in a single step
-  * MaxPotentialChange (default: 1) the fraction of change in the potential that should be allowed to occur";
+  * MaxPotentialChange (default: 1) the fraction of change in the potential that should be allowed to occur
+  * VertexCoordinates (default: Automatic) the coordinates from which to start the registration";
 MeshRegister::badarg = "Bad argument given to MeshRegistar: `1`";
 MaxPotentialChange::usage = "";
 
@@ -229,6 +230,7 @@ With[
     AddToClassPath@FileNameJoin@Join[
       Most@FileNameSplit[$InputFileName], 
       {"lib", "nben", "target"}]]];
+AddToClassPath["/Users/nben/Code/nben/target"];
 (* Okay, now we need to make sure to load some classes; if these raise exceptions, then probably
    git submodules were not initialized *)
 If[!Check[
@@ -1348,13 +1350,13 @@ DefineImmutable[
           (Indices /. ops) - 1,
           (Points /. ops),
           X0],
-       {"Anchors", "Gaussian"}, nben`mesh`registration`Fields`newGaussianAnchorPotential@@(Global`dbg=List[
+       {"Anchors", "Gaussian"}, nben`mesh`registration`Fields`newGaussianAnchorPotential[
           N[Scale /. ops], 
           N[StandardDeviation /. ops],
           N[Order /. ops],
           (Indices /. ops) - 1,
           (Points /. ops),
-          X0]),
+          X0],
        {"Anchors", "LennardJones"}, nben`mesh`registration`Fields`newLJAnchorPotential[
           N[Scale /. ops], 
           N[Order /. ops],
@@ -1461,8 +1463,15 @@ MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
    PE = JavaObject[field]},
   With[
     {min = JavaNew["nben.mesh.registration.Minimizer", PE, X]},
-    min@step[pchange, steps, stepsz];
-    Clone[mesh, VertexCoordinatesTr -> (min@getX[])]]];
+    With[
+      {report = min@step[pchange, steps, stepsz]},
+      Clone[
+        mesh,
+        VertexCoordinatesTr -> (min@getX[]),
+        Options -> Replace[
+          Options[mesh],
+          (MetaInformation -> m_) :> (MetaInformation -> Append[m, "RegistrationReport" -> report]),
+          {1}]]]]];
 MeshRegister[mesh_?CorticalObjectQ, instr_List, opts:OptionsPattern[]] := MeshRegister[
   Plus@@Table[
     PotentialField[mesh, If[ListQ[q], Sequence@@q, q]],
