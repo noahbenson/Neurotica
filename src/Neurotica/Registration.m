@@ -1467,11 +1467,7 @@ MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
       {report = min@step[pchange, steps, stepsz]},
       Clone[
         mesh,
-        VertexCoordinatesTr -> (min@getX[]),
-        Options -> Replace[
-          Options[mesh],
-          (MetaInformation -> m_) :> (MetaInformation -> Append[m, "RegistrationReport" -> report]),
-          {1}]]]]];
+        VertexCoordinatesTr -> (min@getX[])]]]];
 MeshRegister[mesh_?CorticalObjectQ, instr_List, opts:OptionsPattern[]] := MeshRegister[
   Plus@@Table[
     PotentialField[mesh, If[ListQ[q], Sequence@@q, q]],
