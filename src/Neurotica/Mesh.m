@@ -2712,9 +2712,14 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
                  {GetProperties[FaceList], FaceCoordinates[mesh], F,
                   VertexIndex[mesh, F], vprop[[#]]& /@ VertexIndex[mesh, F],
                   vcolors[[#]]& /@ VertexIndex[mesh, F]}]}],
-           If[efn === None || efn === Automatic, 
-             {},
-             MapThread[
+           Which[
+             efn === None || efn === Automatic, {},
+             efn === Line, {
+               Thin,
+               Map[
+                 Function@Line[#1, VertexColors -> vcolors[[#1]]],
+                 Transpose@VertexIndex[mesh, EdgePairsTr[mesh]]]},
+             True, MapThread[
                Function[
                  efn @ Apply[
                    Association,
@@ -2794,9 +2799,14 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
                  {GetProperties[FaceList], FaceCoordinates[mesh], F,
                   VertexIndex[mesh, F], vprop[[#]]& /@ VertexIndex[mesh, F],
                   vcolors[[#]]& /@ VertexIndex[mesh, F]}]}],
-           If[efn === None || efn === Automatic, 
-             {},
-             MapThread[
+           Which[
+             efn === None || efn === Automatic, {},
+             efn === Line, {
+               Thin,
+               Map[
+                 Function@Line[#1, VertexColors -> vcolors[[#1]]],
+                 Transpose@VertexIndex[mesh, EdgePairsTr[mesh]]]},
+             True, MapThread[
                Function[
                  efn @ Apply[
                    Association,
