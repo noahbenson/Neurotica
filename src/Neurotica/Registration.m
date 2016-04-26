@@ -1440,7 +1440,8 @@ Options[MeshRegister] = {
   MaxSteps -> 10000,
   MaxStepSize -> 0.1,
   MaxPotentialChange -> 1.0,
-  VertexCoordinates -> Automatic};
+  VertexCoordinates -> Automatic,
+  Method -> Automatic};
 MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
   {steps = Replace[
      OptionValue[MaxSteps],
@@ -1460,11 +1461,23 @@ MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
       Automatic :> VertexCoordinatesTr@SourceMesh[field],
       _ :> Message[MeshRegister::badarg, "VertexCoordinates must be a numerical matrix"]}],
    mesh = SourceMesh[field],
-   PE = JavaObject[field]},
+   PE = JavaObject[field],
+   mtd = Replace[OptionValue[Method], Automatic -> "Step"]},
   With[
     {min = JavaNew["nben.mesh.registration.Minimizer", PE, X]},
     With[
-      {report = min@step[pchange, steps, stepsz]},
+      {report = Which[
+         StringQ[mtd], Which[
+           mtd == "Step", min@step[pchange, steps, stepsz],
+           mtd == "NimbleStep", min@nimbleStep[pchange, steps, stepsz, 4],
+           True, Message[MeshRegister::badarg, "Method must be \"Step\" or \"NimbleStep\""]],
+         ListQ[mtd] && StringQ@First[mtd], Which[
+           First[mtd] == "Step", min@step[pchange, steps, stepsz],
+           First[mtd] == "NimbleStep", min@nimbleStep[pchange, steps, stepsz, Last[mtd]],
+           True, Message[MeshRegister::badarg, "Method must be \"Step\" or \"NimbleStep\""]],
+         True, Message[
+           MeshRegister::badarg,
+           "Method must be \"Step\", \"NimbleStep\", or {\"NimbleStep\", k}"]]},
       Clone[
         mesh,
         VertexCoordinatesTr -> (min@getX[])]]]];
