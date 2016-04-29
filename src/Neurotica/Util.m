@@ -998,9 +998,11 @@ Protect[FlatIterate];
 
 (* WithOptions ************************************************************************************)
 Attributes[WithOptions] = {HoldAll};
-WithOptions[f_[args___], opts___] := With[
+WithOptions[f_[args___]] := f[args];
+WithOptions[f_[args___], opts_List] := With[
   {head = f},
-  head[args, Sequence@@FilterRules[{opts}, Options[head]]]];
+  head[args, Sequence@@FilterRules[opts, Options[head]]]];
+WithOptions[f_[args___], opt1:Except[_List], opts___] := WithOptions[f[args], {opt1, opts}];
 Protect[WithOptions];
 
 (* #UpdateOptions *********************************************************************************)
