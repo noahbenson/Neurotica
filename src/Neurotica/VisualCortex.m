@@ -244,8 +244,8 @@ FSAverageSymRetinotopy := With[
         Transpose @ MapThread[
           Function[{pa, e, a},
             Which[
-              Abs[a] < 1 || Abs[a] > 3, {None, None, None},
-              NumberQ[pa] && pa > 90.0, {pa, e, -Abs[a]},
+              Abs[a] < 1 || Abs[a] > 3,  {None, None, None},
+              NumberQ[pa] && pa > 90.0,  {pa, e, -Abs[a]},
               NumberQ[pa] && pa <= 90.0, {pa, e, Abs[a]},
               True, {None, None, None}]],
           Import[$FSAverageSymRetinotopicTemplateAddresses[#], "MGH"]& /@ {
