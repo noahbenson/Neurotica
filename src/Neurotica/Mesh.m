@@ -128,6 +128,11 @@ EdgeLengths[s, X] yields a list of the lengths of the edges if the given mesh s 
 EdgeLengthsTr::usage = "EdgeLengthsTr[s, Xt] is equivalent to EdgeLengths[s, Transpose[Xt]].";
 EdgeCoordinates::usage = "EdgeCoordinates[s] yields a list identical to EdgePairs[s] except that the vertex ids in the list have been replaced with the coordinates of each vertex.";
 
+IndexedEdgePairsTr::usage = "IndexedEdgePairsTr[mesh] is identical to Transpose@IndexedEdgePairs[mesh].";
+IndexedEdgePairs::usage = "IndexedEdgePairs[mesh] is identical to VertexIndex[mesh, EdgePairs[mesh]].";
+IndexedFaceListTr::usage = "IndexedFaceListTr[mesh] is identical to Transpose@IndexedFaceList[mesh].";
+IndexedFaceList::usage = "IndexedFaceList[mesh] is identical to VertexIndex[mesh, FaceList[mesh]].";
+
 VertexFaceMatrix::usage = "VertexFaceMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if vertex j is the k'th part of face i and 0 if not (where m is the number of faces in the mesh M).";
 VertexEdgeMatrix::usage = "VertexEdgeMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if vertex j is the k'th part of edge i and 0 if not (where m is the number of edges in the mesh M).";
 EdgeFaceMatrix::usage = "VertexFaceMatrix[M] yields a SparseArray matrix S such that each element S[[m*k + i,j]] of S is equal to 0 if edge j is the kth part of face i and 0 if not (where m is the number of faces in the mesh M).";
@@ -193,6 +198,14 @@ CorticalColorSchema[property -> function] indicates that the given function shou
 CorticalColorSchema[All -> function] indicates that the given function should accept three arguments: the vertex id, the vertex coordinate, and the vertex property list; the fun
 ction must return a color or $Failed or None.";
 
+VertexPropertyAssociation::usage = "VertexPropertyAssociation[mesh] yields an association whose keys are the property names of the vertices of the given mesh and whose values are the lists of properties for each vertex.";
+EdgePropertyAssociation::usage = "EdgePropertyAssociation[mesh] yields an association whose keys are the property names of the edges of the given mesh and whose values are the lists of properties for each edge.";
+FacePropertyAssociation::usage = "FacePropertyAssociation[mesh] yields an association whose keys are the property names of the faces of the given mesh and whose values are the lists of properties for each face.";
+
+VertexDataset::usage = "VertexDataset[mesh] yields a dataset of the vertex properties for the given mesh.";
+EdgeDataset::usage = "EdgeDataset[mesh] yields a dataset of the edge properties for the given mesh.";
+FaceDataset::usage = "FaceDataset[mesh] yields a dataset of the face properties for the given mesh.";
+
 VertexPropertyList::usage   = "VertexPropertyList[mesh, prop] is equivalent to PropertyList[{mesh, VertexList}, prop].";
 EdgePropertyList::usage     = "EdgePropertyList[mesh, prop] is equivalent to PropertyList[{mesh, EdgeList}, prop].";
 FacePropertyList::usage     = "FacePropertyList[mesh, prop] is equivalent to PropertyList[{mesh, FaceList}, prop].";
@@ -205,6 +218,9 @@ SetFaceProperties::usage    = "SetFaceProperties[mesh, prop] is equivalent to Se
 RemoveVertexProperty::usage = "RemoveVertexProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, VertexList}, prop].";
 RemoveEdgeProperty::usage   = "RemoveEdgeProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, EdgeList}, prop].";
 RemoveFaceProperty::usage   = "RemoveFaceProperty[mesh, prop] is equivalent to RemoveProperty[{mesh, FaceList}, prop].";
+
+EdgeVertexProperties::usage = "EdgeVertexProperties[mesh] yields a 2 x n matrix (n = number of edges in the given mesh) in which row i gives the pair of associations of vertex properties for the two vertices in the i'th edge of the mesh.";
+FaceVertexProperties::usage = "FaceVertexProperties[mesh] yields a 3 x n matrix (n = number of faces in the given mesh) in which row i gives the three associations of vertex properties for the vertices in the i'th face of the mesh.";
 
 MapPropertyValues::usage = "MapPropertyValues[f, mesh] yields the result of applying the function f to each an association of the property values in the given mesh for each vertex in order; this is using MapNamed[] on the collection of property values for mesh, but any property not explicitly used in f will not be explicitly reified by the underlying mechanics, meaning unloaded properties remain unloaded. Two additional properties are added to each vertex, edge, or face mapped over: for vertices these are \"Vertex\" (the vertex id) and \"Coordinate\" (the 2D or 3D coordinate vector); for edges and faces, these are \"Vertices\" and \"Coordinates\" which are a list of vertex ids and a list of coordinate vectors, respectively.";
 
@@ -860,6 +876,13 @@ $CortexPlot3DOptions = Join[
    FaceRenderingFunction -> Automatic}];
 Protect[$CortexPlot3DOptions];
 
+(* These properties of meshes are read-only: *)
+$VertexReadOnlyProperties = {"VertexIndex", "VertexLabel", "VertexNormals"};
+$EdgeReadOnlyProperties = {"VertexIndex", "VertexLabel", "VertexCoordinates",
+                           "EdgeWeight", "EdgeLengths", "VertexProperties"};
+$FaceReadOnlyProperties = {"VertexIndex", "VertexLabel", "VertexCoordinates",
+                           "FaceNormals", "VertexProperties"};
+
 (* #CorticalMesh *)
 Options[CorticalMesh] = Join[
   $CortexPlot3DOptions,
@@ -985,6 +1008,15 @@ DefineImmutable[
        Max[Join@@FaceListTr[mesh]] > VertexCount[mesh], Message[
          CorticalMesh::badarg, 
          "FaceList conatins values greater than the number of vertices"],
+       Length@Intersection[VertexProperties[mesh][[All,1]], $VertexReadOnlyProperties] > 0, Message[
+         CorticalMesh::badarg,
+         "Unable to set read-only vertex property"],
+       Length@Intersection[EdgeProperties[mesh][[All,1]], $EdgeReadOnlyProperties] > 0, Message[
+         CorticalMesh::badarg,
+         "Unable to set read-only edge property"],
+       Length@Intersection[FaceProperties[mesh][[All,1]], $FaceReadOnlyProperties] > 0, Message[
+         CorticalMesh::badarg,
+         "Unable to set read-only face property"],
        And[
          Options[mesh] =!= Automatic,
          Complement[
@@ -998,6 +1030,13 @@ DefineImmutable[
 
      (* ======================================== Delays ========================================= *)
 
+     (* These indices are simple conversions of the vertex labels into vertex indices: *)
+     IndexedEdgePairsTr[mesh] :> VertexIndex[mesh, EdgePairsTr[mesh]],
+     IndexedEdgePairs[mesh] := Transpose@IndexedEdgePairsTr[mesh],
+     IndexedEdgeList[mesh] := UndirectedEdge@@@IndexedEdgePairs[mesh],
+     IndexedFaceListTr[mesh] :> VertexIndex[mesh, FaceListTr[mesh]],
+     IndexedFaceList[mesh] :> Transpose@IndexedFaceListTr[mesh],
+     
      (* These indices depend only on the face list and edge pairs and tell us to which faces a
       * vertex or an edge belongs.
       *)
@@ -1056,6 +1095,66 @@ DefineImmutable[
               {VertexList, EdgeList, FaceList}}]],
          allPropNames]],
 
+     EdgeVertexProperties[mesh] :> With[
+       {pp = Properties[mesh],
+        p = Normal@VertexDataset[mesh]},
+       Transpose[p[[#]]& /@ IndexedEdgePairsTr[mesh]]],
+     FaceVertexProperties[mesh] :> With[
+       {pp = Properties[mesh],
+        p = Normal@VertexDataset[mesh],
+        F = IndexedFaceListTr[mesh]},
+       Transpose[p[[#]]& /@ F]],
+     
+     (* Vertex, Edge, and Face Property associations and datasets *)
+     VertexPropertyAssociation[mesh] :> With[
+       {pp = Properties[mesh]}, (* this is a dependency, basically *)
+       Association@Table[
+         prop -> VertexPropertyValues[mesh, prop],
+         {prop, PropertyList[{mesh, VertexList}]}]],
+     VertexDataset[mesh] :> With[
+       {cols = VertexPropertyList[mesh],
+        n = VertexCount[mesh],
+        pp = Properties[mesh]},
+       Dataset@Map[
+         Function@Association@Thread[cols -> #],
+         Transpose@Replace[
+           Map[Function@VertexPropertyValues[mesh, #], cols],
+           Except[_List] :> ConstantArray[$Failed, n],
+           {1}]]],
+     EdgePropertyAssociation[mesh] :> With[
+       {dep1 = Properties[mesh],
+        dep2 = EdgeVertexProperties[mesh]},
+       Association@Table[
+         prop -> EdgePropertyValues[mesh, prop],
+         {prop, EdgePropertyList[mesh]}]],
+     EdgeDataset[mesh] :> With[
+       {cols = EdgePropertyList[mesh],
+        n = EdgeCount[mesh],
+        dep1 = Properties[mesh],
+        dep2 = EdgeVertexProperties[mesh]},
+       Dataset@Map[
+         Function@Association@Thread[cols -> #],
+         Transpose@Replace[
+           Map[Function@EdgePropertyValues[mesh, #], cols],
+           Except[_List] :> ConstantArray[$Failed, n],
+           {1}]]],
+     FacePropertyAssociation[mesh] :> With[
+       {dep1 = Properties[mesh],
+        dep2 = FaceVertexProperties[mesh]},
+       Association@Table[
+         prop -> FacePropertyValues[mesh, prop],
+         {prop, FacePropertyList[mesh]}]],
+     FaceDataset[mesh] :> With[
+       {cols = FacePropertyList[mesh],
+        n = FaceCount[mesh],
+        dep1 = Properties[mesh],
+        dep2 = FaceVertexProperties[mesh]},
+       Dataset@Map[
+         Function@Association@Thread[cols -> #],
+         Transpose@Replace[
+           Map[Function@FacePropertyValues[mesh, #], cols],
+           Except[_List] :> ConstantArray[$Failed, n],
+           {1}]]],
 
 
      (* ======================================== Methods ======================================== *)
@@ -1069,7 +1168,7 @@ DefineImmutable[
      EdgeCount[mesh, patt_] := Count[EdgePairs[mesh], patt, {1}],
      
      (* EdgeList is here just for the compatibility with graph-like operations (use EdgePairs) *)
-     EdgeList[mesh] := ReplacePart[EdgePairs[mesh], {_,0} -> UndirectedEdge],
+     EdgeList[mesh] := UndirectedEdges@@@EdgePairs[mesh],
      EdgeList[mesh, patt_] := Cases[EdgeList[mesh], patt, {1}],
      
      (* Untransposed accessors to basic data *)
@@ -1081,7 +1180,10 @@ DefineImmutable[
      VertexList[mesh, patt_] := Cases[VertexList[mesh], patt, {1}],
      
      (* #PropertyList method extension *)
-     PropertyList[mesh] := Join[Properties[mesh][[All, 1]], {EdgeWeight, VertexCoordinates}],
+     PropertyList[mesh] := Union[
+       VertexPropertyList[mesh],
+       EdgePropertyList[mesh],
+       FacePropertyList[mesh]],
      
      (* A few simple extensions of the private indices above *)
      (* #FaceIndex *)
@@ -1594,8 +1696,71 @@ DefineImmutable[
               {VertexList, EdgeList, FaceList}}]],
          allPropNames]],
 
+     EdgeVertexProperties[map] :> With[
+       {pp = Properties[map],
+        p = Normal@VertexDataset[map]},
+       Transpose[p[[#]]& /@ IndexedEdgePairsTr[map]]],
+     FaceVertexProperties[map] :> With[
+       {pp = Properties[map],
+        p = Normal@VertexDataset[map]},
+       Transpose[p[[#]]& /@ IndexedFaceListTr[map]]],
+     
+     (* Vertex, Edge, and Face Property associations and datasets *)
+     VertexPropertyAssociation[map] :> With[
+       {pp = Properties[map]},
+       Association@Table[
+         prop -> VertexPropertyValues[map, prop],
+         {prop, VertexPropertyList[map]}]],
+     VertexDataset[map] :> With[
+       {cols = VertexPropertyList[map],
+        n = VertexCount[map],
+        pp = Properties[map]},
+       Dataset@Map[
+         Function@Association@Thread[cols -> #],
+         Transpose@Replace[
+           Map[Function@VertexPropertyValues[map, #], cols],
+           Except[_List] :> ConstantArray[$Failed, n],
+           {1}]]],
+     EdgePropertyAssociation[map] :> With[
+       {dep1 = Properties[map],
+        dep2 = EdgeVertexProperties[map]},
+       Association@Table[
+         prop -> EdgePropertyValues[map, prop],
+         {prop, EdgePropertyList[map]}]],
+     EdgeDataset[map] :> With[
+       {cols = EdgePropertyList[map],
+        n = EdgeCount[map],
+        dep1 = Properties[map],
+        dep2 = EdgeVertexProperties[map]},
+       Dataset@Map[
+         Function@Association@Thread[cols -> #],
+         Transpose@Replace[
+           Map[Function@EdgePropertyValues[map, #], cols],
+           Except[_List] :> ConstantArray[$Failed, n],
+           {1}]]],
+     FacePropertyAssociation[map] :> With[
+       {dep1 = Properties[map],
+        dep2 = FaceVertexProperties[map]},
+       Association@Table[
+         prop -> FacePropertyValues[map, prop],
+         {prop, FacePropertyList[map]}]],
+     FaceDataset[map] :> With[
+       {cols = FacePropertyList[map],
+        n = FaceCount[map],
+        dep1 = Properties[map],
+        dep2 = FaceVertexProperties[map]},
+       Dataset@Map[
+         Function@Association@Thread[cols -> #],
+         Transpose@Replace[
+           Map[Function@FacePropertyValues[map, #], cols],
+           Except[_List] :> ConstantArray[$Failed, n],
+           {1}]]],
+
      (* #PropertyList *)
-     PropertyList[map] := Join[Properties[map][[All, 1]], {EdgeWeight, VertexCoordinates}],
+     PropertyList[map] := Union[
+       VertexPropertyList[map],
+       EdgePropertyList[map],
+       FacePropertyList[map]],
      (* Note that property value and set property are below, outside the immutable definition *)
 
 
@@ -1633,6 +1798,15 @@ DefineImmutable[
 
      (* #CorticalMapQ *)
      CorticalMapQ[map] -> Which[
+       Length@Intersection[VertexProperties[map][[All,1]], $VertexReadOnlyProperties] > 0, Message[
+         CorticalMap::badarg,
+         "Unable to set read-only vertex property"],
+       Length@Intersection[EdgeProperties[map][[All,1]], $EdgeReadOnlyProperties] > 0, Message[
+         CorticalMap::badarg,
+         "Unable to set read-only edge property"],
+       Length@Intersection[FaceProperties[map][[All,1]], $FaceReadOnlyProperties] > 0, Message[
+         CorticalMap::badarg,
+         "Unable to set read-only face property"],
        And[
          Options[map] =!= Automatic,
          Complement[
@@ -1699,6 +1873,13 @@ DefineImmutable[
      
 
      (* ======================================== Delays ========================================= *)
+
+     (* These indices are simple conversions of the vertex labels into vertex indices: *)
+     IndexedEdgePairsTr[map] :> VertexIndex[map, EdgePairsTr[map]],
+     IndexedEdgePairs[map] := Transpose@IndexedEdgePairsTr[map],
+     IndexedEdgeList[map] := UndirectedEdge@@@IndexedEdgePairs[map],
+     IndexedFaceListTr[map] :> VertexIndex[map, FaceListTr[map]],
+     IndexedFaceList[map] :> Transpose@IndexedFaceListTr[map],
 
      (* These indices depend only on the face list and edge pairs and tell us to which faces a
         * vertex or an edge belongs.
@@ -2000,7 +2181,7 @@ DefineImmutable[
      (* ======================================= Interfaces ====================================== *)
 
      (* Labels *)
-     LabelVertexList[map, args___] := CorticalLabelVertexList[mesh, args],
+     LabelVertexList[map, args___] := CorticalLabelVertexList[map, args],
 
      (* #BoundaryMeshRegion *)
      BoundaryMeshRegion[map] :> BoundaryMeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
@@ -2192,7 +2373,9 @@ Protect[CorticalMesh, CorticalMeshQ, Inclusions, VertexCoordinates, VertexCoordi
         FaceCoordinates, FaceCoordinatesTr, FacePlaneCoordinates, FacePlaneCoordinatesTr, 
         FaceNormals, FaceNormalsTr, EdgeLengths, NeighborhoodList, NeighborhoodAngles, 
         NeighborhoodBisectors, NeighborhoodEdgeLengths, SourceImage, VertexEdgeList, VertexFaceList,
-        EdgeFaceList];
+        EdgeFaceList, IndexedEdgeList, IndexedFaceList, IndexedEdgeListTr, IndexedFaceListTr,
+        IndexedEdgePairs, IndexedEdgePairsTr, VertexPropertyAssociation, EdgePropertyAssociation,
+        FacePropertyAssociation, VertexDataset, EdgeDataset, FaceDataset];
 
 
 (**************************************************************************************************)
@@ -2207,45 +2390,82 @@ PropertyValue[mesh_?CorticalObjectQ, prop:Except[_List]] := With[
      prop,
      Join[
        Properties[mesh],
-       {EdgeWeight :> {
+       {VertexCoordinates|"VertexCoordinates" :> {
+          VertexList -> VertexCoordinates[mesh],
+          EdgeList -> EdgeCoordinates[mesh],
+          FaceList -> FaceCoordinates[mesh]},
+        VertexList|"VertexList" :> {
+          VertexList -> VertexList[mesh],
+          EdgeList -> EdgePairs[mesh],
+          FaceList -> FaceList[mesh]},
+        VertexIndex|"VertexIndex" :> {
+          VertexList -> Range@VertexCount[mesh],
+          EdgeList -> IndexedEdgePairs[mesh],
+          FaceList -> IndexedFaceList[mesh]},
+        VertexNormals|"VertexNormals" :> {
+          VertexList -> VertexNormals[mesh],
+          EdgeList -> $Failed,
+          FaceList -> $Failed},
+        EdgeWeight|"EdgeWeight"|EdgeLengths|"EdgeLengths" :> {
           VertexList -> $Failed,
           EdgeList -> EdgeLengths[mesh],
           FaceList -> $Failed},
-        VertexCoordinates :> {
-          VertexList -> VertexCoordinates[mesh],
+        FaceNormals|"FaceNormals" :> {
+          VertexList -> $Failed,
           EdgeList -> $Failed,
-          FaceList -> $Failed}}]]},
+          FaceList -> FaceNormals[mesh]},
+        VertexProperties|"VertexProperties" :> {
+          VertexList -> $Failed,
+          EdgeList -> EdgeVertexProperties[mesh],
+          FaceList -> FaceVertexProperties[mesh]}}]]},
   If[list === prop || list === $Failed,
     $Failed,
     list]];
 PropertyValue[{mesh_?CorticalObjectQ, VertexList}, prop:Except[_List]] := With[
   {list = Replace[prop, Properties[mesh]]},
   If[list === prop || list === $Failed,
-    If[prop === VertexCoordinates, VertexCoordinates[mesh], $Failed],
+    Switch[prop,
+      VertexCoordinates|"VertexCoordinates", VertexCoordinates[mesh],
+      VertexNormals|"VertexNormals", If[CorticalMeshQ[mesh], VertexNormals[mesh], $Failed],
+      VertexList|"VertexList", VertexList[mesh],
+      VertexIndex|"VertexIndex", Range@VertexCount[mesh],
+      _, $Failed],
     list[[1,2]]]];
 PropertyValue[{mesh_?CorticalObjectQ, EdgeList}, prop:Except[_List]] := With[
   {list = Replace[prop, Properties[mesh]]},
   If[list === prop || list === $Failed,
-    If[prop === EdgeWeight, EdgeLengths[mesh], $Failed],
+    Switch[prop,
+      EdgeWeight|"EdgeWeight"|EdgeLengths|"EdgeLengths", EdgeLengths[mesh],
+      VertexCoordinates|"VertexCoordinates", EdgeCoordinates[mesh],
+      VertexList|"VertexList", EdgePairs[mesh],
+      VertexIndex|"VertexIndex", IndexedEdgePairs[mesh],
+      VertexProperties|"VertexProperties", EdgeVertexProperties[mesh],
+      _, $Failed],
     list[[2,2]]]];
 PropertyValue[{mesh_?CorticalObjectQ, FaceList}, prop:Except[_List]] := With[
   {list = Replace[prop, Properties[mesh]]},
   If[list === prop || list === $Failed,
-    $Failed,
+    Switch[prop,
+      FaceNormals|"FaceNormals", If[CorticalMeshQ[mesh], FaceNormals[mesh], $Failed],
+      VertexCoordinates|"VertexCoordinates", FaceCoordinates[mesh],
+      VertexList|"VertexList", FaceList[mesh],
+      VertexIndex|"VertexIndex", IndexedFaceList[mesh],
+      VertexProperties|"VertexProperties", FaceVertexProperties[mesh],
+      _, $Failed],
     list[[3,2]]]];
 PropertyValue[{mesh_?CorticalObjectQ, i_Integer}, prop:Except[_List]] := With[
-  {list = Replace[prop, Properties[mesh]]},
-  If[list === prop || list === $Failed || list[[1]] === $Failed,
-    If[prop === VertexCoordinates, VertexCoordinates[mesh][[i]], $Failed],
+  {list = PropertyValue[{mesh, VertexList}, prop]},
+  If[list === $Failed || list[[1]] === $Failed,
+    $Failed,
     list[[1, 2]][[i]]]];
 PropertyValue[{mesh_?CorticalObjectQ, e:(List|UndirectedEdge)[_Integer, _Integer]}, 
               prop:Except[_List]] := With[
-  {list = Replace[prop, Properties[mesh]]},
+  {list = PropertyValue[{mesh, EdgeList}, prop]},
   If[list === prop || list === $Failed || list[[2]] === $Failed,
-    If[prop === EdgeWeight, EdgeLengths[mesh][[EdgeIndex[mesh, e]]], $Failed],
+    $Failed,
     list[[2, 2]][[EdgeIndex[mesh, e]]]]];
 PropertyValue[{mesh_?CorticalObjectQ, f:{_Integer, _Integer, _Integer}}, prop:Except[_List]] := With[
-  {list = Replace[prop, Properties[mesh]]},
+  {list = PropertyValue[{mesh, FaceList}, prop]},
   If[list === prop || list === $Failed || list[[3]] === $Failed,
     $Failed,
     list[[3, 2]][[FaceIndex[mesh, f]]]]];
@@ -2253,31 +2473,40 @@ PropertyValue[mesh_?CorticalObjectQ, prop_List] := Map[PropertyValue[mesh, #]&, 
 PropertyValue[{mesh_?CorticalObjectQ, x_}, prop_List] := Map[PropertyValue[{mesh, x}, #]&, prop];
 
 (* PropertyList stuff *)
-PropertyList[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}] := With[
+PropertyList[{mesh_?CorticalMeshQ, type:(VertexList|EdgeList|FaceList)}] := With[
   {props = Properties[mesh],
    idx = Replace[type, {VertexList -> 1, EdgeList -> 2, FaceList ->3}]},
   Join[
+    {"VertexList", "VertexIndex", "VertexCoordinates"},
     Select[props, (Hold @@ #[[2,idx]])[[{2}]] =!= Hold[$Failed]&][[All, 1]],
-    Which[type === VertexList, {VertexCoordinates}, type === EdgeList, {EdgeWeight}, True, {}]]];
+    Which[
+      type === VertexList, {"VertexNormals"},
+      type === EdgeList,   {"EdgeWeight", "VertexProperties"},
+      True,                {"FaceNormals", "VertexProperties"}]]];
+PropertyList[{mesh_?CorticalMapQ, type:(VertexList|EdgeList|FaceList)}] := With[
+  {props = Properties[mesh],
+   idx = Replace[type, {VertexList -> 1, EdgeList -> 2, FaceList ->3}]},
+  Join[
+    {"VertexList", "VertexIndex", "VertexCoordinates"},
+    Select[props, (Hold @@ #[[2,idx]])[[{2}]] =!= Hold[$Failed]&][[All, 1]],
+    Which[
+      type === VertexList, {},
+      type === EdgeList,   {"EdgeWeight", "VertexProperties"},
+      True,                {"VertexProperties"}]]];
 PropertyList[{mesh_?CorticalObjectQ, i_Integer}] := With[
-  {props = Properties[mesh]},
-  Append[
-    Select[props, And[ListQ[#[[2,1,2]]], #[[2,1,2,i]] =!= $Failed]&][[All, 1]],
-    VertexCoordinates]];
+  {props = VertexPropertyList[mesh]},
+  Select[props, PropertyValue[{mesh, i}, #] =!= $Failed&]];
 PropertyList[{mesh_?CorticalObjectQ, e:(List|UndirectedEdge)[_Integer, _Integer]}] := With[
-  {props = Properties[mesh],
-   idx = EdgeIndex[mesh, e]},
-  Append[
-    Select[props, And[ListQ[#[[2,2,2]]], #[[2,2,2,idx]] =!= $Failed]&][[All, 1]],
-    EdgeWeight]];
+  {props = EdgePropertyList[mesh]},
+  Select[props, PropertyValue[{mesh, e}, #] =!= $Failed&]];
 PropertyList[{mesh_?CorticalObjectQ, f:{_Integer, _Integer, _Integer}}] := With[
-  {props = Properties[mesh],
-   idx = FaceIndex[mesh, f]},
-  Select[props, And[ListQ[#[[2,3,2]]], #[[2,3,2,idx]] =!= $Failed]&][[All, 1]]];
+  {props = FacePropertyList[mesh]},
+  Select[props, PropertyValue[{mesh, f}, #] =!= $Failed&]];
 
 (* SetProperty stuff... *)
 
-SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ -> vals_List] := With[
+SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)},
+            prop_ -> vals_List] := With[
   {allList = Switch[type, 
      VertexList, VertexProperties[mesh],
      EdgeList, EdgeProperties[mesh],
@@ -2289,12 +2518,11 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
     Which[
       Length[vals] != Length[type[mesh]], $Failed,
       (* If the property doesn't yet exist, add it. *)
-      list === prop || list === $Failed, Which[
-        prop === VertexCoordinates, If[type === VertexList,
+      list === prop || list === $Failed, Switch[prop,
+        VertexCoordinates|"VertexCoordinates", If[type === VertexList,
           Clone[mesh, VertexCoordinatesTr -> Transpose[vals]],
           $Failed],
-        prop === EdgeWeight, $Failed,
-        True, Clone[mesh, propType -> Append[allList, prop -> vals]]],
+        _, Clone[mesh, propType -> Append[allList, prop -> vals]]],
       (* If the property already exists, we overwrite it *)
       True, Clone[
         mesh,
@@ -2317,12 +2545,11 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
         (sym = res)]];
     If[list === prop || list === $Failed, 
       (* If the property doesn't yet exist, add it. *)
-      Which[
-        prop === VertexCoordinates, If[type === VertexList,
+      Switch[prop,
+        VertexCoordinates|"VertexCoordinates", If[type === VertexList,
           Clone[mesh, VertexCoordinatesTr -> Transpose[vals]],
           $Failed],
-        prop === EdgeWeight, $Failed,
-        True, Clone[mesh, propType -> Append[allList, (prop :> sym)]]],
+        _, Clone[mesh, propType -> Append[allList, (prop :> sym)]]],
       (* If the property already exists, we overwrite it *)
       Clone[
         mesh,
@@ -2331,7 +2558,7 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
 (* bulk property setting *)
 SetProperty[{mesh_?CorticalObjectQ,
              type:(VertexList|EdgeList|FaceList)}, rs:{(_Rule|_RuleDelayed)..}] := Fold[
-  SetProperty[{#1, type}, #2]&,
+  If[#1 === $Failed, $Failed, SetProperty[{#1, type}, #2]]&,
   mesh,
   rs];
 (* confused property setting (note that :> is not valid here) *)
@@ -2471,15 +2698,15 @@ Unprotect[CorticalMesh2D, CorticalMesh3D];
 (* Add a Vertex property *)
 CorticalMesh2D /: ReplaceAll[m_CorticalMesh2D, repl_] := SetProperty[{m, VertexList}, repl];
 CorticalMesh3D /: ReplaceAll[m_CorticalMesh3D, repl_] := SetProperty[{m, VertexList}, repl];
-(* Add an Edge property *)
-CorticalMesh2D /: ReplaceRepeated[m_CorticalMesh2D, repl_] := SetProperty[{m, EdgeList}, repl];
-CorticalMesh3D /: ReplaceRepeated[m_CorticalMesh3D, repl_] := SetProperty[{m, EdgeList}, repl];
+(* Add a Face property *)
+CorticalMesh2D /: ReplaceRepeated[m_CorticalMesh2D, repl_] := SetProperty[{m, FaceList}, repl];
+CorticalMesh3D /: ReplaceRepeated[m_CorticalMesh3D, repl_] := SetProperty[{m, FaceList}, repl];
 (* Get a Vertex property *)
 CorticalMesh2D /: ReplaceAll[repl_, m_CorticalMesh2D] := PropertyValue[{m, VertexList}, repl];
 CorticalMesh3D /: ReplaceAll[repl_, m_CorticalMesh3D] := PropertyValue[{m, VertexList}, repl];
-(* Get an Edge property *)
-CorticalMesh2D /: ReplaceRepeated[repl_, m_CorticalMesh2D] := PropertyValue[{m, EdgeList}, repl];
-CorticalMesh3D /: ReplaceRepeated[repl_, m_CorticalMesh3D] := PropertyValue[{m, EdgeList}, repl];
+(* Get an Face property *)
+CorticalMesh2D /: ReplaceRepeated[repl_, m_CorticalMesh2D] := PropertyValue[{m, FaceList}, repl];
+CorticalMesh3D /: ReplaceRepeated[repl_, m_CorticalMesh3D] := PropertyValue[{m, FaceList}, repl];
 Protect[CorticalMesh2D, CorticalMesh3D];
 
 (* Individualized property functions *)
