@@ -2747,50 +2747,50 @@ MapFaces[f_, mesh_?CorticalObjectQ] := Map[f, Normal@FaceDataset[mesh]];
 (* #SelectVertices ********************************************************************************)
 SelectVertices[mesh_?CorticalObjectQ, f_] := Pick[
   VertexList[mesh],
-  Normal@VertexDataset[mesh],
-  _?f];
+  f /@ Normal@VertexDataset[mesh],
+  True];
 
 (* #SelectEdges ***********************************************************************************)
 SelectEdges[mesh_?CorticalObjectQ, f_] := Pick[
   EdgeList[mesh],
-  Normal@EdgeDataset[mesh],
-  _?f];
+  f /@ Normal@EdgeDataset[mesh],
+  True];
 
 (* #SelectFaces ***********************************************************************************)
 SelectFaces[mesh_?CorticalObjectQ, f_] := Pick[
   FaceList[mesh],
-  Normal@FaceDataset[mesh],
-  _?f];
+  f /@ Normal@FaceDataset[mesh],
+  True];
 
 (* #SelectVertexIndices ***************************************************************************)
 SelectVertexIndices[mesh_?CorticalObjectQ, f_] := Pick[
   Range@VertexCount[mesh],
-  Normal@VertexDataset[mesh],
-  _?f];
+  f /@ Normal@VertexDataset[mesh],
+  True];
 
 (* #SelectEdgeIndices *****************************************************************************)
 SelectEdgeIndices[mesh_?CorticalObjectQ, f_] := Pick[
   Range@EdgeCount[mesh],
-  Normal@EdgeDataset[mesh],
-  _?f];
+  f /@ Normal@EdgeDataset[mesh],
+  True];
 
 (* #SelectFaceIndices *****************************************************************************)
 SelectFaceIndices[mesh_?CorticalObjectQ, f_] := Pick[
   Range@FaceCount[mesh],
-  Normal@FaceDataset[mesh],
-  _?f];
+  f /@ Normal@FaceDataset[mesh],
+  True];
 
 (* #SelectIndexedEdges ****************************************************************************)
 SelectIndexedEdges[mesh_?CorticalObjectQ, f_] := Pick[
   IndexedEdgeList[mesh],
-  Normal@EdgeDataset[mesh],
-  _?f];
+  f /@ Normal@EdgeDataset[mesh],
+  True];
 
 (* #SelectIndexedFaces ****************************************************************************)
 SelectIndexedFaces[mesh_?CorticalObjectQ, f_] := Pick[
   IndexedFaceList[mesh],
-  Normal@FaceDataset[mesh],
-  _?f];
+  f /@ Normal@FaceDataset[mesh],
+  True];
 
 Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList,
         VertexPropertyList, EdgePropertyList, FacePropertyList, VertexPropertyValues,
@@ -3616,20 +3616,6 @@ LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]]
   Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name, opts],
   $Failed];
 Protect[LabelBoundaryVertexCoordinates];
-
-(* #CortexSelect **********************************************************************************)
-CortexSelect[mesh_?CorticalObjectQ, f_] := Pick[
-  VertexList[mesh],
-  MapVertexData[f, mesh],
-  True];
-Protect[CortexSelect];
-
-(* #CortexCases ***********************************************************************************)
-CortexCases[mesh_?CorticalObjectQ, props_, patt_] := Pick[
-  VertexList[mesh],
-  Map[MatchQ[patt], If[ListQ[props], Transpose[#], #]& @ VertexPropertyValues[mesh, props]],
-  True];
-Protect[CortexCases];
 
 (* #OccipitalPole *********************************************************************************)
 OccipitalPole[sub_, hemi_?HemisphereQ, mesh_] := Check[
