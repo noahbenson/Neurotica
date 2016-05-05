@@ -222,7 +222,19 @@ RemoveFaceProperty::usage   = "RemoveFaceProperty[mesh, prop] is equivalent to R
 EdgeVertexProperties::usage = "EdgeVertexProperties[mesh] yields a 2 x n matrix (n = number of edges in the given mesh) in which row i gives the pair of associations of vertex properties for the two vertices in the i'th edge of the mesh.";
 FaceVertexProperties::usage = "FaceVertexProperties[mesh] yields a 3 x n matrix (n = number of faces in the given mesh) in which row i gives the three associations of vertex properties for the vertices in the i'th face of the mesh.";
 
-MapPropertyValues::usage = "MapPropertyValues[f, mesh] yields the result of applying the function f to each an association of the property values in the given mesh for each vertex in order; this is using MapNamed[] on the collection of property values for mesh, but any property not explicitly used in f will not be explicitly reified by the underlying mechanics, meaning unloaded properties remain unloaded. Two additional properties are added to each vertex, edge, or face mapped over: for vertices these are \"Vertex\" (the vertex id) and \"Coordinate\" (the 2D or 3D coordinate vector); for edges and faces, these are \"Vertices\" and \"Coordinates\" which are a list of vertex ids and a list of coordinate vectors, respectively.";
+MapVertices::usage = "MapVertices[f, mesh] is equivalent to Map[f, Normal@VertexDataset[mesh]].";
+MapEdges::usage = "MapEdges[f, mesh] is equivalent to Map[f, Normal@EdgeDataset[mesh]].";
+MapFaces::usage = "MapFaces[f, mesh] is equivalent to Map[f, Normal@FaceDataset[mesh]].";
+
+SelectVertices::usage = "SelectVertices[mesh, f] is equivalent to Pick[VertexList[mesh], Normal@VertexDataset[map], x_ /; TrueQ[f[x]]].";
+SelectEdges::usage = "SelectEdges[mesh, f] is equivalent to Pick[EdgeList[mesh], Normal@EdgeDataset[map], x_ /; TrueQ[f[x]]].";
+SelectFaces::usage = "SelectFaces[mesh, f] is equivalent to Pick[FaceList[mesh], Normal@FaceDataset[map], x_ /; TrueQ[f[x]]].";
+
+SelectVertexIndices::usage = "SelectVertexIndices[mesh, f] is equivalent to VertexIndex[mesh, SelectVertices[mesh, f]].";
+SelectEdgeIndices::usage = "SelectEdgeIndices[mesh, f] is equivalent to EdgeIndex[mesh, SelectEdges[mesh, f]].";
+SelectFaceIndices::usage = "SelectFaceIndices[mesh, f] is equivalent to FaceIndex[mesh, SelectFaces[mesh, f]].";
+SelectIndexedEdges::usage = "SelectIndexedEdges[mesh, f] is equivalent to VertexIndex[mesh, SelectEdges[mesh, f]].";
+SelectIndexedFaces::usage = "SelectIndexedFaces[mesh, f] is equivalent to VertexIndex[mesh, SelectFaces[mesh, f]].";
 
 Reproject::usage = "Reproject[map, X] yields a map identical to the given map except that it reprojects its coordinates from the alternate coordinate list for the original mesh, given by X. If X is instead a mesh with the same number of elements as the original mesh, then its coordinates are used.";
 ReporjectTr::usage = "ReprojectTr[map, Xt] is equivalent to Reproject[map, Transpose[Xt]].";
@@ -275,10 +287,6 @@ Note that if you are defining a new subject modality, then you only need to defi
 LabelBoundaryEdgePairsTr::usage = "LabelBoundaryEdgePairsTr[sub, hemi, name] yields a list equivalent to Transpose[LabelBoundaryEdgePairs[sub, hemi]].";
 LabelBoundaryEdgePairs::usage = "LabelBoundaryEdgePairs[sub, hemi, name] yields a list of the edge pairs rather than the edges themselves that are returned by LabelEdgeList.";
 LabelBoundaryEdgePairs::badarg = "Bad argument given to LabelBoundary function: `1`";
-
-CortexSelect::usage = "CortexSelect[mesh, f] yields a list of the vertices in the given mesh such that, for vertex u, function f yields true when passed an Association of properties of u.";
-CortexCases::usage = "CortexCases[mesh, prop, patt] yields a list of the vertices in the given mesh such that the property values for the given property name, prop, matches the given pattern, patt.
-CortexCases[mesh, {prop1, prop2...}, patt] matches patt against the lsit of properties for each vertex.";
 
 OccipitalPole::usage = "OccipitalPole[subject, mesh, hemisphere] is usually defined by subject modalities (e.g., FreeSurferSubject[]) such that the function yields the vertex coordinate for the occipital pole in the particular mesh and hemisphere requested.
 Note that if you define a new subject modality, then defining OccipitalPoleIndex[] for the subject should be sufficient.";
@@ -2395,9 +2403,13 @@ PropertyValue[mesh_?CorticalObjectQ, prop:Except[_List]] := With[
           EdgeList -> EdgeCoordinates[mesh],
           FaceList -> FaceCoordinates[mesh]},
         VertexList|"VertexList" :> {
-          VertexList -> VertexList[mesh],
+          VertexList -> $Failed,
           EdgeList -> EdgePairs[mesh],
           FaceList -> FaceList[mesh]},
+        Label|"Label" :> {
+          VertexList -> VertexList[mesh],
+          EdgeList -> $Failed,
+          FaceList -> $Failed},
         VertexIndex|"VertexIndex" :> {
           VertexList -> Range@VertexCount[mesh],
           EdgeList -> IndexedEdgePairs[mesh],
@@ -2427,7 +2439,7 @@ PropertyValue[{mesh_?CorticalObjectQ, VertexList}, prop:Except[_List]] := With[
     Switch[prop,
       VertexCoordinates|"VertexCoordinates", VertexCoordinates[mesh],
       VertexNormals|"VertexNormals", If[CorticalMeshQ[mesh], VertexNormals[mesh], $Failed],
-      VertexList|"VertexList", VertexList[mesh],
+      Label|"Label", VertexList[mesh],
       VertexIndex|"VertexIndex", Range@VertexCount[mesh],
       _, $Failed],
     list[[1,2]]]];
@@ -2477,7 +2489,7 @@ PropertyList[{mesh_?CorticalMeshQ, type:(VertexList|EdgeList|FaceList)}] := With
   {props = Properties[mesh],
    idx = Replace[type, {VertexList -> 1, EdgeList -> 2, FaceList ->3}]},
   Join[
-    {"VertexList", "VertexIndex", "VertexCoordinates"},
+    {If[type === VertexList, "Label", "VertexList"], "VertexIndex", "VertexCoordinates"},
     Select[props, (Hold @@ #[[2,idx]])[[{2}]] =!= Hold[$Failed]&][[All, 1]],
     Which[
       type === VertexList, {"VertexNormals"},
@@ -2487,7 +2499,7 @@ PropertyList[{mesh_?CorticalMapQ, type:(VertexList|EdgeList|FaceList)}] := With[
   {props = Properties[mesh],
    idx = Replace[type, {VertexList -> 1, EdgeList -> 2, FaceList ->3}]},
   Join[
-    {"VertexList", "VertexIndex", "VertexCoordinates"},
+    {If[type === VertexList, "Label", "VertexList"], "VertexIndex", "VertexCoordinates"},
     Select[props, (Hold @@ #[[2,idx]])[[{2}]] =!= Hold[$Failed]&][[All, 1]],
     Which[
       type === VertexList, {},
@@ -2723,47 +2735,70 @@ RemoveVertexProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, Vert
 RemoveEdgeProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, EdgeList}, prop];
 RemoveFaceProperty[mesh_?CorticalObjectQ, prop_] := RemoveProperty[{mesh, FaceList}, prop];
 
-(* #MapPropertyValues *****************************************************************************)
-MapPropertyValues[f_, {mesh_?CorticalObjectQ, type:VertexList|EdgeList|FaceList}] := With[
-  {props = Switch[type,
-     VertexList, VertexProperties[mesh], 
-     EdgeList, EdgeProperties[mesh],
-     FaceList, FaceProperties[mesh]],
-   count = Switch[type,
-     VertexList, VertexCount[mesh], 
-     EdgeList, EdgeCount[mesh],
-     FaceList, FaceCount[mesh]],
-   coords = Switch[type,
-     VertexList, VertexCoordinates[mesh],
-     EdgeList, EdgeCoordinates[mesh],
-     FaceList, FaceCoordinates[mesh]],
-   ids = Switch[type,
-     VertexList, VertexList[mesh], 
-     EdgeList, EdgePairs[mesh],
-     FaceList, FaceList[mesh]],
-   ctxt = If[type === VertexList, "Coordinate", "Coordinates"],
-   vtct = If[type === VertexList, "Vertex", "Vertices"]},
-  MapThread[
-    Function[ f@Association@Join[#1, {ctxt -> #2, vtxt -> #3}] ],
-    With[
-      {typeProps = Map[
-         Function@If[Head[#] === Rule, 
-           Thread[#],
-           Replace[
-             Thread[{Range[count], ConstantArray[#, count]}],
-             {k_, x_ :> y_} :> (x :> Part[y, k]),
-             {1}]],
-         props]},
-      If[typeProps == {}, 
-        {ConstantArray[{}, count], coords, ids},
-        {Transpose[typeProps], coords, ids}]]]];
-MapPropertyValues[f_, mesh_?CorticalObjectQ] := MapPropertyValues[f, {mesh, VertexList}];
+(* #MapVertices ***********************************************************************************)
+MapVertices[f_, mesh_?CorticalObjectQ] := Map[f, Normal@VertexDataset[mesh]];
+
+(* #MapEdges **************************************************************************************)
+MapEdges[f_, mesh_?CorticalObjectQ] := Map[f, Normal@EdgeDataset[mesh]];
+
+(* #MapFaces **************************************************************************************)
+MapFaces[f_, mesh_?CorticalObjectQ] := Map[f, Normal@FaceDataset[mesh]];
+
+(* #SelectVertices ********************************************************************************)
+SelectVertices[mesh_?CorticalObjectQ, f_] := Pick[
+  VertexList[mesh],
+  Normal@VertexDataset[mesh],
+  _?f];
+
+(* #SelectEdges ***********************************************************************************)
+SelectEdges[mesh_?CorticalObjectQ, f_] := Pick[
+  EdgeList[mesh],
+  Normal@EdgeDataset[mesh],
+  _?f];
+
+(* #SelectFaces ***********************************************************************************)
+SelectFaces[mesh_?CorticalObjectQ, f_] := Pick[
+  FaceList[mesh],
+  Normal@FaceDataset[mesh],
+  _?f];
+
+(* #SelectVertexIndices ***************************************************************************)
+SelectVertexIndices[mesh_?CorticalObjectQ, f_] := Pick[
+  Range@VertexCount[mesh],
+  Normal@VertexDataset[mesh],
+  _?f];
+
+(* #SelectEdgeIndices *****************************************************************************)
+SelectEdgeIndices[mesh_?CorticalObjectQ, f_] := Pick[
+  Range@EdgeCount[mesh],
+  Normal@EdgeDataset[mesh],
+  _?f];
+
+(* #SelectFaceIndices *****************************************************************************)
+SelectFaceIndices[mesh_?CorticalObjectQ, f_] := Pick[
+  Range@FaceCount[mesh],
+  Normal@FaceDataset[mesh],
+  _?f];
+
+(* #SelectIndexedEdges ****************************************************************************)
+SelectIndexedEdges[mesh_?CorticalObjectQ, f_] := Pick[
+  IndexedEdgeList[mesh],
+  Normal@EdgeDataset[mesh],
+  _?f];
+
+(* #SelectIndexedFaces ****************************************************************************)
+SelectIndexedFaces[mesh_?CorticalObjectQ, f_] := Pick[
+  IndexedFaceList[mesh],
+  Normal@FaceDataset[mesh],
+  _?f];
 
 Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList,
         VertexPropertyList, EdgePropertyList, FacePropertyList, VertexPropertyValues,
         EdgePropertyValues, FacePropertyValues, SetVertexProperties, SetEdgePropertues,
         SetFaceProperties, RemoveVertexProperty, RemoveEdgeProperty, RemoveFaceProperty,
-        MapPropertyValues];
+        MapVertices, MapEdges, MapFaces, SelectVertices, SelectEdges, SelectFaces,
+        SelectVertexIndices, SelectEdgeIndices, SelectFaceIndices, SelectIndexedEdges,
+        SelectIndexedFaces];
 
 
 (* #CorticalCurvatureColor ************************************************************************)
@@ -3585,7 +3620,7 @@ Protect[LabelBoundaryVertexCoordinates];
 (* #CortexSelect **********************************************************************************)
 CortexSelect[mesh_?CorticalObjectQ, f_] := Pick[
   VertexList[mesh],
-  MapPropertyValues[f, mesh],
+  MapVertexData[f, mesh],
   True];
 Protect[CortexSelect];
 
