@@ -3618,10 +3618,10 @@ LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]]
 Protect[LabelBoundaryVertexCoordinates];
 
 (* #OccipitalPole *********************************************************************************)
-OccipitalPole[sub_, hemi_?HemisphereQ, mesh_] := Check[
+OccipitalPole[sub_, hemi_?HemiQ, mesh_] := Check[
   VertexCoordinatesTr[Cortex[sub, hemi, mesh]][[All, OccipitalPoleIndex[sub, hemi]]],
   $Failed];
-OccipitalPole[sub_, m:Except[_?HemisphereQ], h_?HemisphereQ] := OccipitalPole[sub, h, m];
+OccipitalPole[sub_, m:Except[_?HemiQ], h_?HemiQ] := OccipitalPole[sub, h, m];
 OccipitalPole[sub_, hemi_] := OccipitalPole[sub, hemi, Automatic];
 Protect[OccipitalPole];
 
