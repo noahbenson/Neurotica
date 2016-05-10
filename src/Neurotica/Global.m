@@ -35,30 +35,45 @@ RHX::usage = "RHX is a keyword that represents the inverted right hemisphere as 
 LHX::usage = "LHX is a keyword that represents the inverted left hemisphere as used by programs like FreeSurfer.";
 
 (* The Hemisphere interface: *)
-HemisphereQ::usage = "HemisphereQ[h] yields True if h is a hemisphere object. Note that a \"Hemi\" is a hemisphere tag while a \"Hemisphere\" is an object that encapsulates the data relevant to a subject's hemisphere; if you want to test if h is one of {LH, RH, LHX, RHX, Left, Right}, use HemiQ.";
-Chirality::usage = "Chirality[hemisphere] yields the appropriate chirality of the given hemisphere object (which may also be a hemisphere ID such as RH).";
+Chirality::usage = "Chirality[hemi] yields the appropriate chirality of the given hemisphere object (which may be a hemisphere ID such as RH).";
 
 (* The Subject interface: *)
 SubjectQ::usage = "SubjectQ[s] yields True if s is a Neurotica subject object, otherwise False.";
-Hemispheres::usage = "Hemispheres[s] yields an association of hemisphere objects for the given Neurotica subject s.";
-Cortex::usage = "Cortex[hemisphere] yields the cortical surface object associated with the given hemisphere object.
-Cortex[sub, hemi] is equivalent to Cortex@Hemisphere[sub, hemi].";
-Ribbon::usage = "Ribbon[hemisphere] yields the MRImage3D object that represents the gray-voxel ribbon for the given hemisphere object.";
+Cortex::usage = "Cortex[sub, hemi] yields the cortical surface object associated with the given hemisphere.";
+CortexList::usage = "CortexList[sub] yields a list of the cortical surface names assocaited with the given subject sub.";
+HemiList::usage = "HemiList[sub] yields a list of hemi objects that are valid for the given subject sub.";
 
-Hemisphere::usage = "Hemisphere[s, hemi] is equivalent to Hemispheres[s][hemi]; note that hemi is a hemisphere ID rather than a hemisphere object.";
+MRImage::usage = "MRImage[sub, hemi, name] yields the MRImage3D data for the given subject, hemisphere, and name (e.g., \"Ribbon\" or \"T1\"). The name argument varies by subject modality; they can be found via MRImageList[sub] or MRImageList[sub, hemi]. For FreeSurfer, available names include \"Brain\", \"Ribbon\", \"GrayMask\" and \"WhiteMatter\". Most subject modalities should define at least a \"GrayMask\".
+As a general rule, all subject modalities should accept the names \"T1\", \"Brain\", and \"GrayMask\".
+The option hemi may be LR or All to indicate the whole brain.
+The options hemi, name, and orientation all have default parameters:
+MRImage[sub, hemi] is equivalent to MRImage[sub, hemi, Automatic].
+MRImage[sub, name] is equivalent to MRImage[sub, LR, Automatic].
+MRImage[sub] is equivalent to MRImage[sub, LR, Automatic].
 
-SubjectLabels::usage = "SubjectLabels[sub] yields a list of the labels supported by the given subject sub.";
+MRImage[data] yields an Image-like form that can be used with Image functions but which stores additional relevant data regarding MR images. Note this form of MRImage is intended for MRI slices rather than for 3D images; for a 3D image representation, use MRImage3D.";
+MRImage::badarg = "Bad argument given to MRImage: `1`";
+MRImageList::usage = "MRImageList[sub] yields a list of MRImage names for the given subject sub.";
+
+LabelList::usage = "LabelList[sub] yields a list of the labels supported by the given subject sub.";
+LabelVertexList::usage = "LabelVertexList[sub, hemi, name] is defined by subject modalities (e.g., FreeSurferSubject[]) such that it yields a list of the vertices that are in the label with the given name for the given hemisphere.
+
+Note that the labels supported will vary by subject modality; use SubjectLabels to see the supported labels.";
+LabelVertexList::nolab = "No such label found: `1`";
+LabelVoxelList::usage = "LabelVoxelList[sub, hemi, name] yields a list of voxel indices for the label of the given subject, hemisphere, and name. If hemi is LR or All, then this is the union of LabelVoxelList[sub, LH, name] and LabelVoxelList[sub, RH, name].";
+
+VertexPropertyAssociation::usage = "VertexPropertyAssociation[subject, hemi] yields the vertex property association for the given subject and hemisphere; the keys of this association are the property names for the subject.
+VertexPropertyAssociation[mesh] yields an association whose keys are the property names of the vertices of the given mesh and whose values are the lists of properties for each vertex.";
 
 OccipitalPoleIndex::usage = "OccipitalPoleIndex[hemisphere] is usually defined by subject modalities (e.g., FreeSurferSubject[]) such that the function yields the index for the occipital pole in the particular hemisphere requested.
 OccipitalPoleIndex[sub, hemi] is equivalent to OccipitalPoleIndex@Hemisphere[sub, hemi].";
 
-LabelVertexList::usage = "LabelVertexList[hemisphere, name] is defined by subject modalities (e.g., FreeSurferSubject[]) such that it yields a list of the vertices that are in the label with the given name for the given hemisphere.
-LabelVertexList[sub, hemi, name] is equivalent to LabelVertexList[Hemisphere[sub,hemi], name].
+GrayMask::usage = "GrayVoxels[sub, hemi] yields a SparseArray representation of the gray-matter voxels in the given subject sub. In the SparseArray, gray voxels are given the value 1 and other voxels the value 0. The orientation may be any orientation accepted by MRImage. If a subject modality does not define this explicitly, it will default to MRImage[sub, hemi, \"GrayMask\"].";
 
-Note that the labels supported will vary by subject modality; use SubjectLabels to see the supported labels.";
-LabelVertexList::nolab = "No such label found: `1`";
+CortexToRASMatrix::usage = "CortexToRASMatrix[sub] yields the transformation matrix that converts a vertex on the given subject's cortical surface into a RAS-oriented position.
+CortexToRASMatrix[mesh] yields the equivalent matrix for a mesh, assuming that the element \"CortexToRASMatrix\" has been set in its meta-information.";
 
-VertexToVoxelMap::usage = "VertexToVoxelMap[hemisphere, name] yields a mapping of vertices of the cortical surface with the given name to ribbon voxels for the given hemisphere. This is defined by each subject modality so may not be identical depending on how the subject is loaded.";
+VertexToVoxelMap::usage = "VertexToVoxelMap[sub, hemi, name] yields a mapping of vertices of the cortical surface with the given name to ribbon voxels for the given subject and hemisphere. This is defined by each subject modality so may not be identical depending on how the subject is loaded.";
 VoxelToVertexMap::usage = "VoxelToVertexMap[sub, hemi] yields a mapping of voxels to vertices for the given subject. This is defined by each subject modality so may not be identical depending on how the subject is loaded.";
 
 Anterior::usage = "Anterior is a keyword that represents the forward part of the brain; it is generally a synonym for Front and is an antonym with Posterior and Back.";
@@ -93,6 +108,7 @@ Protect[HemiQ];
 (* #Chirality *************************************************************************************)
 Chirality[LH] = LH;
 Chirality[RH] = RH;
+Chirality[LR] = None;
 Chirality[LHX] = RH;
 Chirality[RHX] = LH;
 Chirality[Left] = LH;
@@ -108,9 +124,9 @@ Cortex[sub_, hemi_?HemiQ] := Cortex[sub, hemi, Automatic];
 Cortex[hemi_?HemisphereQ] := Cortex[hemi, Automatic];
 Protect[Cortex];
 
-(* #HemisphereQ ***********************************************************************************)
-HemisphereQ[_] := False;
-Protect[HemisphereQ];
+(* #GrayMask **************************************************************************************)
+GrayMask[sub_, hemi_?HemiQ] := Check[MRImage[sub, hemi, "GrayMask"], $Failed];
+Protect[GrayMask];
 
 End[];
 EndPackage[];

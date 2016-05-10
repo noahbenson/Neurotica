@@ -53,6 +53,19 @@ $NeuroticaJLinkDetails::usage = "$NeuroticaJLinkDetails evaluates to a string th
 NeuroticaFixJLinkMemory::usage = "NeuroticaFixJLinkMemory[amountString] reinstalls the Java Virtual Machine with a maximum amount of RAM as specified by the amountString. The amountString is the text that would appear after the \"-Xmx\" command-line argument to the java program, and generally should take a form such as 1g or 2g (for 1 or 2 gigabytes of max RAM). This requires both resetting Mathematica's JLink connections and reloading the Neurotica library, which can result in the eventual reloading of some cached data and will interrupt JLink connections maintained by other libraries, which also may need to be reloaded. If you use this solution to the JLink memory probem, it is suggested that you run it early in your notebook's initialization.";
 NeuroticaFixJLinkMemoryPermanent::usage = "NeuroticaFixJLinkMemoryPermanent[amountString] adds a few lines to the beginning of your Mathematica Kernel initialization file, creating it for you if it does not yet exist. The code injected should ensure that sufficient RAM is always allocated to the Java Virtual Machine upon Mathematica startup. The maximum amount of RAM for the JVM is specified by the amountString. The amountString is the text that would appear after the \"-Xmx\" command-line argument to the java program, and generally should take a form such as \"1g\" (1 gigabyte), \"2g\" (2 gigabytes), or larger. Subsequent calls to this function should overwrite the old code injected by previous calls rather than appending to the file. The first time this function is called, a backup is made. Note that this function does not reset the currently running JVM; after running this function you will need to either call NeuroticaFixJLinkMemory[amountString] or restart the Mathematica Kernel.";
 
+(* These are included here because they have dependencies from many of Neurotica's modules *)
+ImageToCortex::usage = "ImageToCortex[img, mesh] yields a a list of the values in the given MRImage3D object img interpolated to the given mesh vertices.
+ImageToCortex[img, sub, hemi] yields the interpolation, averaged across the thickness of the cortex, for the given subject and hemisphere. If the hemisphere is LR or All, the result is given as {ImageToCortex[img, sub, LH], ImageToCortex[img, sub, RH]}.
+ImageToCortex[img, sub] is equivalent to ImageToCortex[img, sub, LR].
+
+The additional option Weight may be given to instruct the algorithm to use a particular image as a weights in the interpolation. This must be an MRImage3D, Image3D, 3D array, or 3D SparseArray the same size as img.  If Weights are not None (the default), then the option Indeterminate may also be specified, and its value is used whenever the total weight for a vertex is 0 (default: 0).";
+CortexToImage::usage = "CortexToImage[sub, hemi, property] yields an MRImage3D object in which the voxels have been interpolated from the given property values on the cortical surface of the given hemisphere of the given subject; interpolation is done using the VoxelToVertexMap[sub, hemi]. If hemi is LR, then both hemispheres are interpolated.
+CortexToImage[sub, property] is equivalent to CortexToImage[sub, LR, property].
+
+The option Weight may be given to specify the property name or values of a weight to use when interpolating. If the Weight is not None, then the option Indeterminate may be used to indicate the value that is filled in when the total weight applied to a voxel is 0 (default: 0).";
+ImageToCortex::badarg = "Bad argument given to ImageToCortex: `1`";
+CortexToImage::badarg = "Bad argument given to ImageToCortex: `1`";
+
 Begin["`Private`"];
 
 Protect[Neurotica];
@@ -208,6 +221,24 @@ NeuroticaFixJLinkMemoryPermanent[amount_String:"2g"] := Catch@With[
               True,
               $Failed]]]]]]];
 Protect[NeuroticaFixJLinkMemoryPermanent];
+
+(* #ImageToCortex *********************************************************************************)
+Options[ImageToCortex] = {Weight -> None, Indeterminate -> 0};
+ImageToCortex[img_?MRImageQ, mesh_?CorticalMeshQ, opts:OptionsPattern[]] := 0; (* #here *)
+ImageToCortex[img_?MRImageQ, sub_?SubjectQ, hemi:LH|RH|LR, opts:OptionsPattern[]] := 0;
+ImageToCortex[img_?MRImageQ, sub_?SubjectQ, opts:OptionsPattern[]] := ImageToCortex[
+  img, sub, LR, opts];
+Protect[ImageToCortex];
+
+(* #CortexToImage *********************************************************************************)
+Options[CortexToImage] = {Weight -> None, Indeterminate -> 0};
+CortexToImage[sub_?SubjectQ, hemi:LH|RH, prop_, opts:OptionsPattern[]] := 0; (* #here *)
+CortexToImage[sub_?SubjectQ, LR, prop_, opts:OptionsPattern[]] := {
+  CortexToImage[sub, LH, prop, opts],
+  CortexToImage[sub, RH, prop, opts]};
+CortexToImage[sub_?SubjectQ, prop_, opts:OptionsPattern[]] := CortexToImage[sub, LR, prop, opts];
+Protect[CortexToImage];
+
 
 End[];
 EndPackage[];

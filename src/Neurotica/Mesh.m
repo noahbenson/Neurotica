@@ -198,7 +198,6 @@ CorticalColorSchema[property -> function] indicates that the given function shou
 CorticalColorSchema[All -> function] indicates that the given function should accept three arguments: the vertex id, the vertex coordinate, and the vertex property list; the fun
 ction must return a color or $Failed or None.";
 
-VertexPropertyAssociation::usage = "VertexPropertyAssociation[mesh] yields an association whose keys are the property names of the vertices of the given mesh and whose values are the lists of properties for each vertex.";
 EdgePropertyAssociation::usage = "EdgePropertyAssociation[mesh] yields an association whose keys are the property names of the edges of the given mesh and whose values are the lists of properties for each edge.";
 FacePropertyAssociation::usage = "FacePropertyAssociation[mesh] yields an association whose keys are the property names of the faces of the given mesh and whose values are the lists of properties for each face.";
 
@@ -979,6 +978,9 @@ DefineImmutable[
        Replace,
        MetaInformation,
        {Options[mesh], MetaInformation -> {}}],
+     CortexToRASMatrix[mesh]  := Replace[
+       "CortexToRASMatrix",
+       Append[MetaInformation[mesh], "CortexToRASMatrix" -> None]],
 
 
      (* ====================================== Immediates ======================================= *)
@@ -1126,7 +1128,7 @@ DefineImmutable[
        Dataset@Map[
          Function@Association@Thread[cols -> #],
          Transpose@Replace[
-           Map[Function@VertexPropertyValues[mesh, #], cols],
+           Map[Function@Normal@VertexPropertyValues[mesh, #], cols],
            Except[_List] :> ConstantArray[$Failed, n],
            {1}]]],
      EdgePropertyAssociation[mesh] :> With[
@@ -1678,7 +1680,13 @@ DefineImmutable[
      (* #VertexProperties [private] *)
      VertexProperties[map] = With[
        {idx = Inclusions[map][[1]]},
-       (#[[1]] -> #[[2]][[idx]]) & /@ VertexProperties[SourceMesh[map]]],
+       Map[
+         Function@With[
+           {sym = TemporarySymbol["prop"<>#[[1]]], name = #[[1]], rule = #},
+           name :> SetSafe[
+             sym,
+             With[{dat = Replace[name, rule]}, If[dat === $Failed, dat, dat[[idx]]]]]],
+       VertexProperties[SourceMesh[map]]]],
      (* #EdgeProperties [private] *)
      EdgeProperties[map] = With[
        {idx = Inclusions[map][[2]]},
@@ -1726,7 +1734,7 @@ DefineImmutable[
        Dataset@Map[
          Function@Association@Thread[cols -> #],
          Transpose@Replace[
-           Map[Function@VertexPropertyValues[map, #], cols],
+           Map[Function@Normal@VertexPropertyValues[map, #], cols],
            Except[_List] :> ConstantArray[$Failed, n],
            {1}]]],
      EdgePropertyAssociation[map] :> With[
@@ -2280,7 +2288,6 @@ DefineImmutable[
      VertexInDegree[map, opts___]              := VertexDegree[map],
      VertexJaccardSimilarity[map, opts___]     := VertexJaccardSimilarity[Graph[map], opts],
      VertexOutDegree[map, opts___]             := VertexDegree[map]}],
-
   SetSafe -> True,
   Symbol -> CorticalMesh2D];
 
@@ -2820,7 +2827,6 @@ CorticalCurvatureVertexColors[mesh_?CorticalObjectQ] := With[
     CorticalCurvatureColor /@ curv]];
 Protect[CorticalCurvatureVertexColors];
 
-
 (* #CortexSphericalQ ******************************************************************************)
 CortexSphericalQ[c_?CorticalMeshQ] := With[
   {centroid = Mean[VertexCoordinates[c]]},
@@ -2881,7 +2887,7 @@ $CortexPlotDefaultColorSchemas = {
 Protect[$CortexPlotDefaultColorSchemas];
 
 (* A Function for figuring out the vertex colors *)
-GetVertexColors[mesh_, vcolorsOpt_, colorFnOpt_, props_] := With[
+GetVertexColors[mesh_, vcolorsOpt_, colorFnOpt_] := With[
   {allGray = ConstantArray[Gray, VertexCount[mesh]]},
   If[ListQ[vcolorsOpt] && VertexCount[mesh] == Length[vcolorsOpt],
     vcolorsOpt,
@@ -2898,26 +2904,24 @@ GetVertexColors[mesh_, vcolorsOpt_, colorFnOpt_, props_] := With[
        None -> allGray,
        name_ /; Head[CorticalColorData[name]] === CorticalColorSchema :> With[
          {f = CorticalColorData[name]},
-         MapThread[
-           f[Association[Join[#3, {"Coordinate" -> #1, "Vertex" -> #2}]]]&,
-           {X, U, props}]],
+         f /@ Normal@VertexDataset[mesh]],
        f_ :> With[
          {known = Replace[f, $CortexPlotDefaultColorSchemas]},
-          If[f =!= known,
-            known[mesh],
-            MapThread[
-              Function @ With[
-                {assoc = Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]},
-                With[
-                  {res = f[assoc]},
-                  If[ColorQ[res] || Head[res] === Opacity,
-                    res,
-                    With[
-                      {clrDat = CorticalColorData[res]},
-                      If[Head[clrDat] === CorticalColorSchema,
-                        clrDat[assoc],
-                        Gray]]]]],
-              {VertexList[mesh], VertexCoordinates[mesh], props}]]]}]]];
+         If[f =!= known,
+           known[mesh],
+           Map[
+             Function@With[
+               {r = f[#]},
+               Which[
+                 (* A string like "PolarAngle" or "Curvature" *)
+                 StringQ[r] && Head[CorticalColorData[r]] === CorticalColorSchema,
+                 CorticalColorData[r][#],
+                 (* A Blended color, like {{"Curvature", "PolarAngle"}, 0.6} *)
+                 ListQ[r] && Length[r] == 2 && VectorQ[r[[1]], StringQ] && NumericQ[r[[2]]],
+                 Blend[Table[CorticalColorData[t][#], {r, r[[1]]}], r[[2]]],
+                 (* Anything else (like a color) *)
+                 True, r]],
+             Normal@VertexDataset[mesh]]]]}]]];
 
 Options[CortexPlot3D] = Map[(#[[1]] -> Automatic)&, $CortexPlot3DOptions];
 CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
@@ -2927,14 +2931,9 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
        OptionValue[name],
        {Automatic :> Replace[name, Options[mesh]],
         (name|Automatic) :> Replace[name, $CortexPlot3DOptions]}]],
-   GetProperties = Function[{type},
-     Replace[
-       Thread[Rule[ToString[#], PropertyValue[{mesh, type}, #]]]& /@ PropertyList[{mesh, type}],
-       {{} :> Table[{}, {Length[type[mesh]]}],
-        l_ :> Transpose[l]}]],
    U = VertexList[mesh],
    X = VertexCoordinates[mesh],
-   F = FaceList[mesh],
+   F = Transpose@VertexIndex[mesh, FaceListTr[mesh]],
    vnorms = Replace[
      PropertyValue[{mesh, VertexList}, VertexNormals],
      $Failed :> Replace[
@@ -2944,8 +2943,7 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
     {vcolors = GetVertexColors[
        mesh,
        Opt[VertexColors],
-       Opt[ColorFunction],
-       GetProperties[VertexList]]},
+       Opt[ColorFunction]]},
     With[
       {vfn = Opt[VertexRenderingFunction],
        efn = Opt[EdgeRenderingFunction],
@@ -2955,57 +2953,30 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
                      (ffn =!= Automatic && ffn =!= None)],
          GetProperties[VertexList],
          None]},
-      Graphics3D[
-        GraphicsComplex[
-          VertexCoordinates[mesh],
-          {Which[
-             ffn === None, {},
-             ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
-             True, {EdgeForm[], Gray, 
-               MapThread[
-                 Function[
-                   ffn @ Apply[
-                     Association,
-                     Join[
-                       #1,
-                       {"Coordinates" -> #2, "Face" -> #3, 
-                        "Vertices" -> #4, "VertexProperties" -> Map[Apply[Association,#]&, #5],
-                        "VertexColors" -> #6}]]],
-                 {GetProperties[FaceList], FaceCoordinates[mesh], F,
-                  VertexIndex[mesh, F], vprop[[#]]& /@ VertexIndex[mesh, F],
-                  vcolors[[#]]& /@ VertexIndex[mesh, F]}]}],
-           Which[
-             efn === None || efn === Automatic, {},
-             efn === Line, {
-               Thin,
-               Map[
-                 Function@Line[#1, VertexColors -> vcolors[[#1]]],
-                 Transpose@VertexIndex[mesh, EdgePairsTr[mesh]]]},
-             True, MapThread[
-               Function[
-                 efn @ Apply[
-                   Association,
-                   Join[
-                     #1,
-                     {"Coordinates" -> #2, "Edge" -> #3, "Vertices" -> #4,
-                      "VertexProperties" -> Map[Apply[Association,#]&, #5],
-                      "VertexColors" -> #6}]]],
-                 {GetProperties[EdgeList], EdgeCoordinates[mesh], EdgePairs[mesh],
-                  VertexIndex[mesh, EdgePairs[mesh]],
-                  vprop[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]],
-                  vcolors[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]]}]],
-           If[vfn === None || vfn === Automatic,
-             {},
-             MapThread[
-               vfn[Association[Join[#3, {"Vertex" -> #2, "Coordinate" -> #1}]]]&,
-               {X, U, vprop}]]},
-          VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
-            vcolors,
-            None],
-          VertexNormals -> vnorms],
-        Sequence@@FilterRules[
-          Join[{opts}, Options[mesh], $CortexPlot3DOptions],
-          Options[Graphics3D][[All,1]]]]]]];
+      WithOptions[
+        Graphics3D[
+          GraphicsComplex[
+            VertexCoordinates[mesh],
+            {Which[
+               ffn === None, {},
+               ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
+               True, {EdgeForm[], Gray, ffn /@ Normal@FaceDataset[mesh]}],
+             Which[
+               efn === None || efn === Automatic, {},
+               efn === Line, {
+                 Thin,
+                 Map[
+                   Function@Line[#1, VertexColors -> vcolors[[#1]]],
+                   Transpose@VertexIndex[mesh, EdgePairsTr[mesh]]]},
+               True, efn /@ Normal@EdgeDataset[mesh]],
+             If[vfn === None || vfn === Automatic,
+               {},
+               vfn /@ Normal@VertexDataset[mesh]]},
+            VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
+              vcolors,
+              None],
+            VertexNormals -> vnorms]],
+        Join[{opts}, Options[mesh], $CortexPlot3DOptions]]]]];
 Protect[CortexPlot3D, GetVertexColors];
 
 
@@ -3018,78 +2989,41 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
        OptionValue[name],
        {Automatic :> Replace[name, Options[mesh]],
         (name|Automatic) :> Replace[name, $CortexPlotOptions]}]],
-   GetProperties = Function[{type},
-     Replace[
-       Thread[Rule[ToString[#], PropertyValue[{mesh, type}, #]]]& /@ PropertyList[{mesh, type}],
-       {{} :> Table[{}, {Length[type[mesh]]}],
-        l_ :> Transpose[l]}]],
    U = VertexList[mesh],
    X = VertexCoordinates[mesh],
-   F = Partition[Normal[VertexIndexArray[mesh][[Flatten@FaceList[mesh]]]], 3]},
+   F = Transpose@VertexIndex[mesh, FaceListTr[mesh]]},
   With[
     {vcolors = GetVertexColors[
        mesh,
        Opt[VertexColors],
-       Opt[ColorFunction],
-       GetProperties[VertexList]]},
+       Opt[ColorFunction]]},
     With[
       {vfn = Opt[VertexRenderingFunction],
        efn = Opt[EdgeRenderingFunction],
-       ffn = Opt[FaceRenderingFunction],
-       vprop = If[Or[(vfn =!= Automatic && vfn =!= None),
-                     (efn =!= Automatic && efn =!= None),
-                     (ffn =!= Automatic && ffn =!= None)],
-         GetProperties[VertexList],
-         None]},
-      Graphics[
-        GraphicsComplex[
-          VertexCoordinates[mesh],
-          {Which[
-             ffn === None, {},
-             ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
-             True, {
-               EdgeForm[], Gray, 
-               MapThread[
-                 Function[
-                   ffn @ Apply[
-                     Association,
-                     Join[
-                       #1,
-                       {"Coordinates" -> #2, "Face" -> #3, 
-                        "Vertices" -> #4, "VertexProperties" -> Map[Apply[Association,#]&, #5],
-                        "VertexColors" -> #6}]]],
-                 {GetProperties[FaceList], FaceCoordinates[mesh], F,
-                  VertexIndex[mesh, F], vprop[[#]]& /@ VertexIndex[mesh, F],
-                  vcolors[[#]]& /@ VertexIndex[mesh, F]}]}],
-           Which[
-             efn === None || efn === Automatic, {},
-             efn === Line, {
-               Thin,
-               Map[
-                 Function@Line[#1, VertexColors -> vcolors[[#1]]],
-                 Transpose@VertexIndex[mesh, EdgePairsTr[mesh]]]},
-             True, MapThread[
-               Function[
-                 efn @ Apply[
-                   Association,
-                   Join[
-                     #1,
-                     {"Coordinates" -> #2, "Edge" -> #3, "Vertices" -> #4,
-                      "VertexProperties" -> Map[Apply[Association,#]&, #5],
-                      "VertexColors" -> #6}]]],
-                 {GetProperties[EdgeList], EdgeCoordinates[mesh], EdgePairs[mesh],
-                  VertexIndex[mesh, EdgePairs[mesh]],
-                  vprop[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]],
-                  vcolors[[#]]& /@ VertexIndex[mesh, EdgePairs[mesh]]}]],
-           If[vfn === None || vfn === Automatic,
-             {},
-             MapThread[vfn, {X, U, vprop}]]},
-          VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
-            vcolors,
-            None]],
-        Sequence@@FilterRules[
-          Join[{opts}, Options[mesh], $CortexPlotOptions],
-          Options[Graphics][[All,1]]]]]]];
+       ffn = Opt[FaceRenderingFunction]},
+      WithOptions[
+        Graphics[
+          GraphicsComplex[
+            VertexCoordinates[mesh],
+            {Which[
+               ffn === None, {},
+               ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
+               True, {EdgeForm[], Gray, ffn /@ Normal@FaceDataset[mesh]}],
+             Which[
+               efn === None || efn === Automatic, {},
+               efn === Line, {
+                 Thin,
+                 Map[
+                   Function@Line[#1, VertexColors -> vcolors[[#1]]],
+                   Transpose@VertexIndex[mesh, EdgePairsTr[mesh]]]},
+               True, efn /@ Normal@EdgeDataset[mesh]],
+             If[vfn === None || vfn === Automatic,
+               {},
+               vfn /@ Normal@VertexDataset[mesh]]},
+            VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
+              vcolors,
+              None]]],
+        Join[{opts}, Options[mesh], $CortexPlotOptions]]]]];
 CortexPlot[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
   {mopts = "CorticalMap" /. Append[Options[mesh, MetaInformation], "CorticalMap" -> {}],
    usemesh = "SphericalMesh" /. Append[Options[mesh, MetaInformation], "SphericalMesh" -> mesh]},
@@ -3427,7 +3361,7 @@ LabelVertexCoordinatesTr[cortex_?CorticalObjectQ, name_] := Check[
   $Failed];
 LabelVertexCoordinatesTr[sub_, mesh_, hemi_, name_] := Check[
   With[
-    {cortex = Cortex[sub, mesh, hemi],
+    {cortex = Cortex[sub, hemi, mesh],
      U = Normal@LabelVertexList[sub, hemi, name]},
     If[MissingQ[U],
       U,
@@ -3457,7 +3391,7 @@ LabelEdgePairsTr[cortex_?CorticalObjectQ, name_] := Check[
       Et[[All, Select[Tally[Join@@UE], Last[#] == 2&][[All, 1]]]]]],
   $Failed];
 LabelEdgePairsTr[sub_, hemi_, name_] := Check[
-  LabelEdgePairsTr[Cortex[sub, Automatic, hemi], name],
+  LabelEdgePairsTr[Cortex[sub, hemi, Automatic], name],
   $Failed];
 Protect[LabelEdgePairsTr];
 
@@ -3488,7 +3422,7 @@ LabelFaceListTr[cortex_?CorticalObjectQ, name_] := Check[
 LabelFaceListTr[sub_, hemi_, name_] := Check[
   With[
     {U = Normal@LabelVertexList[sub, hemi, name],
-     cortex = Cortex[sub, Automatic, hemi]},
+     cortex = Cortex[sub, hemi, Automatic]},
     If[MissingQ[U],
       U,
       With[
@@ -3603,7 +3537,7 @@ LabelBoundaryVertexCoordinatesTr[cortex_?CorticalObjectQ, name_, opts:OptionsPat
       X[[All, #]]& /@ vs]],
   $Failed];
 LabelBoundaryVertexCoordinatesTr[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]] := Check[
-  LabelBoundaryVertexCoordinatesTr[Cortex[sub, mesh, hemi], name, opts],
+  LabelBoundaryVertexCoordinatesTr[Cortex[sub, hemi, mesh], name, opts],
   $Failed];
 Protect[LabelBoundaryVertexCoordinatesTr];
 
