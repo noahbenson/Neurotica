@@ -553,7 +553,7 @@ ImportNifTIData[stream_, opts___Rule] := Check[
        "Header" :> Message[ImportNifTI::badfmt, "Invalid header"]]},
     With[
       {voxels = ImportNifTIVoxels[stream, "Header" -> header, opts]},
-      "Data" -> {"Header" -> header, voxels}]],
+      "Data" -> {"Header" -> header, "Voxels" -> voxels}]],
   $Failed];
 
 InterpretNifTI[data_List] := With[
@@ -567,7 +567,7 @@ InterpretNifTI[data_List] := With[
         {qcode = "QFormCode" /. header,
          scode = "SFormCode" /. header},
       MRImage3D[
-        Map[Reverse, voxels, {0,1}],
+        voxels,
         VoxelDimensions -> ("VoxelDimensions" /. header),
         Sequence @@ If[qcode > 0, 
           With[
@@ -576,6 +576,7 @@ InterpretNifTI[data_List] := With[
              AnteriorDirectionVector -> mtx[[2]],
              SuperiorDirectionVector -> mtx[[3]]}],
           {}],
+        Center -> {0,0,0},
         MetaInformation -> header]]]]];
 
 ImportNifTI[stream_, opts___Rule] := Check[

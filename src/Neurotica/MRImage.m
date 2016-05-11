@@ -98,25 +98,9 @@ MRISlices::badplane = "Could not recognized plane given to MRISlices: `1`";
 (**************************************************************************************************)
 Begin["`Private`"];
 
-(*  Notes:
- *  Mathematica plots Image3D objects in an odd fashion; the real question is now x,y, and z line
- *  up with the voxel indices i, j, k.
- *  Assuming that, for an image with the data array d, voxel i, j, k is d[[i,j,k]], then the 
- *  transformation between (x,y,z) and (i,j,k) is:
- *  {x -> k, y -> -j, z -> -i}
- *  and the reverse is:
- *  {i -> -z, j -> -y, k -> x}
- *  Where the negatives just indicate a direction reversal (really they should be max - <x>).
- *)
-MMAImageToXYZTransform[img_Image3D] := Fold[
-  ImageReflect,
-  img,
-  {Top -> Bottom, Front -> Back}];
-XYZToMMAImageTransform[img_Image3D] := Fold[
-  ImageReflect,
-  img,
-  {Back -> Front, Bottom -> Top}];
-Protect[MMAImageToXYZTransform, XYZToMMAImageTransform];
+(* The conversion here is not straightforward due to the way Mathematica orients the x/y/z axes. *)
+MRImageToImageData[dat_?ArrayQ] := Transpose[Reverse[dat, {2,3}], {3,2,1}];
+ImageToMRImageData[dat_?ArrayQ] := Reverse[Transpose[dat, {3,2,1}], {2,3}];
 
 (* #MRImage3D *************************************************************************************)
 
@@ -157,20 +141,19 @@ $MRImageSharedMethods = Hold[
       res,
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
-        MRImage3D[img, ImageData -> newdat]]]],
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageAdd[img, imgs__] := With[
     {res = Check[
        ImageData[img] + Total[If[NumberQ[#] || ArrayQ[#], #, ImageData[#]]& /@ {imgs}],
        $Failed]},
-    If[res === $Failed, res, MRImage3D[res, Sequence @@ Options[img]]]],
+    If[res === $Failed, res, MRImage3D[img, ImageData -> res]]],
   ImageConvolve[img, opts___] := With[
     {res = Check[ImageConvolve[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageCorrelate[img, opts___] := ImageCorrelate[Image3D[img], opts],
   ImageCorrespondingPoints[img, opts___] := ImageCorrespondingPoints[Image3D[img], opts],
   ImageCrop[img, opts___] := With[
@@ -178,105 +161,93 @@ $MRImageSharedMethods = Hold[
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageDeconvolve[img, opts___] := With[
     {res = Check[ImageDeconvolve[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageDistance[img, opts___] := ImageDistance[Image3D[img], opts],
   ImageForwardTransformation[img, opts___] := With[
     {res = Check[ImageForwardTransformation[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImagePad[img, opts___] := With[
     {res = Check[ImagePad[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImagePartition[img, opts___] := With[
     {res = Check[ImagePartition[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImagePerspectiveTransformation[img, opts___] := With[
     {res = Check[ImagePerspectiveTransformation[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageReflect[img, opts___] := With[
     {res = Check[ImageReflect[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageResize[img, opts___] := With[
     {res = Check[ImageResize[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageRotate[img, opts___] := With[
     {res = Check[ImageRotate[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageTake[img, opts___] := With[
     {res = Check[ImageTake[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageTransformation[img, opts___] := With[
     {res = Check[ImageTransformation[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
         {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
-        MRImage3D[img, ImageData -> newdat]]]],
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ImageTrim[img, opts___] := With[
     {res = Check[ImageTrim[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   Sharpen[img, opts___] := With[
     {res = Check[Sharpen[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
 
   (* Image Filters *)
   BandpassFilter[img, opts___] := With[
@@ -284,249 +255,218 @@ $MRImageSharedMethods = Hold[
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   BandstopFilter[img, opts___] := With[
     {res = Check[BandstopFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   BilateralFilter[img, opts___] := With[
     {res = Check[BilateralFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   CommonestFilter[img, opts___] := With[
     {res = Check[CommonestFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   CurvatureFlowFilter[img, opts___] := With[
     {res = Check[CurvatureFlowFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   DerivativeFilter[img, opts___] := With[
     {res = Check[DerivativeFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   DifferentiatorFilter[img, opts___] := With[
     {res = Check[DifferentiatorFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   EntropyFilter[img, opts___] := With[
     {res = Check[EntropyFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   GaborFilter[img, opts___] := With[
     {res = Check[GaborFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   GaussianFilter[img, opts___] := With[
     {res = Check[GaussianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   GeometricMeanFilter[img, opts___] := With[
     {res = Check[GeometricMeanFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   GradientFilter[img, opts___] := With[
     {res = Check[GradientFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   GradientOrientedFilter[img, opts___] := With[
     {res = Check[GradientOrientedFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   HarmonicMeanFilter[img, opts___] := With[
     {res = Check[HarmonicMeanFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   HighpassFilter[img, opts___] := With[
     {res = Check[HighpassFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   HilbertFilter[img, opts___] := With[
     {res = Check[HilbertFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   KuwaharaFilter[img, opts___] := With[
     {res = Check[KuwaharaFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   LaplacianFilter[img, opts___] := With[
     {res = Check[LaplacianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   LaplacianGaussianFilter[img, opts___] := With[
     {res = Check[LaplacianGaussianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   LowpassFilter[img, opts___] := With[
     {res = Check[LowpassFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   MaxFilter[img, opts___] := With[
     {res = Check[MaxFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   MeanFilter[img, opts___] := With[
     {res = Check[MeanFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   MeanShiftFilter[img, opts___] := With[
     {res = Check[MeanShiftFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   MedianFilter[img, opts___] := With[
     {res = Check[MedianFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   MinFilter[img, opts___] := With[
     {res = Check[MinFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   PeronaMalikFilter[img, opts___] := With[
     {res = Check[PeronaMalikFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   RangeFilter[img, opts___] := With[
     {res = Check[RangeFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   RidgeFilter[img, opts___] := With[
     {res = Check[RidgeFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   StandardDeviationFilter[img, opts___] := With[
     {res = Check[StandardDeviationFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   TotalVariationFilter[img, opts___] := With[
     {res = Check[TotalVariationFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   WienerFilter[img, opts___] := With[
     {res = Check[WienerFilter[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
 
   (* Morphological Operations *)
   Binarize[img, opts___] := Binarize[Image3D[img], opts],
@@ -536,9 +476,8 @@ $MRImageSharedMethods = Hold[
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   ColorNegate[img, opts___] := ColorNegate[Image3D[img], opts],
   ComponentMeasurements[img, opts___] := ComponentMeasurements[Image3D[img], opts],
   Colorize[img, opts___] := Colorize[Image3D[img], opts],
@@ -547,59 +486,52 @@ $MRImageSharedMethods = Hold[
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   DeleteSmallComponents[img, opts___] := With[
     {res = Check[DeleteSmallComponents[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   Dilation[img, opts___] := With[
     {res = Check[Dilation[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   DistanceTranform[img, opts___] := DistanceTransgorm[Image3D[img], opts],
   Erosion[img, opts___] := With[
     {res = Check[Erosion[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   FillingTransform[img, opts___] := With[
     {res = Check[FillingTransform[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   HighlightImage[img, opts___] := HighlightImage[Image3D[img], opts],
   HitMissTransform[img, opts___] := With[
     {res = Check[HitMissTransform[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   InverseDistanceTransform[img, opts___] := With[
     {res = Check[InverseDistanceTransform[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   MaxDetect[img, opts___] := MaxDetect[Image3D[img], opts],
   MinDetect[img, opts___] := MinDetect[Image3D[img], opts],
   MorphologicalBinarize[img, opts___] := MorphologicalBinarize[Image3D[img], opts],
@@ -614,22 +546,20 @@ $MRImageSharedMethods = Hold[
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   Pruning[img, opts___] := With[
     {res = Check[Pruning[Image3D[img], opts], $Failed]},
     If[res === $Failed, 
       res,
       With[
-        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img],
-         theOpts = Options[res]},
-        MRImage3D[newdat, Evaluate[Sequence@@theOpts]]]]],
+        {newdat = ImageData[res] * (MRImageMax[img] - MRImageMin[img]) + MRImageMin[img]},
+        MRImage3D[img, ImageData -> ImageToMRImageData[newdat]]]]],
   SelectComponents[img, opts___] := SelectComponents[Image3D[img], opts],
   SkeletonTranform[img, opts___] := SkeletonTransgorm[Image3D[img], opts],
   Thinning[img, opts___] := Thinning[Image3D[img], opts],
   TopHatTransform[img, opts___] := TopHatTransform[Image3D[img], opts]];
-
+                                           
 
 (* #MRImage3D *************************************************************************************)
 Options[MRImage3D] = Join[
@@ -648,7 +578,7 @@ Options[MRImage3D] = Join[
     {1}]];
 (* For redefining options of MRImage3D *)
 MRImage3D[img_Image3D, opts___Rule] := MRImage3D[
-  ImageData[img],
+  ImageToMRImageData@ImageData[img],
   opts,
   Sequence@@Options[img]];
 MRImage3D[img_MRImage3D, opts___Rule] := With[
@@ -765,7 +695,7 @@ DefineImmutable[
           {stats = MRImageStatistics[img],
            opts = Options[img]},
           Image3D[
-            Rescale[
+            MRImageToImageData@Rescale[
               If[stats[Missing] == 0,
                 ImageData[img], 
                 ImageData[img] /. {
@@ -773,6 +703,7 @@ DefineImmutable[
                   None -> (If[KeyExistsQ[stats, #], stats[#], #]& @ (None /. opts))}],
               {stats[Min], stats[Max]}],
             Sequence@@FilterRules[opts, Options[Image3D][[All,1]]]]],
+        Image3D[img, opts__] := Image3D[Image3D[img], opts],
         
         (* This produces slices, but the preferred method is to use MRISlices[], below. *)
         Image3DSlices[img, opts___] := With[
@@ -790,7 +721,6 @@ DefineImmutable[
             Image3DSlices[Image3D[img], opts]]]]]],
   SetSafe ->True,
   Symbol -> MRImage3D];
-
 
 (* #MRImage ***************************************************************************************)
 Options[MRImage] = Join[
@@ -928,20 +858,12 @@ MRIOrientMatrix[img_?MRImageQ, spec_] := MRIOrientMatrix[img, spec, ImageDimensi
 Protect[MRIOrientMatrix];
 
 (* #MRIORientMatrix *******************************************************************************)
-MRIOrientTransform[img_?MRImageQ, spec:{_,_,_}, dims:{_,_,_}] := With[
-  {mtx = MRIOrientMatrix[img, spec, dims]},
+MRIOrientTransform[img_?MRImageQ, spec:{_,_,_}] := With[
+  {mtx = MRIOrientMatrix[img, spec]},
   If[ListQ[mtx], AffineTransform[{mtx[[1;;3, 1;;3]], mtx[[4, 1;;3]]}], mtx]];
-MRIOrientTransform[img_?MRImageQ, spec_] := MRIOrientTransform[img, spec, ImageDimensions@img];
 Protect[MRIOrientTransform];
 
 (* Here, we want to do all the coordinate transformations... *)
-
-(* #$VoxelIndexToRASMatrix *****************************************************************)
-$VoxelIndexToRASMatrix = {
-  { 0,  0,  1},
-  { 0, -1,  0},
-  {-1,  0,  0}};
-Protect[$VoxelIndexToRASMatrix];
 
 (* #VoxelIndexToRASMatrix ******************************************************************)
 VoxelIndexToRASMatrix[img_?MRImageQ, spec_List] := Check[
@@ -1100,10 +1022,9 @@ MRITransformation[img_?MRImageQ, tx0_, opts___Rule] := Check[
 Protect[MRITransformation];
 
 (* #MRIOrient *************************************************************************************)
-MRIOrient[img_?MRImageQ, spec:{_,_,_}, dims:{_,_,_}] := Check[
-  MRITransformation[img, MRIOrientTransform[img, spec, dims]],
+MRIOrient[img_?MRImageQ, spec:{_,_,_}] := Check[
+  MRITransformation[img, MRIOrientMatrix[img, spec]],
   $Failed];
-MRIOrient[img_?MRImageQ, spec:{_,_,_}] := MRIOrient[img, spec, ImageDimensions[img]];
 MRIOrient[img_?MRImageQ, type_String /; StringLength[type] == 3] := Check[
   MRIOrient[
     img,
@@ -1115,7 +1036,6 @@ MRIOrient[img_?MRImageQ, type_String /; StringLength[type] == 3] := Check[
        c_ :> Message[MRIOrient::badarg, "Unrecognized orientation character: " <> c]},
       {1}]],
     $Failed];
-MRIOrient[img_?MRImageQ, s_String] := MRIOrient[img, s, ImageDimensions[img]];
 Protect[MRIOrient];
 
 (* #MRISlices *************************************************************************************)

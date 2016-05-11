@@ -278,7 +278,9 @@ ImportMGHFrames[stream_InputStream, opts___] := "Frames" -> Catch[
           If[Count[dims, Except[1]] == 1,
             Table[BinaryReadList[stream, type, volsz], {nframes}],
             Table[
-              Fold[Partition, BinaryReadList[stream, type, volsz], Most[dims]],
+              Transpose[
+                Fold[Partition, BinaryReadList[stream, type, volsz], Most[dims]],
+                {3,2,1}],
               {nframes}]] ]]]]];
 ImportMGHFooter[stream_InputStream, opts___] := "OptionalData" -> Catch[
   Block[
@@ -413,7 +415,7 @@ ExportMGH[filename_, data_, opts___] := Block[
     (* Make sure we have all the data we need... *)
     With[
       {datExtr = Which[
-         ImageQ[data] && Head[data] === Image3D, ImageData[data],
+         ImageQ[data] && Head[data] === Image3D, Reverse/@Transpose[ImageData[data], {3,2,1}],
          MRImageQ[data], ImageData[data],
          ArrayQ[data, 3|4], Normal[data],
          VectorQ[data], {{Normal[data]}},
@@ -469,7 +471,7 @@ ExportMGH[filename_, data_, opts___] := Block[
                  fl,
                  Switch[Count[Dimensions[dat], Except[1]],
                         1|2, Flatten@dat,
-                        _, Flatten[Map[Reverse, dat, {1,2}]]],
+                        _,   Flatten@Transpose[dat, {3,2,1}]],
                  outtype];
                (* Optional data is not currently supported; zeros are written *)
                Scan[BinaryWrite[fl, 0, #[[2]]]&, $MGHOptionalData];
@@ -2150,11 +2152,13 @@ DefineImmutable[
    CortexToRASMatrix[sub] :> With[
      {mi = ImageMetaInformation[sub]},
      With[
-       {mtx = ("VOXToRASMatrix" /. mi["Native"])[[1;;3,4]]},
-       {{1, 0, 0, mtx[[1]]},
-        {0, 1, 0, mtx[[2]]},
-        {0, 0, 0, mtx[[3]]},
-        {0, 0, 0, 1}}]],
+       {mtx = ("VOXToRASMatrix" /. mi["Native"])},
+       With[
+         {x0 = mtx[[1;;3, 1;;3]] . (-mtx[[1;;3, 4]])},
+         {{1, 0, 0, x0[[1]]},
+          {0, 1, 0, x0[[2]]},
+          {0, 0, 1, x0[[3]]},
+          {0, 0, 0, 1}}]]],
      
    (* Lists of available data *)
    HemiList[sub] :> {
@@ -2169,7 +2173,7 @@ DefineImmutable[
    MRImageList[sub, hemi_?HemiQ] := Select[
      Keys[$FreeSurferImageData],
      FreeSurferImageLoadableQ[Path[sub], #, hemi]&],
-   MRImageList[sub] :> Union@Table[MRImageList[sub, hemi], {hemi, {LH, RH, LR}}],
+   MRImageList[sub] :> Union@@Table[MRImageList[sub, hemi], {hemi, {LH, RH, LR}}],
    (* Now we make some accessors for this subject *)
    Cortex[sub, All|LR, name_] := {Cortex[sub, LH, name], Cortex[sub, RH, name]},
    Cortex[sub, hemi:(LH|RH|LHX|RHX), name_] := Check[
