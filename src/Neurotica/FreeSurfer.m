@@ -391,7 +391,7 @@ MGHInterpret[data_] := With[
         SuperiorDirectionVector -> mtx[[3, 1;;3]],
         VoxelDimensions -> spacings,
         MetaInformation -> ("MetaInformation" /. data)]]]];
-ImportMGHObject[stream_InputStream, opts___] := MGHInterpret["Data" /.ImportMGHData[stream, opts]];
+ImportMGHObject[stream_InputStream, opts___] := MGHInterpret["Data" /. ImportMGHData[stream, opts]];
 ImportMGH[filename_, opts___] := Import[filename, "MGH", opts];
 Protect[ImportMGHHeader, ImportMGHFrames, ImportMGHFooter, ImportMGHMetaInformation, ImportMGHData, 
         MGHInterpret, ImportMGHObject, ImportMGH];

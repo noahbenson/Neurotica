@@ -2918,7 +2918,7 @@ GetVertexColors[mesh_, vcolorsOpt_, colorFnOpt_] := With[
                  CorticalColorData[r][#],
                  (* A Blended color, like {{"Curvature", "PolarAngle"}, 0.6} *)
                  ListQ[r] && Length[r] == 2 && VectorQ[r[[1]], StringQ] && NumericQ[r[[2]]],
-                 Blend[Table[CorticalColorData[t][#], {r, r[[1]]}], r[[2]]],
+                 Blend[Table[CorticalColorData[t][#], {t, r[[1]]}], r[[2]]],
                  (* Anything else (like a color) *)
                  True, r]],
              Normal@VertexDataset[mesh]]]]}]]];

@@ -540,10 +540,15 @@ ImportNifTIVoxels[stream_, opts___Rule] := Check[
           {raw = BinaryReadList[stream, datatype, Times @@ dims]},
           "Voxels" -> NifTIColorTranslate[
             datatype,
-            Fold[
-              Partition,
-              raw,
-              Most @ If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]]]]]]],
+            With[
+              {vox = Fold[
+                 Partition,
+                 raw,
+                 Most @ If[Length[dims] >= 4 && dims[[4]] == 1, Delete[dims, 4], dims]]},
+              If[Length@Dimensions[vox] == 3,
+                Transpose[vox, {3,2,1}],
+                Transpose[#, {3,2,1}]& /@ vox]
+              ]]]]]],
   $Failed];
 
 ImportNifTIData[stream_, opts___Rule] := Check[
@@ -553,31 +558,39 @@ ImportNifTIData[stream_, opts___Rule] := Check[
        "Header" :> Message[ImportNifTI::badfmt, "Invalid header"]]},
     With[
       {voxels = ImportNifTIVoxels[stream, "Header" -> header, opts]},
-      "Data" -> {"Header" -> header, "Voxels" -> voxels}]],
+      "Data" -> {"Header" -> header, voxels}]],
   $Failed];
 
 InterpretNifTI[data_List] := With[
-  {header = "Header" /. data,
+  {header = Association["Header" /. data],
+   hdr = "Header" /. data,
    voxels = "Voxels" /. data},
   With[
     {dims = Dimensions[voxels]},
     If[Count[dims, 1, {1}] == Length[dims] - 1,
       Flatten[voxels],
       With[
-        {qcode = "QFormCode" /. header,
-         scode = "SFormCode" /. header},
-      MRImage3D[
-        voxels,
-        VoxelDimensions -> ("VoxelDimensions" /. header),
-        Sequence @@ If[qcode > 0, 
+        {qcode = header["QFormCode"],
+         scode = header["SFormCode"]},
+        MRImage3D[
+          voxels,
+          VoxelDimensions -> header["VoxelDimensions"],
           With[
-            {mtx = QuaternionToRotationMatrix[("Quaternions" /. header)[[1;;3]]]},
-            {RightDirectionVector -> mtx[[1]],
-             AnteriorDirectionVector -> mtx[[2]],
-             SuperiorDirectionVector -> mtx[[3]]}],
-          {}],
-        Center -> {0,0,0},
-        MetaInformation -> header]]]]];
+            {mtx = Which[
+               MatrixQ@header["AffineTransform"], header["AffineTransform"],
+               qcode > 0, MapThread[
+                 Append,
+                 {QuaternionToRotationMatrix[header["Quaternions"][[1;;3]]],
+                  header["Quaternions"][[4;;6]]}],
+               True, None],
+             dims = Dimensions[voxels]},
+            Sequence@@If[MatrixQ[mtx],
+              {RightDirectionVector    -> mtx[[1, 1;;3]],
+               AnteriorDirectionVector -> mtx[[2, 1;;3]],
+               SuperiorDirectionVector -> mtx[[3, 1;;3]],
+               Center                  -> (mtx[[1;;3, 4]] - 0.5*dims)},
+              {}]],
+          MetaInformation -> hdr]]]]];
 
 ImportNifTI[stream_, opts___Rule] := Check[
   With[

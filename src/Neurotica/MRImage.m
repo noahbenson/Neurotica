@@ -86,14 +86,14 @@ MRIOrient::badarg = "Invalid instructions given to MRIOrient: `1`";
 MRIOrientMatrix::usage = "MRIOrientMatrix[img, spec] and MRIOrientMatrix[img, spec, dims] both yield the matrix used in the transformation undertaken by MRIOrient[img, spec, dims]. Note that these yield matrices that are appropriate for use with ImageForwardTransformation or MRITransformation, but not ImageTransformation.";
 MRIOrientTransform::usage = "MRIOrientTransform[img, spec] and MRIOrientMatrix[img, spec, dims] both yield the transformation function used in the transformation undertaken by MRIOrient[img, spec, dims]. Note that these yield transform functions that are appropriate for use with ImageForwardTransformation or MRITransformation, but not ImageTransformation.";
 
-MRISlices::usage = "MRISlices[img, plane] yields a list of MRImage objects (2D MRImage slices) corresponding to the given plane. Plane may be specified in any of the following ways:
-  * \"Sagittal\" or \"Lateral\" indicate the slices parallel to the Sagittal plane, which divides left from right, ordering the slices from left to right.
-  * \"Transverse\", \"Axial\", or \"Horizontal\" indicate the slices parallel to the Horizontal plane, which divides top superior from inferior, ordering the slices from inferior to superior.
-  * \"Coronal\" or \"Frontal\" indicate the slices parallel to the Coronal plane, which divides posterior from anterior, ordering the slices from posterior to anterior.
-  * Left -> Right, Anterior -> Back, LH -> RH, Top -> Inferior, etc. may also be used to indicate that the slices should be ordered in a particular direction.
-The option MRIOrient may be specified as well; if not specified, the default value, Automatic, indicates that the orientation provided in the image should be preserved in the resulting slices; otherwise, the value must be a 2-element list which is a valid argument to the MRIOrient[] function with any of the 2D image slices.
-MRISlices[img, plane, slices] is equivalent to MRISlices[img, plane][[slices]].";
+MRISlices::usage = "MRISlices[img, orientation] yields a list of MRImage objects (2D MRImage slices) corresponding to the final dimension of the given image in the given orientation. For example, MRISlices[img, \"RAS\"] would yield a list of slices, ordered from inferior to superior, in which the positive x-axis increases from right to left with columns and the positive y-axis increases from bottom top top with rows.
+MRISlices[img] yields the slices of the img in its current orientation.";
 MRISlices::badplane = "Could not recognized plane given to MRISlices: `1`";
+
+MRImageToImageData::usage = "MRImageToImageData[imgdat] reorganizes the given image data from a conventionally MRImage3D orientation to an Image3D orientation.";
+ImageToMRImageData::usage = "ImageToMRImageData[imgdat] reorganizes the given image data from a conventionally Image3D orientation to an MRImage3D orientation.";
+MRImageToImageData2D::usage = "MRImageToImageData2D[imgdat] reorganizes the given image data from a conventionally MRImage3D orientation to an Image3D orientation.";
+ImageToMRImageData2D::usage = "ImageToMRImageData2D[imgdat] reorganizes the given image data from a conventionally Image orientation to an MRImage orientation.";
 
 (**************************************************************************************************)
 Begin["`Private`"];
@@ -101,6 +101,8 @@ Begin["`Private`"];
 (* The conversion here is not straightforward due to the way Mathematica orients the x/y/z axes. *)
 MRImageToImageData[dat_?ArrayQ] := Transpose[Reverse[dat, {2,3}], {3,2,1}];
 ImageToMRImageData[dat_?ArrayQ] := Reverse[Transpose[dat, {3,2,1}], {2,3}];
+MRImageToImageData2D[dat_?ArrayQ] := Reverse@Transpose[dat];
+ImageToMRImageData2D[dat_?ArrayQ] := Transpose@Reverse[dat];
 
 (* #MRImage3D *************************************************************************************)
 
@@ -637,7 +639,7 @@ DefineImmutable[
                   AnteriorDirectionVector[img],
                   SuperiorDirectionVector[img]}},
           With[
-            {x0 = -mtx.(Center[img] + 0.5*ImageDimensions[img])},
+            {x0 = mtx.(0.5*ImageDimensions[img] - Center[img])},
             If[!MatrixQ[Append[mtx,x0], NumericQ],
               Indeterminate,
               Append[MapThread[Append, {mtx, x0}], {0,0,0,1}]]]],
@@ -706,19 +708,7 @@ DefineImmutable[
         Image3D[img, opts__] := Image3D[Image3D[img], opts],
         
         (* This produces slices, but the preferred method is to use MRISlices[], below. *)
-        Image3DSlices[img, opts___] := With[
-          {max = MRImageMax[img],
-           min = MRImageMin[img]},
-          Map[
-            Function[
-              MRImage[
-                ImageData[#] * (max - min) + min,
-                MRImage3D -> img,
-                Sequence @@ FilterRules[
-                  Options[img],
-                  Cases[Options[MRImage][[All, 1]], Except[MRImage3D|PixelDimensions]]],
-                PixelDimensions -> Rest[VoxelDimensions[img]]]],
-            Image3DSlices[Image3D[img], opts]]]]]],
+        Image3DSlices[img, opts___] := Image3DSlices[Image3D[img], opts]]]],
   SetSafe ->True,
   Symbol -> MRImage3D];
 
@@ -734,7 +724,7 @@ Options[MRImage] = Join[
     {1}]];
 (* For redefining options of MRImage *)
 MRImage[img_Image, opts___Rule] := MRImage[
-  ImageData[img],
+  ImageToMRImageData2D@ImageData[img],
   opts,
   Sequence@@Options[img]];
 MRImage[img_MRImage, opts___Rule] := Clone[
@@ -744,7 +734,11 @@ DefineImmutable[
   MRImage[data_, OptionsPattern[]] :> img,
   Evaluate[
     Join[
-      ReplaceAll[$MRImageSharedMethods, {Image3D -> Image, MRImage3D -> MRImage}],
+      ReplaceAll[
+        $MRImageSharedMethods,
+        {Image3D -> Image, MRImage3D -> MRImage,
+         ImageToMRImageData -> ImageToMRImageData2D,
+         MRImageToImageData -> MRImageToImageData2D}],
       Hold[
         (* Retreive (or edit) the raw image data *)
         ImageData[img] = data,
@@ -780,11 +774,8 @@ DefineImmutable[
               MRImage::badarg,
               "PixelDimensions must be a 2D array"],
             True, With[
-              {min = MRImageMin[img],
-               max = MRImageMax[img]},
-              Image[
-                (dat - min) / Replace[(max - min), 0|0. -> 1],
-                Sequence@@FilterRules[opts, Options[Image][[All,1]]]]]]],
+              {imgdat = MRImageToImageData2D@Rescale[dat, {MRImageMin[img], MRImageMax[img]}]},
+              WithOptions[Image[imgdat], opts]]]],
         
         (* This is an MRImage... Checks of data quality should go here as well. *)
         MRImageSliceQ[img] -> True]]],
@@ -845,10 +836,10 @@ MRIOrientMatrix[img_?MRImageQ, spec:{_,_,_}] := Catch @ With[
     Message[MRIOrient::badarg, "repeated or opposite specs given"]];
   (* mtx0 tells us which direction right/left etc are in... get the transform and the center out *)
   With[
-    {tx = mtx0 . dir,
+    {tx = dir . mtx0,
      newDims = {Floor@Min[#], Ceiling@Max[#]}& /@ Transpose[
-       Dot[mtx0, dir, #]& /@ Tuples@Tuples[{{1}, dims}]],
-     newCenter = Dot[mtx0, dir, center]},
+       Dot[dir, mtx0, #]& /@ Tuples@Tuples[{{1}, dims}]],
+     newCenter = Dot[dir, mtx0, center]},
     With[
       {endCenter = (#[[2]] - #[[1]] + 2)/2.0& /@ newDims,
        endDims = {1, #[[2]] - #[[1]] + 1}& /@ newDims},
@@ -1039,41 +1030,18 @@ MRIOrient[img_?MRImageQ, type_String /; StringLength[type] == 3] := Check[
 Protect[MRIOrient];
 
 (* #MRISlices *************************************************************************************)
-Options[MRISlices] = {MRIOrient -> Automatic};
-MRISlices[img_?MRImageQ, plane_, which_, OptionsPattern[]] := Check[
+MRISlices[img_?MRImageQ, orient_] := Check[
   With[
-    {orient = OptionValue[MRIOrient],
-     dir = Switch[plane,
-       "Sagittal"|"Lateral", Left,
-       Right|RH|(LH|Left -> RH|Right), Left,
-       Left|LH|(RH|Right -> LH|Left), Right,
-       "Coronal"|"Frontal", Posterior,
-       Anterior|Front|(Back|Posterior -> Front|Anterior), Posterior,
-       Posterior|Back|(Front|Anterior -> Back|Posterior), Anterior,
-       "Transverse"|"Axial"|"Horizontal", Inferior,
-       Superior|Top|(Bottom|Inferior -> Top|Superior), Inferior,
-       Inferior|Bottom|(Top|Superior -> Bottom|Inferior), Superior,
-       _, Message[MRISlices::badplane, plane]]},
+    {oriented = If[orient === None || orient === Identity, img, MRIOrient[img, orient]],
+     opts = Options[img]},
     With[
-      {tx = MRIOrient[
-         img,
-         Append[
-           Which[
-             orient === Automatic, Switch[dir,
-               Right, {Anterior, Superior},
-               Left, {Posterior, Superior},
-               Superior, {Right, Anterior},
-               Inferior, {Right, Anterior},
-               Anterior, {Left, Superior},
-               Posterior, {Right, Superior}],
-             ListQ[orient] && Length[orient] == 2, orient,
-             True, Message[MRISlices::badarg, "MRIOrient argument must be a 2-element list"]],
-           dir]]},
-      Image3DSlices[tx, which]]],
+      {imgdat = ImageData[oriented]},
+      Table[
+        WithOptions[MRImage[imgdat[[All, All, i]]], opts],
+        {i, 1, Dimensions[ImageData[oriented]][[3]], 1}]]],
   $Failed];
-MRISlices[img_?MRImageQ, plane_, opts:OptionsPattern[]] := MRISlices[img, plane, All, opts];
+MRISlices[img_?MRImageQ] := MRISlices[img, Identity];
 Protect[MRISlices];
-
 
 
 (* For all of the functions below, we want to write them only once, for the 3D case, but to define

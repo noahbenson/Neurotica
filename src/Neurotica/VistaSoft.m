@@ -101,7 +101,6 @@ ImportVistaSoftGrayData[path_?DirectoryQ] := With[
        VistaSoftImport::badarg,
        ImportVistaSoftGrayData, "coords.mat import failed"]]},
   Null];
-
 Protect[$VistaSoftGrayDataFields, ImportVistaSoftGrayData];
 
 (* #VistaSoftPRFModel *****************************************************************************)
