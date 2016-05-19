@@ -2221,10 +2221,14 @@ DefineImmutable[
      LabelVertexList[map, args___] := CorticalLabelVertexList[map, args],
 
      (* #BoundaryMeshRegion *)
-     BoundaryMeshRegion[map] :> BoundaryMeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
+     BoundaryMeshRegion[map] :> BoundaryMeshRegion[
+       VertexCoordinates[map],
+       Polygon@IndexedFaceList[map]],
 
      (* #MeshRegion *)
-     MeshRegion[map] :> MeshRegion[VertexCoordinates[map], Polygon[FaceList[map]]],
+     MeshRegion[map] :> MeshRegion[
+       VertexCoordinates[map],
+       Polygon@IndexedFaceList[map]],
      TriangulateMesh[map, opts___] := TriangulateMesh[BoundaryMeshRegion[map], opts],
      HighlightMesh[map, opts___] := HighlightMesh[BoundaryMeshRegion[map], opts],
      DimensionalMeshComponents[map, opts___] := DimensionalMeshComponents[
@@ -3212,7 +3216,7 @@ CortexResampleNearest[X_?MatrixQ, from_?CorticalObjectQ] := With[
   {near = Nearest[from]},
   With[
     {idcs = near[If[Length[X] < 4 && Length@First[X] > 3, Transpose[X], X], 1]},
-    {Transpose[idcs], ConstantArray[1, Length[idcs]]}]];
+    {VertexIndex[from, #]&/@Transpose[idcs], ConstantArray[1, Length[idcs]]}]];
 CortexResampleTrilinear[X_?MatrixQ, from_?CorticalObjectQ] := With[
   {dat = NearestFace[from, X, Points -> True],
    Fx = Transpose[FaceCoordinatesTr[from], {3, 1, 2}]},
@@ -3220,12 +3224,14 @@ CortexResampleTrilinear[X_?MatrixQ, from_?CorticalObjectQ] := With[
     {px = dat[[2]],
      Ix = Fx[[All, dat[[1]]]]},
     With[
-      {Px = {Ix[[1]] - px, Ix[[2]] - px, Ix[[3]] - px}},
+      {Px = {Ix[[1]] - px, Ix[[2]] - px, Ix[[3]] - px} // Function@If[CorticalMapQ[from],
+         Map[Transpose@Append[Transpose[#], ConstantArray[0.0, Length[#]]]&, #],
+         #]},
       With[
         {weights = (# / ConstantArray[Total[#], Length[#]])&@Map[
            RowNorms,
            MapThread[Cross, Px[[#]]]& /@ {{2,3}, {1,3}, {1,2}}]},
-        {IndexedFaceListTr[from][[All, dat[[1]]]], weights}]]]];    
+        {IndexedFaceListTr[from][[All, dat[[1]]]], weights}]]]];
 CortexResample[a_ /; MatrixQ[a, NumericQ], b_?CorticalObjectQ, opts:OptionsPattern[]] := Check[
   With[
     {propNames = Select[
