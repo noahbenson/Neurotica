@@ -58,6 +58,7 @@ A cortical mesh resembles both a graph object and a boundary mesh region object.
 CorticalMesh::badarg = "Bad argument given to CorticalMesh constructor: `1`";
 CorticalMesh3D::usage = "CorticalMesh3D is a form used to store data for 3D surface mesh objects (see CorticalMesh).";
 CorticalMeshQ::usage = "CorticalMeshQ[mesh] yields True if and only if mesh is a CorticalMesh object and False otherwise.";
+CorticalMesh::error = "Error in cortical mesh function `1`: `2`";
 
 CorticalMap::usage = "CorticalMap[mesh] yields a 2D flattened cortical projection of the given cortical mesh. The following options may be given:
   * Method (default: \"Equirectangular\") specifies the projection method to be used in projecting the cortical surface to a flat map. Possible values for Method include:
@@ -72,7 +73,12 @@ CorticalMap::usage = "CorticalMap[mesh] yields a 2D flattened cortical projectio
 CorticalMap::badarg = "Bad argument given to CorticalMap: `1`";
 CorticalMesh2D::usage = "CorticalMesh2D is a form used to store data for 2D projections of surface mesh objects (see CorticalMap).";
 CorticalMapQ::usage = "CorticalMapQ[x] yields True if x is a 2D cortical projection and False otherwise.";
+CorticalMap::error = "Error in cortical map function `1`: `2`";
 SourceMesh::usage = "SourceMesh[map] yields the mesh object from which the given cortical projection, map, was constructed.";
+NearestFaceCenters::usage = "NearestFaceCenters[mesh] yields a Nearest object f such that f[x] yields the face index whose center is nearest the point x.";
+NearestFace::usage = "NearestFace[mesh, x] yields the face nearest to the point x. If x is a matrix, then the indices for all pointsi n x are yielded as a list.
+The option Points may be set to true, in which case a list of {indices, points} is returned with the indices of the faces containing the points in x and the 
+points that are themselves on the mesh in points.";
 
 CorticalObjectQ::usage = "CorticalObjectQ[c] yields True if c is either a CorticalMesh object or a CorticalMap object and yields False otherwise.";
 
@@ -251,7 +257,10 @@ CortexResample::usage = "CortexResample[surf1, surf2] yields a cortical equivale
 CortexResample[surf2 -> surf1] is equivalent to CortexResample[surf1, surf2].
 The following options may be provided:
   * Method: a Method option may specify Nearest (default) for nearest-neighbor interpolation, Interpolation, or List interpolation, for their respective functions. In the latter two cases, A list may be given instead of the argument such that the first argument is Interpolation or LitInterpolation and the remaining elements of the list are options to pass to these functions; e.g. Method -> {Interpolation, InterpolationOrder -> 4}.
-  * Properties: a Properties argument specifies that the given property should be resampled; a list of properties may also be given, or All. If no property is given then All is the default value.";
+  * Properties: a Properties argument specifies that the given property should be resampled; a list of properties may also be given, or All. If no property is given then All is the default value.
+  * Indeterminate: a value to insert into the interpolated values in the case that non-numeric values were found nearby";
+CortexResample::badarg = "Bad argument given to CortexResample: `1`";
+CortexResampleOnto::usage = "CortexResampleOnto[args...] is identical to CortexResample[args...] but instead of returning the new properties, it places the resamples properties onto the new mesh and returns the updated mesh.";
 
 CorticalLabelQ::usage = "CorticalLabelQ[mesh, label] yields True if and only if label is a valid label for the given mesh; otherwise yields false. A label is valid for the given mesh if any of the following conditions are met:
   * label is a list of valid vertices in mesh;
@@ -1046,7 +1055,13 @@ DefineImmutable[
      IndexedEdgeList[mesh] := UndirectedEdge@@@IndexedEdgePairs[mesh],
      IndexedFaceListTr[mesh] :> VertexIndex[mesh, FaceListTr[mesh]],
      IndexedFaceList[mesh] :> Transpose@IndexedFaceListTr[mesh],
-     
+
+     (* We keep track of the nearest vertices *)
+     Nearest[mesh] :> Nearest[VertexCoordinates[mesh] -> VertexList[mesh]],
+     NearestFaceCenters[mesh] :> Nearest@Rule[
+       Transpose@Total@Transpose@FaceCoordinatesTr[mesh] / 3.0,
+       Automatic],
+    
      (* These indices depend only on the face list and edge pairs and tell us to which faces a
       * vertex or an edge belongs.
       *)
@@ -1897,6 +1912,12 @@ DefineImmutable[
      IndexedFaceListTr[map] :> VertexIndex[map, FaceListTr[map]],
      IndexedFaceList[map] :> Transpose@IndexedFaceListTr[map],
 
+     (* Keep track of nearest vertices... *)
+     Nearest[map] :> Nearest[VertexCoordinates[map] -> VertexList[map]],
+     NearestFaceCenters[map] :> Nearest@Rule[
+       Transpose@Total@Transpose@FaceCoordinatesTr[map] / 3.0,
+       Automatic],
+
      (* These indices depend only on the face list and edge pairs and tell us to which faces a
         * vertex or an edge belongs.
         *)
@@ -2392,6 +2413,37 @@ Protect[CorticalMesh, CorticalMeshQ, Inclusions, VertexCoordinates, VertexCoordi
         IndexedEdgePairs, IndexedEdgePairsTr, VertexPropertyAssociation, EdgePropertyAssociation,
         FacePropertyAssociation, VertexDataset, EdgeDataset, FaceDataset];
 
+(* #NearestFace ***********************************************************************************)
+Options[NearestFace] = {Points -> False};
+NearestFace[mesh_?CorticalObjectQ, x0_, OptionsPattern[]] := With[
+  {doPoints = Replace[OptionValue[Points], Except[False] -> True],
+   region = MeshRegion[mesh],
+   dims = If[CorticalMapQ[mesh], 2, 3]},
+  With[
+    {x = RegionNearest[
+       region,
+       Which[
+         VectorQ[x0, NumericQ] && Length[x0] == dims, {x0},
+         !MatrixQ[x0, NumericQ], (
+           Message[
+             If[CorticalMeshQ[mesh], CorticalMesh::error, CorticalMap::error],
+             NearestFace,
+             "argument must be a numberic vector or matrix"];
+           x0),
+         Length@First[x0] == dims, x0,
+         Length[x0] == dims, Transpose[x0], 
+         True, (
+           Message[
+             CorticalMesh::error,
+             NearestFace,
+             "argument must have "<> ToString[dims] <>" dimensions"];
+           x0)]]},
+    With[
+      {idcs = If[VectorQ[x0], First[#], #]&@Last@Transpose@Region`Mesh`MeshMemberCellIndex[
+         region,
+         x]},
+      If[doPoints, {idcs, If[VectorQ[x0], x[[1]], x]}, idcs]]]];
+Protect[NearestFace];
 
 (**************************************************************************************************)
 (* Properties for Cortical Objects *)
@@ -3152,52 +3204,91 @@ ColorCortex[instructions___] := With[
 Protect[ColorCortex];
 
 (* #CortexResample ********************************************************************************)
-Options[CortexResample] = {Method -> Nearest, Properties -> All, Clear -> False};
-CortexResample[a_?CorticalMeshQ, b_?CorticalMeshQ, opts:OptionsPattern[]] := Catch @ With[
-  {propNames = Select[
-     Replace[
-       OptionValue[Properties],
-       {All :> PropertyList[{b, VertexList}],
-        p:Except[_List] :> {p}}],
-     # =!= VertexCoordinates &],
-   clear = OptionValue[Clear],
-   method = OptionValue[Method]},
+Options[CortexResample] = {Method -> Interpolation, Properties -> All, Indeterminate -> None};
+(* These private functions return a pair of matrices: one of indices and one of weights, for the
+ * given matrix and mesh.
+ *)
+CortexResampleNearest[X_?MatrixQ, from_?CorticalObjectQ] := With[
+  {near = Nearest[from]},
   With[
-    {surf = If[clear, RemoveProperty[{a, VertexList}], a],
-     props = Map[PropertyValue[{b, VertexList}, #]&, propNames]},
-    If[VertexCoordinates[a] == VertexCoordinates[b],
-      SetProperty[
-        {surf, VertexList}, 
-        Map[(# -> PropertyValue[{b, VertexList}, #])&, propNames]],
-      Replace[
-        Replace[method, x:Except[_List] :> {x}],
-        {{"Nearest"|"NearestNeighbor"|Nearest} :> With[
-            {nearest = Nearest[VertexCoordinates[b] -> Automatic]},
-            With[
-              {idcs = Map[Function[First[nearest[#, 1]]], VertexCoordinates[a]]},
-              SetProperty[
-                {surf, VertexList},
-                MapThread[(#1 -> #2[[idcs]])&, {propNames, props}]]]],
-         {"Interpolation"|Interpolation, args___} :> With[
-            {interp = Interpolation[
-               MapThread[
-                 List,
-                 {VertexCoordinates[b], VertexPropertyValues[b, propNames]}],
-               args]},
-            With[
-              {resampled = Map[Apply[interp, #]&, VertexCoordinates[a]]},
-              SetProperty[
-                {surf, VertexList},
-                Thread[propNames -> resampled]]]],
-         _ :> Throw[
-           Message[
-             SurfResample::badarg,
-             Method,
-             "Method given to CortexResample must be Nearest or Interpolation"];
-           $Failed]}]]]];
-CortexResample[Rule[a_?CorticalMeshQ, b_?CorticalMeshQ], opts:OptionsPattern[]] := CortexResample[
+    {idcs = near[If[Length[X] < 4 && Length@First[X] > 3, Transpose[X], X], 1]},
+    {Transpose[idcs], ConstantArray[1, Length[idcs]]}]];
+CortexResampleTrilinear[X_?MatrixQ, from_?CorticalObjectQ] := With[
+  {dat = NearestFace[from, X, Points -> True],
+   Fx = Transpose[FaceCoordinatesTr[from], {3, 1, 2}]},
+  With[
+    {px = dat[[2]],
+     Ix = Fx[[All, dat[[1]]]]},
+    With[
+      {Px = {Ix[[1]] - px, Ix[[2]] - px, Ix[[3]] - px}},
+      With[
+        {weights = (# / ConstantArray[Total[#], Length[#]])&@Map[
+           RowNorms,
+           MapThread[Cross, Px[[#]]]& /@ {{2,3}, {1,3}, {1,2}}]},
+        {IndexedFaceListTr[from][[All, dat[[1]]]], weights}]]]];    
+CortexResample[a_ /; MatrixQ[a, NumericQ], b_?CorticalObjectQ, opts:OptionsPattern[]] := Check[
+  With[
+    {propNames = Select[
+       Replace[
+         OptionValue[Properties],
+         {All :> VertexPropertyList[b],
+          p:Except[_List] :> {p}}],
+       # =!= VertexCoordinates &],
+     fill = OptionValue[Indeterminate],
+     method = Replace[
+       OptionValue[Method],
+       {Nearest|"Nearest" -> CortexResampleNearest,
+        Interpolation|"Interpolation"|"Trilinear" -> CortexResampleTrilinear,
+        _ :> Message[
+          CortexResample::badarg,
+          "Method arg should be \"Nearest\" or \"Trilinear\""]}],
+     X0 = Which[
+       Length[a] == Length@VertexCoordinatesTr[b], a,
+       Length@First[a] == Length@VertexCoordinatesTr[b], Transpose[a],
+       True, Message[CortexResample::badarg, "destination-matrix dimensions are incorrect"]]},
+    With[
+      {dat = method[X0, b],
+       props = (# /. b)& /@ propNames},
+      With[
+        {res = If[Length@First[dat] == 1,
+           MapThread[
+             #1 -> #2[[dat[[1,1]]]] &,
+             {propNames, props}],
+           MapThread[
+             Function@With[
+               {name = #1, vals0 = Table[#2[[idcs]], {idcs, dat[[1]]}]},
+               With[
+                 {where = Boole@Map[NumericQ, vals0, {2}],
+                  vals = Replace[vals0, Except[_?NumericQ] -> 0.0, {2}]},
+                 With[
+                   {weights = dat[[2]] * where},
+                   With[
+                     {tot = Total[weights]},
+                     With[
+                       {zeros = 1 - Unitize[tot]},
+                       name -> ReplacePart[
+                         Total[vals * weights] / (zeros + tot),
+                         Position[zeros, 1, {1}] -> fill]]]]]],
+             {propNames, props}]]},
+        If[StringQ@OptionValue[Properties], res[[1,2]], res]]]],
+  $Failed];
+CortexResample[a_?CorticalObjectQ, b_?CorticalObjectQ, opts:OptionsPattern[]] := CortexResample[
+  VertexCoordinatesTr[a], b, opts];
+CortexResample[Rule[a_?CorticalObjectQ, b_], opts:OptionsPattern[]] := CortexResample[
   b, a, opts];
 Protect[CortexResample];
+
+(* #CortexResampleOnto ****************************************************************************)
+Options[CortexResampleOnto] = Options[CortexResample];
+CortexResampleOnto[a_?CorticalObjectQ, b_?CorticalObjectQ, opts:OptionsPattern[]] := With[
+  {resamp = Normal@CortexResample[a, b, opts],
+   p = OptionValue[Properties]},
+  If[StringQ[p],
+    SetVertexProperties[a, p -> resamp],
+    Fold[SetVertexProperties, a, resamp]]];
+CortexResampleOnto[Rule[a_, b_], opts:OptionsPattern[]] := CortexResampleOnto[
+  b, a, opts];
+Protect[CortexResampleOnto];
 
 (* #CorticalLabelQ ********************************************************************************)
 CorticalLabelQ[mesh_?CorticalObjectQ, label_] := False;
