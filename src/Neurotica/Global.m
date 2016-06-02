@@ -26,6 +26,7 @@ ClearAll[ "Neurotica`Global`*", "Neurotica`Global`Private`*"];
 
 Curvature::usage = "Curvature is a keyword that can be used to refer to curvature values; it is automatically defined by the CorticalSurface package to include a CorticalColor function as well.";
 
+Hemi::usage = "Hemi is a keyword used by Neurotica to indicate whether a piece of data relates to the left (LH) or right (RH) hemisphere. When the Hemi keyword is an option to a function, it indicates that one of these (LH or RH) is the appropriate value, as opposed to a hemisphere cortical mesh object.";
 HemiQ::usage = "HemiQ[x] yields True if x is a valid hemisphere ID, i.e., RH, LH, RHX, or LHX. Note that a \"Hemi\" is a hemisphere tag while a \"Hemisphere\" is an object that encapsulates the data relevant to a subject's hemisphere. If you wish to test if an object is a hemisphere object, use HemisphereQ.";
 
 RH::usage = "RH is a keyword that represents the right hemisphere.";
@@ -91,7 +92,7 @@ If[!ValueQ[Radius],
 
 Begin["`Private`"];
 
-Protect[RH, LH, LR, RHX, LHX, Anterior, Posterior, Inferior, Superior, PolarAngle,
+Protect[RH, LH, LR, RHX, LHX, Hemi, Anterior, Posterior, Inferior, Superior, PolarAngle,
         Eccentricity, VisualArea, Curvature, VertexToVoxelMap, VoxelToVertexMap];
 
 (* #HemiQ *****************************************************************************************)
