@@ -35,7 +35,8 @@
 (**************************************************************************************************)
 BeginPackage[
   "Neurotica`VisualCortex`",
-  {"Neurotica`Global`", 
+  {"NDSolve`FEM`",
+   "Neurotica`Global`", 
    "Neurotica`Util`",
    "Neurotica`Coordinates`",
    "Neurotica`Mesh`",
@@ -114,12 +115,12 @@ SchiraFunction::usage = "SchiraFunction[mdl] yields the forward tranformation fu
 SchiraFunction::badarg = "Bad argument given to Schira function: `1`";
 SchiraInverse::usage = "SchiraFunction[mdl] yields the inverse tranformation function for the given Schira model mdl. This is equivalent to mdl[Inverse].";
 SchiraInverse::badarg = "Bad argument given to Schira inverse function: `1`";
-CorticalMapToRetinotopy::usage = "CorticalMapToRetinotopy[model, map] yields a list of predictions, one per vertex in map, of the {polar angle, eccentricity, visual area} for the vertex in the given SchiraModelObject model. For any vertex that lies outside of the model's bounds, the absolute value of the visual area will be greater than 4. A list of vertices or a single vertex may also be substituted for map.
-CorticalMapToRetinotopy[model, X, Y] is equivalent to CorticalMapToRetinotopy[model, Thread[{X,Y}]].
-CorticalMapToRetinotopy[model] yields a pure curried function that may be called with map directly.";
-RetinotopyToCorticalMap::usage = "RetinotopyToCorticalMap[model, retinotopy] yields a list of 5 x 2 matrices, each row of which gives the {x, y} coordinate predictions for one of the visual areas. The result contains one such matrix for each retinotopic coordinate given. The retinotopy argument must be a list of {polarAngle, eccentricity}. The rows of each coordinate matrix returned represent, in order, the V1, V2, V3, HV4, and V3A predictions for the given retinotopic coordinate. A single retinotopy coordinate may be given, in which case, a single coordinate matrix is returned.
-RetinotopyToCorticalMap[model, polarAngles, eccentricities] is equivalent to RetinotopyToCorticalMap[model, Thread[{polarAngles, eccentricitie}]].
-RetinotopyToCorticalMap[model] yields a pure curried function that may be called with retinotopy directly.";
+CorticalMapToVisualField::usage = "CorticalMapToVisualField[model, map] yields a list of predictions, one per vertex in map, of the {polar angle, eccentricity, visual area} for the vertex in the given SchiraModelObject model. For any vertex that lies outside of the model's bounds, the absolute value of the visual area will be greater than 4. A list of vertices or a single vertex may also be substituted for map.
+CorticalMapToVisualField[model, X, Y] is equivalent to CorticalMapToVisualField[model, Thread[{X,Y}]].
+CorticalMapToVisualField[model] yields a pure curried function that may be called with map directly.";
+VisualFieldToCorticalMap::usage = "VisualFieldToCorticalMap[model, retinotopy] yields a list of 5 x 2 matrices, each row of which gives the {x, y} coordinate predictions for one of the visual areas. The result contains one such matrix for each retinotopic coordinate given. The retinotopy argument must be a list of {polarAngle, eccentricity}. The rows of each coordinate matrix returned represent, in order, the V1, V2, V3, HV4, and V3A predictions for the given retinotopic coordinate. A single retinotopy coordinate may be given, in which case, a single coordinate matrix is returned.
+VisualFieldToCorticalMap[model, polarAngles, eccentricities] is equivalent to VisualFieldToCorticalMap[model, Thread[{polarAngles, eccentricitie}]].
+VisualFieldToCorticalMap[model] yields a pure curried function that may be called with retinotopy directly.";
 
 PolarAngleLegend::usage = "PolarAngleLegend[hemi] yields a graphic that is appropriate for a polar angle legend. All options that are valid for DensityPlot can be passed.";
 EccentricityLegend::usage = "EccentricityLegend[hemi,max] yields a graphic that is appropriate for an eccentricity legend. All options that are valid for DensityPlot can be passed. The range is an optional argument that specifies the max eccentricity for this legend (default: 20)";
@@ -152,6 +153,29 @@ GaussianSchiraPotential::badarg = "Bad argument given to GaussianSchiraPotential
 SchiraAnchors::usage = "SchiraAnchors[map, model] yields a list appropriate for specification of a Schira potential of the given model over the given mesh via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> SchiraAnchors[mesh, model]]. To construct these anchors, the function uses the retinotopy data found in the mesh properties \"PolarAngle\" and \"Eccentricity\" of the given mesh. If the property \"VertexWeight\" or \"Weight\" is also present, then all vertices with a value above 0 are included and they are weighted by the given weights. Otherwise, any vertex with missing polar angle or eccentricity values ($Failed, None, or Indeterminate) are excluded.";
 SchiraAnchors::badarg = "Bad argument given to SchiraAnchors: `1`";
 SchiraAnchorsParameter::usage = "SchiraAnchorsParameter[map, param] yields a list appropriate for specification of a Schira potential parameters via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> SchiraAnchors[mesh, model], Scale -> SchiraAnchorsParameter[map, scaleData]].";
+
+V123Anchors::usage = "V123Anchors[map, model] yields a list appropriate for specification of a V1-V3 model potential of the given model over the given mesh via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> V123Anchors[mesh, model]]. To construct these anchors, the function uses the retinotopy data found in the mesh properties \"PolarAngle\" and \"Eccentricity\" of the given mesh. If the property \"VertexWeight\" or \"Weight\" is also present, then all vertices with a value above 0 are included and they are weighted by the given weights. Otherwise, any vertex with missing polar angle or eccentricity values ($Failed, None, or Indeterminate) are excluded.";
+V123Anchors::badarg = "Bad argument given to V123Anchors: `1`";
+V123AnchorsParameter::usage = "V123AnchorsParameter[map, param] yields a list appropriate for specification of a V1-V3 model potential parameters via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> V123Anchors[mesh, model], Scale -> V123AnchorsParameter[map, scaleData]].";
+
+MeshRegionOrthogonalFields::usage = "MeshRegionOrthogonalFields[mesh, init1, init2] yields a pair of orthogonal fields at the vertex coordinates in the given mesh region; the fields are discovered by minimization in which the smoothness and the orthogonality of the fields are minimized such that the given init values are held constant. The init values should be lists of (vertexIndex -> value) rules. All options that can be given the FindArgMin may be passed to this function.";
+
+V123Model::usage = "V123Model[] yields a data structure (an Association) of relevant data for a model of V1-V3 on the flattened cortical surface. The data structure includes the following elements:
+    * \"Mesh\" holds the MeshRegion of the model;
+    * \"BoundaryMesh\" holds a BoundaryMeshRegion of the model;
+    * \"PolarAngle\" and \"Eccentricity\" hold the data at the mesh points;
+    * \"PolarAngleConstraints\" and \"EccentricityConstraints\" hold the data used to initialize the mesh;
+    * \"V1BoundaryMesh\", \"V2BoundaryMesh\", \"V3BoundaryMesh\", and \"V4BoundaryMesh\" hold boundary mesh regions for the individual visual areas.
+  
+  The following options may be given:
+    * Scale (default: {15,5,5,3}) must be a 4-element list of positive numbers corresponding to the widths of each visual area (V1, V2, V3, V4);
+    * AspectRatio (default: 0.32) specifies the height/width ratio of the visual areas;
+    * Intersection (default: Pi * 3/5) specifies the angle at which the dorsal and ventral arms of the model intersect on the X-axis;
+    * Exponent (default: 3.5) specifies the eccentricity magnification m used in the eccentricity function (M * x^m);
+    * MaxValue (default: 90.0) specifies the maximum eccentricity value, M;
+    * CellSize (default: 0.1) specifies the approximate spacing of coordinates in the mesh;
+    * MaxIterations (default: 10,000) specifies the maximum number of iterations when finding the polar angle and eccentricity values;
+    * AffineTransform (default: a shear of {{1,-0.2},{0,1}} followed by a 5\[Degree] rotation and a translation of {-7,-1}) specifies the transform to be applied to the mesh after it has been solved.";
 
 (**************************************************************************************************)
 (**************************************************************************************************)
@@ -608,15 +632,15 @@ SchiraModelObjectPrep[params_List] := With[
            FC -> fc,
            Function :> ff,
            Inverse :> if,
-           CorticalMapToRetinotopy :> prf,
-           RetinotopyToCorticalMap :> prc,
+           CorticalMapToVisualField :> prf,
+           VisualFieldToCorticalMap :> prc,
            All :> params,
            x_ :> Message[SchiraModelObject::badarg, x]}]]]},
     prf := With[
-      {res = Check[CorticalMapToRetinotopy[mdl], $Failed]},
+      {res = Check[CorticalMapToVisualField[mdl], $Failed]},
       If[res === $Failed, res, (prf = res)]];
     prc := With[
-      {res = Check[RetinotopyToCorticalMap[mdl], $Failed]},
+      {res = Check[VisualFieldToCorticalMap[mdl], $Failed]},
       If[res === $Failed, res, (prc = res)]];
     mdl]];
 Protect[SchiraModelObjectPrep];
@@ -660,8 +684,8 @@ SchiraModelObject[disp_][x_] := Replace[x, disp];
 SchiraFunction[SchiraModelObject[disp_]] := Replace[Function, disp];
 SchiraInverse[SchiraModelObject[disp_]] := Replace[Inverse, disp];
 
-(* #CorticalMapToRetinotopy ***********************************************************************)
-CorticalMapToRetinotopy[SchiraModelObject[disp_], map_?CorticalMapQ] := With[
+(* #CorticalMapToVisualField ***********************************************************************)
+CorticalMapToVisualField[SchiraModelObject[disp_], map_?CorticalMapQ] := With[
   {inv = Replace[Inverse, disp],
    Z = VertexCoordinatesTr[map],
    r90 = Replace[\[CapitalRho]90, disp]},
@@ -670,13 +694,13 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_], map_?CorticalMapQ] := With[
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]&,
       inv[(Z[[1]] + I * Z[[2]])] * (90.0 / r90)],
     {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]];
-CorticalMapToRetinotopy[SchiraModelObject[disp_], {x:Except[_List], y:Except[_List]}] := With[
+CorticalMapToVisualField[SchiraModelObject[disp_], {x:Except[_List], y:Except[_List]}] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
    {z = Quiet[inv[x + I*y] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]},
    Append[ComplexToVisualAngle[z[[1]]], z[[2]]]]];
-CorticalMapToRetinotopy[SchiraModelObject[disp_],
+CorticalMapToVisualField[SchiraModelObject[disp_],
                         {x_List, y_List} /; Length[x] == Length[y] && Length[x] != 2] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
@@ -685,14 +709,14 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_],
     If[ListQ[First@res],
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]& /@ res,
       Append[ComplexToVisualAngle[res[[1]]], res[[2]]]]]];
-CorticalMapToRetinotopy[SchiraModelObject[disp_], coords:{{_,_}..}] := With[
+CorticalMapToVisualField[SchiraModelObject[disp_], coords:{{_,_}..}] := With[
   {inv = Replace[Inverse, disp],
    Z = Transpose[coords],
    r90 = Replace[\[CapitalRho]90, disp]},
   Map[
     Append[ComplexToVisualAngle[#[[1]]], #[[2]]]&,
     Quiet[inv[Z[[1]] + I * Z[[2]]] * (90.0 / r90), {FindRoot::cvmit, FindRoot::frmp, FindRoot::lstol}]]];
-CorticalMapToRetinotopy[SchiraModelObject[disp_], X_, Y_] := With[
+CorticalMapToVisualField[SchiraModelObject[disp_], X_, Y_] := With[
   {inv = Replace[Inverse, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   With[
@@ -700,28 +724,73 @@ CorticalMapToRetinotopy[SchiraModelObject[disp_], X_, Y_] := With[
     If[ListQ[First@res],
       Append[ComplexToVisualAngle[#[[1]]], #[[2]]]& /@ res,
       Append[ComplexToVisualAngle[res[[1]]], res[[2]]]]]];
-CorticalMapToRetinotopy[mdl_SchiraModelObject] := Function[CorticalMapToRetinotopy[mdl, ##]];
+CorticalMapToVisualField[mdl_SchiraModelObject] := Function[CorticalMapToVisualField[mdl, ##]];
 
-RetinotopyToCorticalMap[SchiraModelObject[disp_], retinotopy:{{_,_}..}] := With[
+VisualFieldToCorticalMap[SchiraModelObject[disp_], retinotopy:{{_,_}..}] := With[
   {fun = Replace[Function, disp],
    tr = Transpose[retinotopy],
    r90 = Replace[\[CapitalRho]90, disp]},
   ComplexToCoordinate[fun[r90 / 90.0 * VisualAngleToComplex[tr[[1]], tr[[2]]]]]];
-RetinotopyToCorticalMap[
+VisualFieldToCorticalMap[
   SchiraModelObject[disp_],
   {polarAngle:Except[_List], eccentricity:Except[_List]}
  ] := With[
   {fun = Replace[Function, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   ComplexToCoordinate[fun[r90 / 90.0 * VisualAngleToComplex[polarAngle, eccentricity]]]];
-RetinotopyToCorticalMap[SchiraModelObject[disp_], polarAngles_, eccentricities_] := With[
+VisualFieldToCorticalMap[SchiraModelObject[disp_], polarAngles_, eccentricities_] := With[
   {fun = Replace[Function, disp],
    r90 = Replace[\[CapitalRho]90, disp]},
   ComplexToCoordinate[fun[r90 / 90.0 * VisualAngleToComplex[polarAngles, eccentricities]]]];
-RetinotopyToCorticalMap[mdl_SchiraModelObject] := Function[RetinotopyToCorticalMap[mdl, ##]];
+VisualFieldToCorticalMap[mdl_SchiraModelObject] := Function[VisualFieldToCorticalMap[mdl, ##]];
+
+(* We also have a generic handler for associations that have the right keys: 
+ * This expects the CorticalMapToVisualField key to contain a function that translates a point
+ * x + I*y to x+I*y in the visual field.
+ *)
+CorticalMapToVisualField[assc_?AssociationQ /; KeyExistsQ[assc, "CorticalMapToVisualField"],
+                         coords_?MatrixQ] := With[
+  {f = assc["CorticalMapToVisualField"],
+   regf = If[KeyExistsQ[assc, "VisualAreaFunction"],
+     assc["VisualAreaFunction"],
+     ConstantArray[Indeterminate, Length[#]]&]},
+  With[
+    {zz = f[coords], areas = regf[coords]},
+    Transpose[{90 - Arg[zz]*180/Pi, Abs[zz], areas}]]];
+CorticalMapToVisualField[
+  assc_?AssociationQ /; KeyExistsQ[assc, "CorticalMapToVisualField"],
+  map_?CorticalMapQ
+  ] := CorticalMapToVisualField[assc, VertexCoordinates[map]];
+CorticalMapToVisualField[
+  assc_?AssociationQ /; KeyExistsQ[assc, "CorticalMapToVisualField"],
+  x0_?VectorQ
+  ] := First@CorticalMapToVisualField[assc, {x0}];
+CorticalMapToVisualField[
+  assc_?AssociationQ /; KeyExistsQ[assc, "CorticalMapToVisualField"],
+  x_?VectorQ, y_?VectorQ
+  ] := CorticalMapToVisualField[assc, Transpose[{x, y}]];
+CorticalMapToVisualField[
+  assc_?AssociationQ /; KeyExistsQ[assc, "CorticalMapToVisualField"],
+  x_?NumericQ, y_?NumericQ
+  ] := First@CorticalMapToVisualField[assc, {{x, y}}];
+
+VisualFieldToCorticalMap[assc_?AssociationQ /; KeyExistsQ[assc, "VisualFieldToCorticalMap"],
+                         angles:{{_,_}..}] := With[
+  {f = assc["VisualFieldToCorticalMap"],
+   a = Transpose[angles]},
+  f@VisuaAngleToComplex[a[[1]], a[[2]]]];
+VisualFieldToCorticalMap[assc_?AssociationQ /; KeyExistsQ[assc, "VisualFieldToCorticalMap"],
+                         ang_List, ecc_List] := With[
+  {f = assc["VisualFieldToCorticalMap"]},
+  f@VisualAngleToComplex[ang, ecc]];
+VisualFieldToCorticalMap[assc_?AssociationQ /; KeyExistsQ[assc, "VisualFieldToCorticalMap"],
+                         ang:Except[_List], ecc:Except[_List]] := With[
+  {f = assc["VisualFieldToCorticalMap"]},
+  First@f@VisualAngleToComplex[{ang}, {ecc}]];
+
 
 Protect[SchiraModel, SchiraModelObject, SchiraFunction, SchiraInverse,
-        CorticalMapToRetinotopy, RetinotopyToCorticalMap];
+        CorticalMapToVisualField, VisualFieldToCorticalMap];
 
 (* Plotting Data **********************************************************************************)
 PolarAngleLegend[hemi : (LH|RH), opts___Rule] := DensityPlot[
@@ -775,7 +844,7 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
          _ :> Message[
            SchiraParametricPlot::badarg,
            "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}],
-     f = mdl[RetinotopyToCorticalMap],
+     f = mdl[VisualFieldToCorticalMap],
      range = Replace[
        OptionValue[Range],
        {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
@@ -880,7 +949,7 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
          _ :> Message[
            SchiraLinePlot::badarg, 
            "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}],
-     fn = mdl[RetinotopyToCorticalMap],
+     fn = mdl[VisualFieldToCorticalMap],
      f = (SetAttributes[#, Temporary]; #)& @ Unique["f"],
      range = Replace[
        OptionValue[Range],
@@ -1065,7 +1134,7 @@ GaussianSchiraPotential[map_?CorticalMapQ, model_SchiraModelObject, OptionsPatte
             StringJoin[
               "StandardDeviation option should be a number, a list of numbers, or a property name",
               " that is a list of numbers for all vertices"]]}],
-       preds = Transpose[RetinotopyToCorticalMap[model, angle[[idcs]], eccen[[idcs]]], {3, 1, 2}]},
+       preds = Transpose[VisualFieldToCorticalMap[model, angle[[idcs]], eccen[[idcs]]], {3, 1, 2}]},
       Which[
         Length[idcs] == 0, Message[
           GaussianSchiraPotential::badarg,
@@ -1141,7 +1210,7 @@ SchiraAnchors[map_?CorticalMapQ, model_SchiraModelObject, opts:OptionsPattern[]]
    eccen = VertexPropertyValues[map, "Eccentricity"],
    idcs = SchiraAnchorsIndices[map, opts]},
   With[
-    {preds = RetinotopyToCorticalMap[model, angle[[idcs]], eccen[[idcs]]]},
+    {preds = VisualFieldToCorticalMap[model, angle[[idcs]], eccen[[idcs]]]},
     {Join@@ConstantArray[VertexList[map][[idcs]], 5],
      Transpose[Join @@ Transpose[preds]]}]];
 
@@ -1160,7 +1229,361 @@ SchiraAnchorsParameter[map_?CorticalMapQ, paramArg_, opts:OptionsPattern[]] := W
     5]];
 
 Protect[SchiraAnchors, SchiraAnchorsParameter, SchiraAnchorsIndices];
-            
+
+(* #V123Anchors ***********************************************************************************)
+Options[V123AnchorsIndices] = {VertexWeight -> Automatic};
+V123AnchorsIndices[map_?CorticalMapQ, OptionsPattern[]] := With[
+  {angle = VertexPropertyValues[map, "PolarAngle"],
+   eccen = VertexPropertyValues[map, "Eccentricity"],
+   weights = Replace[
+     OptionValue[VertexWeight],
+     {list_ /; VectorQ[list] && Length[list] == VertexCount[map] :> list,
+      list:{(_Integer -> _)..} /; Length[list] == VertexCount[map] :> SparseArray[
+        Select[VertexIndex[map, list[[All,1]]] -> list[[All, 2]], NumericQ[#[[2]]]&],
+        VertexCount[map]],
+      s_ /; VectorQ[VertexPropertyValues[map, s]] :> VertexPropertyValues[map, s],
+      Automatic :> Which[
+        ListQ@VertexPropertyValues[map, "VertexWeight"], VertexPropertyValues[map, "VertexWeight"],
+        ListQ@VertexPropertyValues[map, "Weight"], VertexPropertyValues[map, "Weight"],
+        True, ConstantArray[1, VertexCount[map]]],
+      _ :> Message[V123Anchors::badarg, "Unrecognized VertexWeight option"]}]},
+  With[
+    {idcs = Indices[
+       Thread[{angle, eccen, weights}],
+       {a_?NumericQ, e_?NumericQ /; e >= 0, w_ /; NumericQ[w] && Positive[w]}]},
+    If[Length[idcs] == 0,
+      (Message[V123Anchors::badarg, "No vertices selected"]; $Failed),
+      idcs]]];
+
+Options[V123Anchors] = Options[V123AnchorsIndices];
+V123Anchors[map_?CorticalMapQ, model_?AssociationQ, opts:OptionsPattern[]] := With[
+  {angle = VertexPropertyValues[map, "PolarAngle"],
+   eccen = VertexPropertyValues[map, "Eccentricity"],
+   idcs = V123AnchorsIndices[map, opts]},
+  With[
+    {preds = VisualFieldToCorticalMap[model, angle[[idcs]], eccen[[idcs]]]},
+    {Join@@ConstantArray[VertexList[map][[idcs]], 5],
+     Transpose[Join @@ Transpose[preds]]}]];
+
+Options[V123AnchorsParameter] = Options[V123Anchors];
+V123AnchorsParameter[map_?CorticalMapQ, paramArg_, opts:OptionsPattern[]] := With[
+  {param = Which[
+     StringQ[paramArg], VertexPropertyValues[map, paramArg],
+     ListQ[paramArg], paramArg,
+     True, Message[SchiraAnchors::badarg, "parameter must be a list or a property name"]],
+   idcs = V123AnchorsIndices[map, opts]},
+  Join@@ConstantArray[
+    Which[
+      Length[param] == VertexCount[map], param[[idcs]],
+      Length[param] == Length[idcs], param,
+      True, Message[V123Anchors::badarg, "given parameter is wrong size"]],
+    5]];
+
+Protect[V123Anchors, V123AnchorsParameter, V123AnchorsIndices];
+
+
+(* #V123MeshFunctions (Private) *******************************************************************)
+V123MeshFunctions[data_, tx0_: None] := With[
+  {mesh = data["Mesh"],
+   coords = MeshCoordinates@data["Mesh"],
+   cells = MeshCells[data["Mesh"], 2][[All, 1]],
+   angle = data["PolarAngle"],
+   eccen = data["Eccentricity"],
+   iregions = {"V1", "V2", "V3", "V4Ventral", "V4Dorsal"},
+   tx = If[tx0 === None, Identity, tx0]},
+  With[
+    {field = eccen*Exp[I*angle],
+     ifieldAll = Flatten[coords.{{1}, {I}}],
+     itx = InverseFunction[tx]},
+    With[
+      {xy = Transpose[{Re[field], Im[field]}]},
+      With[
+        {imesh = With[
+           {F = Transpose@Select[cells, Length@Union[xy[[#]]] == 3 &]},
+           Association@Table[
+             id -> With[
+               {bound = data[id <> "BoundaryMesh"]},
+               MeshRegion[
+                 xy,
+                 Polygon /@ Pick[
+                   Transpose[F],
+                   Transpose@Sign@RegionDistance[bound, coords[[#]] & /@ F],
+                   {0, 0, 0}]]],
+             {id, iregions}]],
+         near = Nearest[xy -> Automatic]},
+        With[
+          {ifields = Association@Table[
+             reg -> ifieldAll[[near[MeshCoordinates@imesh[reg], 1][[All, 1]]]],
+             {reg, iregions}]},
+          {Function@Which[
+             MatrixQ[#], MeshRegionInterpolate[mesh, field, itx[#]],
+             VectorQ[#],
+             First@MeshRegionInterpolate[mesh, field, itx[{#}]],
+             True, $Failed],
+           Function@With[
+             {dat = If[VectorQ[#], #, {#}],
+              post = If[VectorQ[#], Identity, (First /@ #) &]},
+             post@Transpose@Table[
+               tx@ReIm[MeshRegionInterpolate[imesh[reg], ifields[reg], ReIm[dat]]],
+               {reg, iregions}]]}]]]]];
+Protect[V123MeshFunctions];
+
+(* MeshRegionOrthogonalFields *********************************************************************)
+Options[MeshRegionFields] = Options[FindArgMin];
+MeshRegionFields[region_, initF1Arg_List, initF2Arg_List, opts:OptionsPattern[]] := With[
+  {initF1 = Select[Union /@ GatherBy[initF1Arg, First], Length[#] == 1 &][[All, 1]],
+   initF2 = Select[Union /@ GatherBy[initF2Arg, First], Length[#] == 1 &][[All, 1]]},
+  With[
+    {f1Vertices = initF1[[All, 1]],
+     f2Vertices = initF2[[All, 1]],
+     xT = Transpose@MeshCoordinates[region],
+     edgesT = Transpose[MeshCells[region, 1] /. Line[idcs_] :> idcs],
+     n = MeshCellCount[region, 0],
+     m = MeshCellCount[region, 1]},
+    With[
+      {sumOverEdgesT = Transpose@SparseArray@MapThread[
+         {#1, #2} -> #3 &,
+         {Join @@ edgesT,
+          Join[#, #] &@Range[m],
+          Join[ConstantArray[1, m], ConstantArray[-1, m]]}],
+       zeroTh = ReplacePart[initF1, {_, 2} -> 0],
+       zeroR = ReplacePart[initF2, {_, 2} -> 0],
+       x0 = Join @@ MapThread[
+         ReplacePart,
+         {{ConstantArray[Mean@initF1[[All, 2]], n],
+           ConstantArray[Mean@initF2[[All, 2]], n]},
+          {initF1, initF2}}]},
+      Block[
+        {f, x},
+        (* The Cost Function *)
+        f[z0_ /; VectorQ[z0, NumericQ]] := With[
+          {z = MapThread[ReplacePart, {Partition[z0, n], {initF1, initF2}}]},
+          Plus[
+            (* The Squared-Difference between Edge-Values: *)
+            0.5*Total@Total[(z[[All, edgesT[[1]]]] - z[[All, edgesT[[2]]]])^2],
+            (* The Orthogonality of the Fields: *)
+            0.5*(Dot @@ (z - Mean /@ z))^2]];
+        (* The Gradient Function *)
+        f /: Grad[f, z0_ /; VectorQ[z0, NumericQ]] := Join @@ With[
+          {z = Partition[z0, n]},
+          MapThread[ReplacePart, {#, {zeroTh, zeroR}}] &@Plus[
+            (* The z-values want to approach each other like springs: *)
+            (z[[All, edgesT[[1]]]] - z[[All, edgesT[[2]]]]).sumOverEdgesT,
+            (* The z-values want to push away from each other *)
+            (#*(Dot@@#))&@Reverse[z - Mean /@ z]]];
+        Partition[First@FindArgMin[f[x], {x, x0}, Gradient :> Grad[f, x], opts], n]]]]];
+Protect[MeshRegionOrthogonalFields];
+
+(* #V123Model *************************************************************************************)
+Options[V123Model] = {
+  Scale -> {15, 5, 5, 3},
+  AspectRatio -> 0.32,
+  Intersection -> 0.6*Pi,
+  Exponent -> 9.0,
+  MaxValue -> 90.0,
+  AffineTransform -> AffineTransform[{RotationMatrix[5 Degree].{{1, -0.2}, {0, 1}}, {-7, -1}}],
+  CellSize -> 0.1,
+  MaxIterations -> 10000};
+V123Model[OptionsPattern[]] := With[
+  {assc =
+   Association@
+   Table[ToString[k] -> OptionValue[k], {k, Options[V123Model][[All, 1]]}]},
+  assc // Function@With[
+    {ellipseCenter = {0.5*#Scale[[1]]/#AspectRatio, 0},
+     ellipseAxes = {#Scale[[1]]/#AspectRatio, #Scale[[1]]}/2,
+     v1w = #Scale[[1]],
+     v2w = #Scale[[2]],
+     v3w = #Scale[[3]],
+     v4w = #Scale[[4]],
+     tx = If[#AffineTransform === None, Identity, #AffineTransform],
+     itx = If[#AffineTransform === None, Identity, InverseFunction[#AffineTransform]],
+     cellsz = #CellSize},
+    With[
+      {ipoint = ellipseCenter[[1]] + 0.5*v1w*Tan[Pi/2 - #Intersection/2],
+       cpoint = ellipseCenter[[1]] - 0.5*v1w*Tan[#Intersection/2],
+       rad = v1w/(2*Cos[#Intersection/2]),
+       v2axes = ellipseAxes + v2w*{0.5, 1},
+       v3axes = ellipseAxes + (v2w + v3w)*{0.5, 1},
+       v4axes = ellipseAxes + (v2w + v3w + v4w)*{0.5, 1},
+       xmin = ellipseCenter[[1]] - (ellipseAxes[[1]] + 0.5*(v2w + v3w + v4w))},
+      With[
+        {tri = Triangle[{{ipoint,0}, {xmin,#}, {xmin,-#}}]&[(ipoint - xmin)*Tan[#Intersection/2]],
+         circle = Disk[{cpoint, 0}, rad],
+         v1ellipse = Ellipsoid[ellipseCenter, ellipseAxes],
+         v2ellipse = Ellipsoid[ellipseCenter, v2axes],
+         v3ellipse = Ellipsoid[ellipseCenter, v3axes],
+         v4ellipse = Ellipsoid[ellipseCenter, v4axes]},
+        With[
+          {utri = Normalize[tri[[1, 2]] - tri[[1, 1]]],
+           fixfn = Function@With[
+             {x = #1, v = #2},
+             Pick[
+               Join[Reverse[#], ({#[[1, 1]], -#[[1, 2]]} -> v) & /@ x],
+               Join[Reverse[#], #]&@Chop@RegionDistance[tri, x[[All, 1]]],
+               0]]},
+          With[
+            {xpts = Pick[#, Chop@SignedRegionDistance[tri, #[[All, 1]]], x_ /; x <= 0]&@Join[
+               Table[{-x, 0} -> {If[x == 0, 0, _], 0}, {x, 0, -xmin, cellsz}],
+               Table[{x, 0} -> {0, _}, {x, cellsz, cpoint + rad, cellsz}]],
+             v1v2pts = fixfn[#, {Pi/2, _}] &@Table[
+               (ellipseCenter + {-Cos[t], Sin[t]}*ellipseAxes) -> {-Pi/2, _},
+               {t, 0, Pi/2, cellsz/Mean[ellipseAxes]}],
+             v2v3pts = fixfn[#, {0, _}] &@Table[
+               (ellipseCenter + {-Cos[t], Sin[t]}*(v2axes)) -> {0, _},
+               {t, 0, Pi/2, cellsz/Mean[v2axes]}],
+             v3v4pts = fixfn[#, {Pi/2, _}] &@Table[
+               (ellipseCenter + {-Cos[t], Sin[t]}*(v3axes)) -> {-Pi/2, _},
+               {t, 0, Pi/2, cellsz/Mean[v3axes]}],
+             v4pts = fixfn[#, {-Pi/2, _}] &@Table[
+               (ellipseCenter + {-Cos[t], Sin[t]}*(v4axes)) -> {Pi/2, _},
+               {t, 0, Pi/2, cellsz/Mean[v4axes]}],
+             peripts = Union@With[
+               {possibles = Select[
+                  Join[
+                    Table[
+                      ({ipoint, 0} + k*utri) -> {_, 1},
+                      {k, 0, Norm[{(ipoint - xmin), tri[[1, 2, 2]]}], #CellSize}],
+                    Table[
+                      ({ipoint, 0} + k*{utri[[1]], -utri[[2]]}) -> {_, 1},
+                      {k, 0, Norm[{(ipoint - xmin), tri[[1, 2, 2]]}], #CellSize}]],
+                  Abs[#[[1, 2]]] > v1w/2 &]},
+               Join[
+                 Pick[possibles, Chop@RegionDistance[v4ellipse, possibles[[All, 1]]], 0],
+                 Join[# -> {_, 1} & /@ #, {#[[1]], -#[[2]]} -> {_, 1} & /@ #]&@Table[
+                   {cpoint, 0} + {Cos[t], Sin[t]}*rad,
+                   {t, 0, (Pi - #Intersection)/2, #CellSize/rad}]]]},
+            With[
+              {b = BoundaryMesh@DelaunayMesh[Join[v4pts, peripts][[All, 1]]],
+               v1peripts = Pick[
+                 peripts[[All, 1]],
+                 Chop@RegionDistance[v1ellipse, peripts[[All, 1]]],
+                 0],
+               v2peripts0 = Pick[
+                 peripts[[All, 1]],
+                 Chop@RegionDistance[v2ellipse, peripts[[All, 1]]],
+                 0],
+               v3peripts0 = Pick[
+                 peripts[[All, 1]],
+                 Chop@RegionDistance[v2ellipse, peripts[[All, 1]]],
+                 0],
+               pickfn = Function@Pick[#1, Chop@RegionDistance[#2, #1], 1],
+               yExtreme = (v1w + v2w + v3w + v4w)},
+              With[
+                {points = With[
+                   {fillpts = Join @@ MapIndexed[
+                      Function@With[
+                        {ymod = If[Mod[#2[[1]], 2] == 0, cellsz/2, 0]},
+                        Table[
+                          {#1, y} -> {_, _},
+                          {y, -yExtreme - ymod, yExtreme + ymod, cellsz}]],
+                      Range[xmin, cpoint + rad, cellsz]],
+                    boundpts = Union[xpts, v1v2pts, v2v3pts, v3v4pts, v4pts, peripts]},
+                   Map[
+                     Function@With[
+                       {pa = Union@Select[#[[All, 2, 1]], # =!= _ &],
+                        ec = Union@Select[#[[All, 2, 2]], # =!= _ &]},
+                       #[[1, 1]] -> If[Length[#] == 1,
+                         #[[1, 2]],
+                         {If[pa == {}, _, Mean[pa]],
+                          If[ec == {}, _, Mean[ec]]}]],
+                     GatherBy[#, First] &@SortBy[#, First] &@N@Union[
+                       boundpts,
+                       Intersection[
+                         Delete[
+                           fillpts,
+                           Transpose[
+                             {Union@@Nearest[
+                                fillpts[[All, 1]] -> Automatic,
+                                boundpts[[All, 1]],
+                                {Infinity, cellsz}]}]],
+                         Pick[fillpts, Chop@RegionDistance[b, fillpts[[All, 1]]], 0]]]]],
+                 v2peripts = pickfn[v2peripts0, v1ellipse],
+                 v3peripts = pickfn[v3peripts0, v2ellipse],
+                 v4peripts = pickfn[peripts[[All, 1]], v3ellipse]},
+                With[
+                  {mesh = With[
+                     {mesh0 = Quiet[ToElementMesh[points[[All, 1]]], {ToElementMesh::femimq}]},
+                     With[
+                       {X = mesh0["Coordinates"],
+                        F = mesh0["MeshElements"][[1, 1]],
+                        q = mesh0["Quality"]},
+                       MeshRegion[X, Polygon /@ Delete[F, Transpose@List@Indices[Sign[q], -1|0]]]]],
+                   angc = MapIndexed[
+                     If[NumericQ[#1[[2, 1]]], #2[[1]] -> #1[[2, 1]], Nothing] &,
+                     points],
+                   eccc = MapIndexed[
+                     If[NumericQ[#1[[2, 2]]], #2[[1]] -> #1[[2, 2]], Nothing] &,
+                     points],
+                   v2peri = Pick[v2peripts, Sign[v2peripts[[All, 2]]], #] & /@ {1, -1},
+                   v3peri = Pick[v3peripts, Sign[v3peripts[[All, 2]]], #] & /@ {1, -1},
+                   v4peri = Pick[v4peripts, Sign[v4peripts[[All, 2]]], #] & /@ {1, -1},
+                   bmeshfn = Function@With[
+                     {x = Keys@GroupBy[#, Identity]},
+                     BoundaryMeshRegion[x, Line@Append[Range@Length[x], 1]]]},
+                  With[
+                    {near = Nearest[MeshCoordinates[mesh] -> Automatic],
+                     Xang = points[[angc[[All, 1]], 1]],
+                     Xecc = points[[eccc[[All, 1]], 1]],
+                     v1b = BoundaryMesh@DelaunayMesh@Union[v1v2pts[[All, 1]], v1peripts],
+                     v2b = bmeshfn@Join[
+                       v1v2pts[[All, 1]], Reverse[v2peri[[2]]],
+                       Reverse[v2v3pts[[All, 1]]], v2peri[[1]]],
+                     v3b = bmeshfn@Join[
+                       v2v3pts[[All, 1]], Reverse[v3peri[[2]]],
+                       Reverse[v3v4pts[[All, 1]]], v3peri[[1]]],
+                     v4b = bmeshfn@Join[
+                       v3v4pts[[All, 1]], Reverse[v4peri[[2]]],
+                       Reverse[v4pts[[All, 1]]], v4peri[[1]]]},
+                    With[
+                      {angConst = Thread[# -> angc[[All, 2]]]&[near[Xang, 1][[All, 1]]],
+                       eccConst = Thread[# -> eccc[[All, 2]]]&[near[Xecc, 1][[All, 1]]],
+                       v4vb = bmeshfn[Gather[N@#][[All, 1]]] &@Join[
+                         Select[v3v4pts[[All, 1]], #[[2]] <= 0 &],
+                         Reverse[v4peri[[2]]],
+                         Select[Reverse[v4pts[[All, 1]]], #[[2]] <= 0 &],
+                         Reverse@Pick[
+                           xpts[[All, 1]],
+                           Sign@RegionDistance[v4b, xpts[[All, 1]]],
+                           0]],
+                       v4db = bmeshfn[Gather[N@#][[All, 1]]]&@Join[
+                         Select[v3v4pts[[All, 1]], #[[2]] >= 0 &],
+                         Reverse[v4peri[[1]]],
+                         Select[Reverse[v4pts[[All, 1]]], #[[2]] >= 0 &]]},
+                      With[
+                        {fields = MeshRegionFields[
+                           mesh,
+                           angConst, eccConst,
+                           MaxIterations -> #MaxIterations]},
+                        With[
+                          {data = <|
+                           "Mesh" -> mesh,
+                           "PolarAngle" -> fields[[1]],
+                           "Eccentricity" -> (#MaxValue*fields[[2]]^#Exponent),
+                           "BoundaryMesh" -> b,
+                           "V1BoundaryMesh" -> v1b,
+                           "V2BoundaryMesh" -> v2b,
+                           "V3BoundaryMesh" -> v3b,
+                           "V4BoundaryMesh" -> v4b,
+                           "V4VentralBoundaryMesh" -> v4vb,
+                           "V4DorsalBoundaryMesh" -> v4db,
+                           "PolarAngleConstraints" -> angConst,
+                           "EccentricityContstraints" -> eccConst,
+                           "VisualAreaFunction" -> Function@With[
+                             {x0 = itx[#]},
+                             With[
+                               {inV1  = 1 - Unitize@RegionDistance[v1b,  x0],
+                                inV2  = 1 - Unitize@RegionDistance[v2b,  x0],
+                                inV3  = 1 - Unitize@RegionDistance[v3b,  x0],
+                                inV4v = 1 - Unitize@RegionDistance[v4vb, x0],
+                                inV4d = 1 - Unitize@RegionDistance[v4db, x0]},
+                               1*inV1 + 2*inV2 + 3*inV3 + 4*inV4v + 5*inV4d]]|>},
+                          With[
+                            {fns = V123MeshFunctions[data, tx]},
+                            Join[
+                              data,
+                              <|"CorticalMapToVisualField" -> fns[[1]],
+                                "VisualFieldToCorticalMap" -> fns[[2]]|>]]]]]]]]]]]]]]];
+Protect[V123Model];
 
 End[];
 EndPackage[];

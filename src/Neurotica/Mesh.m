@@ -78,7 +78,15 @@ SourceMesh::usage = "SourceMesh[map] yields the mesh object from which the given
 NearestFaceCenters::usage = "NearestFaceCenters[mesh] yields a Nearest object f such that f[x] yields the face index whose center is nearest the point x.";
 NearestFace::usage = "NearestFace[mesh, x] yields the face nearest to the point x. If x is a matrix, then the indices for all pointsi n x are yielded as a list.
 The option Points may be set to true, in which case a list of {indices, points} is returned with the indices of the faces containing the points in x and the 
-points that are themselves on the mesh in points.";
+points that are themselves on the mesh in points.
+NearestFace[mesh] yields a function f such that f[x] is equivalent to NearestFace[mesh, x].";
+CortexAddress::usage = "CortexAddress[mesh, x] yields the cortical face address of the given point or points x. A face address is a list {{a, b, c}, {t, r}} that allows the topologically equivalent point to be blooked up in any mesh with the same face topology as the given mesh. In the address, {a,b,c} are the vertex labels of the vertices of the triangle containing the point q in mesh nearest to the point x; t is the angle from the vector (a->b) to the vector (a->q) normalized by the angle from (a->b) to (a->c); and r is the distance from a to q normalized by the distance from a to the point on line-segment bc that is colinear with a and q.
+CortexAddress[mesh] yields a function f such that f[x] is equivalent to CortexAddress[mesh, x].
+Cortical addresses can be looked up using the function CortexLookup.";
+CortexAddress::err = "Error in CortexAddress: `1`";
+CortexLookup::usage = "CortexLookup[mesh, address] yields the point in the given mesh that is specified by the given address. See also CortexAddress.
+CortexLookup[mesh] yields a function f such that f[x] is equivalent to CortexLookup[mesh, x].";
+CortexLookup::err = "Error in CortexLookup: `1`";
 
 CorticalObjectQ::usage = "CorticalObjectQ[c] yields True if c is either a CorticalMesh object or a CorticalMap object and yields False otherwise.";
 
@@ -1463,12 +1471,14 @@ DefineImmutable[
      LabelVertexList[mesh, args___] := CorticalLabelVertexList[mesh, args],
    
      (* #MeshRegion *)
-     MeshRegion[mesh] :> MeshRegion[VertexCoordinates[mesh], Polygon[FaceList[mesh]]],
+     MeshRegion[mesh] :> MeshRegion[
+       Transpose@VertexCoordinatesTr[mesh],
+       Polygon@Transpose@FaceListTr[mesh]],
      
      (* #BoundaryMeshRegion *)
      BoundaryMeshRegion[mesh] :> BoundaryMeshRegion[
-       VertexCoordinates[mesh],
-       Polygon[FaceList[mesh]]],
+       Transpose@VertexCoordinatesTr[mesh],
+       Polygon@Transpose@FaceListTr[mesh]],
      TriangulateMesh[mesh, opts___] := TriangulateMesh[BoundaryMeshRegion[mesh], opts],
      HighlightMesh[mesh, opts___] := HighlightMesh[BoundaryMeshRegion[mesh], opts],
      DimensionalMeshComponents[mesh, opts___] := DimensionalMeshComponents[
@@ -2222,13 +2232,13 @@ DefineImmutable[
 
      (* #BoundaryMeshRegion *)
      BoundaryMeshRegion[map] :> BoundaryMeshRegion[
-       VertexCoordinates[map],
-       Polygon@IndexedFaceList[map]],
+       Transpose@VertexCoordinatesTr[map],
+       Polygon@Transpose@IndexedFaceListTr[map]],
 
      (* #MeshRegion *)
      MeshRegion[map] :> MeshRegion[
-       VertexCoordinates[map],
-       Polygon@IndexedFaceList[map]],
+       Transpose@VertexCoordinatesTr[map],
+       Polygon@Transpose@IndexedFaceListTr[map]],
      TriangulateMesh[map, opts___] := TriangulateMesh[BoundaryMeshRegion[map], opts],
      HighlightMesh[map, opts___] := HighlightMesh[BoundaryMeshRegion[map], opts],
      DimensionalMeshComponents[map, opts___] := DimensionalMeshComponents[
@@ -2448,6 +2458,63 @@ NearestFace[mesh_?CorticalObjectQ, x0_, OptionsPattern[]] := With[
          x]},
       If[doPoints, {idcs, If[VectorQ[x0], x[[1]], x]}, idcs]]]];
 Protect[NearestFace];
+
+(* #CortexAddress *********************************************************************************)
+CortexAddress[mesh_?CorticalObjectQ, X0_ /; MatrixQ[X0, NumericQ]] := With[
+  {idcs = NearestFace[
+     mesh,
+     Which[
+       Length@First[X0] == Length@VertexCoordinatesTr[mesh], X0,
+       Length[X0] == Length@VertexCoordinatesTr[mesh], Transpose[X0],
+       True, Message[CortexAddress::err, "Dimensionality of argument is incorrect"]],
+     Points -> True]},
+  With[
+    {faces = FaceList[mesh][[idcs[[1]]]],
+     coords = Transpose[FaceCoordinatesTr[mesh][[All, All, idcs[[1]]]]]},
+    With[
+      {u = coords[[2]]          - coords[[1]],
+       v = coords[[3]]          - coords[[1]],
+       w = Transpose[idcs[[2]]] - coords[[1]]},
+      With[
+        {unormed = NormalizeColumns[u],
+         vnormed = NormalizeColumns[v],
+         wnormed = NormalizeColumns[w]},
+        With[
+          {t = ArcCos@Total[unormed * wnormed] / ArcCos@Total[unormed * vnormed]},
+          With[
+            {q = u*ConstantArray[1 - t, Length[u]] + v*ConstantArray[t, Length[v]]},
+            With[
+              {r = ColumnNorms[q] / ColumnNorms[w]},
+              If[Length[X0] == Length@VertexCoordinatesTr[mesh],
+                {Transpose[faces], {t, r}},
+                Transpose[{faces, Transpose[{t, r}]}]]]]]]]]];
+CortexAddress[mesh_?CorticalMapQ, X0:{_?NumericQ, _?NumericQ}] := First@CortexAddress[mesh, {X0}];
+CortexAddress[mesh_?CorticalMeshQ, X0:{_?NumericQ, _?NumericQ, _?NumericQ}] := First@CortexAddress[
+  mesh, {X0}];
+CortexAddress[mesh_?CorticalObjectQ] := Function@CortexAddress[mesh, #];
+Protect[CortexAddress];
+
+(* #CortexLookup **********************************************************************************)
+CortexLookup[mesh_?CorticalObjectQ, {faces0_ /; MatrixQ[faces, IntegerQ],
+                                     tr0_    /; MatrixQ[tr0, NumericQ]  }] := With[
+  {faces = VertexIndex[mesh, If[Length@First[faces0] == 3, Transpose[faces0], faces0]],
+   tr = If[Length@First[tr0] == 2, Transpose[tr0], tr0],
+   Xt = VertexCoordinatesTr[mesh]},
+  With[
+    {coords = (Xt[[All, #]])& /@ faces},
+    With[
+      {u = coords[[2]] - coords[[1]],
+       v = coords[[3]] - coords[[1]],
+       t = tr[[1]], r = tr[[2]]},
+      With[
+        {q = u*ConstantArray[1 - t, Length[u]] + v*ConstantArray[t, Length[v]]},
+        coords[[1]]*ConstantArray[1 - r, Length[q]] + q*ConstantArray[r, Length[q]]]]]];
+CorticalLookup[mesh_, a:{{{_Integer,_Integer,_Integer}, {_?NumericQ, _?NumericQ}}..}] := Transpose[
+  CorticalLookup[mesh, Transpose[a]]];
+CorticalLookup[mesh_, addr:{{_Integer, _Integer, _Integer}, {_?NumericQ, _?NumericQ}}] := First[
+  CorticalLookup[mesh, {addr}]];
+CortexLookup[mesh_] := Function@CortexLookup[mesh, #];
+Protect[CortexLookup];
 
 (**************************************************************************************************)
 (* Properties for Cortical Objects *)

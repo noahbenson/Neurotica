@@ -181,6 +181,8 @@ VectorScaleFunction::usage = "VectorScaleFunction is an option to GaussianInterp
 PrincipalAxes::usage = "PrincipalAxes[matrix] gives the principal axes matrix U such that U . Transpose[matrix] == Transpose@PrincipalComponents[matrix] (up to reflection).";
 PrincipalAxes::moptx = "Method option `1` in PrincipalAxes is not one of {\"Covariance\", \"Correlation\"}.";
 
+MeshRegionInterpolate::usage = "MeshRegionInterpolate[region, field, points] yields the result of interpolating the given field values across the nodes of the given mesh at the given point or points using an interpolation order of 1.";
+
 Begin["`Private`"];
 
 (* MissingQ, if we need to define it... *)
@@ -1348,6 +1350,27 @@ PrincipalAxes[mtx_?MatrixQ, OptionsPattern[]] := Catch@With[
       a_ :> (Message[PrincipalAxes::moptx, a]; Throw[$Failed])}]},
   Eigenvectors@Covariance[mtx - ConstantArray[Mean[mtx], Length[mtx]]]];
 Protect[PrincipalAxes];
+
+(* #MeshRegionInterpolate *************************************************************************)
+MeshRegionInterpolate[reg_, field_, pts_] := With[
+  {cl = RegionNearest[reg, pts],
+   faces = Transpose[MeshCells[reg, 2] /. Polygon[p_] :> p],
+   X = Transpose@MeshCoordinates[reg]},
+  With[
+    {cells = Region`Mesh`MeshMemberCellIndex[reg, cl][[All, 2]]},
+    With[
+      {fx = Transpose[X[[All, #]]] & /@ faces[[All, cells]],
+       vals = field[[#]] & /@ faces[[All, cells]]},
+      With[
+        {areas = Table[
+           MapThread[
+             Function@Quiet@Check[Area@Triangle[{#1, #2, #3}], 0],
+             {pts, fx[[Mod[k, 3] + 1]], fx[[Mod[k + 1, 3] + 1]]}],
+           {k, {1, 2, 3}}]},
+        With[
+          {w = vals*areas, tot = Total[areas]},
+          Total[w]/tot]]]]];
+Protect[MeshRegionInterpolate];
 
 End[];
 EndPackage[];

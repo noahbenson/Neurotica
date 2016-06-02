@@ -1970,22 +1970,6 @@ MakeBoxes[frame:RegistrationTrajectoryData[___], form_] := MakeBoxes[#]& @ With[
 Protect[RegistrationTrajectory, RegistrationTrajectoryData, RegistrationTrajectoryQ, CacheFrequency,
         InitialFrame, InitialVertexCoordinates];
 
-(* #MeshRegister **********************************************************************************)
-
-(*
-Options[MeshRegister] = Join[
-  Options[RegistrationTrajectory],
-  {MaxIterations -> 10000}];
-MeshRegister[mesh_?CorticalObjectQ,
-             PF_CorticalPotentialFunctionInstance,
-             opts:OptionsPattern[]] := With[
-  {maxiter = Replace[
-     Option},
-  With[
-    {},
-    ]];
-*)
-
 End[];
 EndPackage[];
 
