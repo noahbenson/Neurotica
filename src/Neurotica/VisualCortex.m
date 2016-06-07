@@ -127,7 +127,9 @@ EccentricityLegend::usage = "EccentricityLegend[hemi,max] yields a graphic that 
 
 SchiraParametricPlot::usage = "SchiraParametricPlot[mdl, options...] is equivalent to ParametricPlot[f[th,r], {th, thMin, thMax}, {r, rMin, rMax}, options] where f is the Schira function for the given SchiraModelObject mdl, and thMin, thMax, rMin, and rMax can be controlled via the additional option Range. The visual areas specified by the VisualAreas argument are plotted. The Range argument may be of the following forms: {thRange, rRange} or rRange where thRange must be {thMin, thMax} and rRange may be rMax (with rMin 0) or {rMin, rMax}.";
 SchiraParametricPlot::badarg = "Bad argument to SchiraParametricPlot: `1`";
-VisualAreas::usage = "VisualAreas is an optional keyword argument to the SchiraParametricPlot function. VisualAreas may be a list of any of {-4,-3,-2,-1,1,2,3,4}, which represent areas hV4, V3ventral, V2ventral, V1Ventral, V1Dorsal, V2Dorsal, V3Dorsal, V3A, respectively. The default value or Automatic will yield {-3,-2,-1,1,2,3}.";
+V123ParametricPlot::usage = "V123ParametricPlot[mdl, options...] is equivalent to ParametricPlot[f[th,r], {th, thMin, thMax}, {r, rMin, rMax}, options] where f is the function for the given V123Model object mdl, and thMin, thMax, rMin, and rMax can be controlled via the additional option Range. The visual areas specified by the VisualAreas argument are plotted. The Range argument may be of the following forms: {thRange, rRange} or rRange where thRange must be {thMin, thMax} and rRange may be rMax (with rMin 0) or {rMin, rMax}.";
+V123ParametricPlot::badarg = "Bad argument to V123ParametricPlot: `1`";
+VisualAreas::usage = "VisualAreas is an optional keyword argument to the SchiraParametricPlot and V123ParametriclPlot functions. VisualAreas may be a list of any of {-4,-3,-2,-1,1,2,3,4}, which represent areas hV4, V3ventral, V2ventral, V1Ventral, V1Dorsal, V2Dorsal, V3Dorsal, V3A, respectively. The default value or Automatic will yield {-3,-2,-1,1,2,3}.";
 
 SchiraLinePlot::usage = "SchiraLinePlot[mdl,options...] is equivalent to calling ParametricPlot[] with the given options, but such that the first arguments are optimized to draw polar angle and eccentricity lines from the given SchiraModelObject mdl. The following additional parameters may be given:
 PolarAngleLines gives the polar angle values at which to daw iso-eccentric lines.
@@ -137,10 +139,18 @@ EccentricityFunction gives a function that, given a polar angle value, yields th
 VisualAreas is used as in SchiraParametricPlot.
 Range is used as in SchiraParametricPlot.";
 SchiraLinePlot::badarg = "Bad argument to SchiraLinePlot: `1`";
-PolarAngleLines::usage = "PolarAngleLines is an option to SchiraLinePlot that specifies the polar angle values at which to draw the iso-eccentric lines.";
-EccentricityLines::usage = "EccentricityLines is an option to SchiraLinePlot that specifies the eccentricity values at which to draw the iso-angular lines.";
-PolarAngleStyleFunction::usage = "PolarAngleStyleFunction is an option to SchiraLinePlot that must accept a polar angle value and yield the style directive for plotting that angle's iso-eccentric line. The value Automatic results in ColorCortex[PolarAngle] beign used. The values Thick, Dashed, Dotted, etc. will result in the same coloring schele with the option directive appended.";
-EccentricityStyleFunction::usage = "EccentricityStyleFunction is an option to SchiraLinePlot that must accept an eccentricity value and yield the style directive for plotting that eccentricity's iso-angular line. The value Automatic results in ColorCortex[Eccentricity] beign used. The values Thick, Dashed, Dotted, etc. will result in the same coloring schele with the option directive appended.";
+V123LinePlot::usage = "V123LinePlot[mdl,options...] is equivalent to calling ParametricPlot[] with the given options, but such that the first arguments are optimized to draw polar angle and eccentricity lines from the given V123Model association mdl. The following additional parameters may be given:
+PolarAngleLines gives the polar angle values at which to daw iso-eccentric lines.
+EccentricityLines gives the eccentricity values at which to draw iso-angular lines.
+PolarAngleStyleFunction gives a function that, given a polar angle value, yields the style instruction for that polar angle line.
+EccentricityFunction gives a function that, given a polar angle value, yields the style instruction for that polar angle line.
+VisualAreas is used as in V123ParametricPlot.
+Range is used as in V123ParametricPlot.";
+V123LinePlot::badarg = "Bad argument to V123LinePlot: `1`";
+PolarAngleLines::usage = "PolarAngleLines is an option to SchiraLinePlot and V123LinePlot that specifies the polar angle values at which to draw the iso-eccentric lines.";
+EccentricityLines::usage = "EccentricityLines is an option to SchiraLinePlot and V123LinePlot that specifies the eccentricity values at which to draw the iso-angular lines.";
+PolarAngleStyleFunction::usage = "PolarAngleStyleFunction is an option to SchiraLinePlot and V123LinePlot that must accept a polar angle value and yield the style directive for plotting that angle's iso-eccentric line. The value Automatic results in ColorCortex[PolarAngle] beign used. The values Thick, Dashed, Dotted, etc. will result in the same coloring schele with the option directive appended.";
+EccentricityStyleFunction::usage = "EccentricityStyleFunction is an option to SchiraLinePlot and V123LinePlot that must accept an eccentricity value and yield the style directive for plotting that eccentricity's iso-angular line. The value Automatic results in ColorCortex[Eccentricity] beign used. The values Thick, Dashed, Dotted, etc. will result in the same coloring schele with the option directive appended.";
 
 ManipulateSchiraModel::usage = "ManipulateSchiraModel[map] yields a manipulate form that allows one to edit the parameters of the Schira model which is projected over a cortex plot of the given map.
 ManipulateSchiraModel[map, model] uses the given model as the starting parameterization of the model.
@@ -176,6 +186,7 @@ V123Model::usage = "V123Model[] yields a data structure (an Association) of rele
     * CellSize (default: 0.1) specifies the approximate spacing of coordinates in the mesh;
     * MaxIterations (default: 10,000) specifies the maximum number of iterations when finding the polar angle and eccentricity values;
     * AffineTransform (default: a shear of {{1,-0.2},{0,1}} followed by a 5\[Degree] rotation and a translation of {-7,-1}) specifies the transform to be applied to the mesh after it has been solved.";
+V123ModelQ::usage = "V123ModelQ[mdl] yields true if the given obejct, mdl, is a valid V123 model, otherwise False.";
 
 (**************************************************************************************************)
 (**************************************************************************************************)
@@ -926,6 +937,110 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
              PlotRange -> plotRange, 
              optseqShow]]]]]]];
 
+(* #V123ParametricPlot ****************************************************************************)
+Options[V123ParametricPlot] = Join[
+   Options[ParametricPlot],
+   {VisualAreas -> Automatic,
+    Range -> Full,
+    Hemi -> LH}];
+V123ParametricPlot[mdl_?AssociationQ, opts:OptionsPattern[]] := Catch[
+  With[
+    {epsilon = 0.000001,
+     hemi = OptionValue[Hemi] /. {Left -> LH, Right -> RH, Automatic -> LH},
+     plotRangeArg = OptionValue[PlotRange],
+     colorFun = OptionValue[ColorFunction],
+     colorFunSc = OptionValue[ColorFunctionScaling],
+     areas = Union@Replace[
+        OptionValue[VisualAreas],
+        {All -> {-4, -3, -2, -1, 1, 2, 3, 4},
+         Automatic -> {-3, -2, -1, 1, 2, 3},
+         i_Integer /; -5 < i < 5 && i != 0 :> {i},
+         l_List /; Length[l] ==  Count[l, i_Integer /; -5 < i < 5 && i != 0, {1}] :> Union[l],
+         _ :> Message[
+           V123ParametricPlot::badarg,
+           "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}],
+     f0 = Function@VisualFieldToCorticalMap[mdl, ##],
+     range = Replace[
+       OptionValue[Range],
+       {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
+        r : {{_, _}, {_, _}} :> r,
+        {t : {_, _}, r : Except[{_, _}]} :> {t, {0, r}},
+        {t : {_, _}, (All | Full | Automatic)} :> {t, {0, 90}},
+        {(All | Full | Automatic), r : {_, _}} :> {{0, 180}, r},
+        {(All | Full | Automatic), 
+          r : Except[{_, _}]} :> {{0, 180}, {0, r}},
+        r_ :> {{0, 180}, {0, r}}}]},
+    With[
+      {msg = Which[
+         ! NumericQ[range[[1, 1]]], "theta-min must be a number",
+         ! NumericQ[range[[1, 2]]], "theta-max must be a number",
+         ! NumericQ[range[[2, 1]]], "rho-min must be a number",
+         ! NumericQ[range[[2, 2]]], "rho-max must be a number",
+         ! (0 <= range[[1, 1]] < range[[1, 2]]), "theta-min must be in [0,theta-max)",
+         range[[1, 2]] > 180, "theta-max must be in (theta-min,180]",
+         ! (0 <= range[[2, 1]] < range[[2, 2]]), "rho-min must be in [0,rho-max)",
+         range[[2, 2]] > 90, "rho-max must be in (rho-min,90]",
+         True, None]},
+      If[StringQ[msg], (Message[V123ParametricPlot::badarg, msg]; Throw[$Failed])]];
+    With[
+     {optseq = Sequence @@ FilterRules[{opts}, Options[ParametricPlot][[All,1]]],
+      optseqShow = Sequence @@ FilterRules[{opts}, Options[Show][[All,1]]],
+      rhoTrans = Function[90.0*#^3.5],
+      rhoTransInv = Function[(#/90.0)^(1/3.5)],
+      thetaLower = If[range[[1, 1]] > 90,
+        None,
+        {range[[1, 1]], Min[{90, range[[1, 2]]}]}],
+      thetaUpper = If[range[[1, 2]] < 90,
+        None,
+        {Max[{90, range[[1, 1]]}], range[[1, 2]]}],
+      f = If[hemi === LH, f0, Function@ReplaceAll[f0[##], {x_,y_}:>{-x,y}]]},
+     With[
+       {rMin = rhoTransInv[range[[2,1]]],
+        rMax = rhoTransInv[range[[2,2]]]},
+       With[
+         {graphics = Map[
+            Function@With[
+              {k = Which[# == -4, 4, # == 4, 5, True, Abs[#]],
+               thetaMinIdeal = If[# == 4 || # < 0, thetaLower[[1]], thetaUpper[[1]]],
+               thetaMaxIdeal = If[# == -4 || # > 0, thetaUpper[[2]], thetaLower[[2]]]},
+              With[
+                {thetaMin = If[# == 2 || # == 3, 
+                   Max[{thetaMinIdeal, 90.0 + epsilon}],
+                   thetaMinIdeal],
+                 thetaMax = If[# == -3 || # == -2,
+                   Min[{thetaMaxIdeal, 90.0 - epsilon}],
+                   thetaMaxIdeal]},
+                Quiet[
+                  ParametricPlot[
+                    Part[f[theta, rhoTrans[rho]], k],
+                    {theta, thetaMin, thetaMax},
+                    {rho, rMin, rMax},
+                    PlotRange -> plotRangeArg,
+                    ColorFunction -> If[
+                      Or[colorFun === Automatic,
+                         colorFun === None,
+                         colorFun === False,
+                         StringQ[colorFun]],
+                      colorFun,
+                      If[colorFunSc === False,
+                        Function[colorFun[#1,#2,#3,rhoTrans[#4]]],
+                        Function[colorFun[#1,#2,#3,rhoTrans[#4]/90.0]]]],
+                    optseq],
+                  {CompiledFunction::cfsa}]]],
+            areas]},
+         With[
+           {plotRange = With[
+              {ranges = Cases[
+                 AbsoluteOptions[#,PlotRange]& /@ graphics,
+                 (PlotRange -> r_) :> r,
+                 {2}]},
+              {{Min[ranges[[All, 1, 1]]], Max[ranges[[All, 1, 2]]]},
+               {Min[ranges[[All, 2, 1]]], Max[ranges[[All, 2, 2]]]}}]},
+           Show[
+             graphics,
+             PlotRange -> plotRange, 
+             optseqShow]]]]]]];
+
 
 (* #SchiraLinePlot ********************************************************************************)
 Options[SchiraLinePlot] = Join[
@@ -935,10 +1050,12 @@ Options[SchiraLinePlot] = Join[
    EccentricityLines -> Automatic,
    PolarAngleLines -> Automatic,
    VisualAreas -> Automatic,
-   Range -> Full}];
+   Range -> Full,
+   Hemi -> LH}];
 SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
   With[
     {epsilon = 0.000001,
+     hemi = OptionValue[Hemi] /. {Left -> LH, Right -> RH, Automatic -> LH},
      plotRangeArg = OptionValue[PlotRange],
      areas = Union@Replace[
         OptionValue[VisualAreas],
@@ -949,8 +1066,8 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
          _ :> Message[
            SchiraLinePlot::badarg, 
            "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}],
-     fn = mdl[VisualFieldToCorticalMap],
-     f = (SetAttributes[#, Temporary]; #)& @ Unique["f"],
+     fn0 = mdl[VisualFieldToCorticalMap],
+     f = TemporarySymbol["f"],
      range = Replace[
        OptionValue[Range],
        {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
@@ -981,7 +1098,9 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
        {None -> {},
         x_?NumberQ :> {x},
         Automatic -> {0.0, 45.0, 90.0, 135.0, 180.0}}]},
-    f[t_?NumericQ, r_?NumericQ, k_Integer] := Part[fn[t, r], k];
+    If[hemi === LH,
+      f[t_?NumericQ, r_?NumericQ, k_Integer] := Part[fn[t, r], k],
+      f[t_?NumericQ, r_?NumericQ, k_Integer] := ReplaceAll[Part[fn[t, r], k], {x_,y_}:>{-x,y}]];
     With[
       {msg = Which[
          ! NumericQ[range[[1, 1]]], "theta-min must be a number",
@@ -1088,7 +1207,236 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
                      {Min[ranges[[All, 2, 1]]], Max[ranges[[All, 2, 2]]]}}]]}, 
                Show[graphics, PlotRange -> plotRange, optseqShow]]]]]]]]];
 
-Protect[PolarAngleLegend, EccentricityLegend, SchiraParametricPlot, VisualAreas,
+(* #InterpretRangeOption (Private) ****************************************************************)
+InterpretRangeArgument[opt_] := Replace[
+     opt,
+  {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
+   r : {{_, _}, {_, _}} :> r,
+   {t : {_, _}, r : Except[{_, _}]} :> {t, {0, r}},
+   {t : {_, _}, (All | Full | Automatic)} :> {t, {0, 90}},
+   {(All | Full | Automatic), r : {_, _}} :> {{0, 180}, r},
+   {(All | Full | Automatic), 
+    r : Except[{_, _}]} :> {{0, 180}, {0, r}},
+   r_ :> {{0, 180}, {0, r}}}];
+Protect[InterpretRangeArgument];
+
+(* #InterpretVisualAreasOption (Private) **********************************************************)
+InterpretVisualAreasOption[opt_] := Union@Replace[
+  opt,
+  {All -> {-4, -3, -2, -1, 1, 2, 3, 4},
+   Automatic -> {-3, -2, -1, 1, 2, 3},
+   i_Integer /; -5 < i < 5 && i != 0 :> {i},
+   l_List /; Length[l] == Count[l, i_Integer /; -5 < i < 5 && i != 0, {1}] :> Union[l],
+   _ :> Message[
+     V123LinePlot::badarg, 
+     "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}];
+Protect[InterpretVisualAreasOption];
+
+(* #V123IsoEccentricityLine ***********************************************************************)
+Options[V123IsoEccentricityLine] = {
+  Spacings -> Automatic,
+  Range -> Full,
+  VisualAreas -> Automatic};
+V123IsoEccentricityLine[mdl_?V123ModelQ, ecc_?NumericQ, OptionsPattern[]] := With[
+  {space = Replace[
+     OptionValue[Spacings],
+     Automatic :> Mean@PropertyValue[{mdl["Mesh"], 1}, MeshCellMeasure]]
+   range = InterpretRangeOption@OptionValue[Range],
+   areas = InterpretVisualAreasOption@OptionValue[VisualAreas]},
+  With[
+    {angs = If[Last[#] == 180.0, #, Append[#, 180.0]]&@Range[0.0, 180.0, space]},
+    With[
+      {dat = VisualFieldToCorticalMap[mdl, ConstantArray[ecc, Length[angs]], angs],
+       pre90 = First@FirstPosition[angs, x_ /; x >= 90, {1}] - 1},
+      {dat[[All,              5]],
+       dat[[1 ;; pre90,       3]],
+       dat[[1 ;; pre90,       2]],
+       dat[[All,              1]],
+       dat[[pre90 + 1 ;; All, 2]],
+       dat[[pre90 + 1 ;; All, 3]],
+       dat[[All,              4]]}]]];
+Protect[V123IsoEccentricityLine];
+
+(* #V123IsoAngleLine ******************************************************************************)
+Options[V123IsoAngleLine] = {Spacings -> Automatic, Range -> Full, VisualAreas -> Automatic};
+V123IsoAngleLine[mdl_?V123ModelQ, ang_?NumericQ, OptionsPattern[]] := With[
+  {space = Replace[
+     OptionValue[Spacings],
+     Automatic :> Mean@PropertyValue[{mdl["Mesh"], 1}, MeshCellMeasure]],
+   range = InterpretRangeOption@OptionValue[Range],
+   areas = InterpretVisualAreasOption@OptionValue[VisualAreas]},
+  With[
+    {eccs = If[Last[#] == 90.0, #, Append[#, 90.0]]&@Range[0.0, 180.0, space]},
+    With[
+      {dat = VisualFieldToCorticalMap[mdl, ConstantArray[ecc, Length[angs]], angs],
+       pre90 = First@FirstPosition[angs, x_ /; x >= 90, {1}] - 1},
+      (* #here *)Null]]];
+Protect[V123IsoAngleLine];
+
+(* #V123LinePlot **********************************************************************************)
+Options[V123LinePlot] = Join[
+  FilterRules[Options[ParametricPlot], Except[PlotStyle | ColorFunction | ColorFunctionScaling]],
+  {EccentricityStyleFunction -> Automatic,
+   PolarAngleStyleFunction -> Automatic,
+   EccentricityLines -> Automatic,
+   PolarAngleLines -> Automatic,
+   VisualAreas -> Automatic,
+   Range -> Full}];
+V123LinePlot[mdl_?AssociationQ, opts : OptionsPattern[]] := Catch[
+  With[
+    {epsilon = 0.000001,
+     plotRangeArg = OptionValue[PlotRange],
+     areas = Union@Replace[
+        OptionValue[VisualAreas],
+        {All -> {-4, -3, -2, -1, 1, 2, 3, 4},
+         Automatic -> {-3, -2, -1, 1, 2, 3},
+         i_Integer /; -5 < i < 5 && i != 0 :> {i},
+         l_List /; Length[l] == Count[l, i_Integer /; -5 < i < 5 && i != 0, {1}] :> Union[l],
+         _ :> Message[
+           V123LinePlot::badarg, 
+           "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}],
+     fn = Function@VisualFieldToCorticalMap[mdl, ##],
+     f = TemporarySymbol["f"],
+     range = Replace[
+       OptionValue[Range],
+       {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
+        r : {{_, _}, {_, _}} :> r,
+        {t : {_, _}, r : Except[{_, _}]} :> {t, {0, r}},
+        {t : {_, _}, (All | Full | Automatic)} :> {t, {0, 90}},
+        {(All | Full | Automatic), r : {_, _}} :> {{0, 180}, r},
+        {(All | Full | Automatic), 
+        r : Except[{_, _}]} :> {{0, 180}, {0, r}},
+        r_ :> {{0, 180}, {0, r}}}],
+     esf = Replace[
+       OptionValue[EccentricityStyleFunction],
+       x : (Automatic | Thick | Thin | Dotted | Dashed) :> With[
+         {clr = With[{f = CorticalColorData["Eccentricity"]}, f[<|"Eccentricity" -> #|>]&]},
+         If[x === Automatic, clr, {x, clr[#]} &]]],
+     psf = Replace[
+       OptionValue[PolarAngleStyleFunction],
+       x : (Automatic | Thick | Thin | Dotted | Dashed) :> With[
+         {clr = With[{f = CorticalColorData["PolarAngle"]}, f[<|"PolarAngle" -> #|>]&]},
+         If[x === Automatic, clr, {x, clr[#]} &]]],
+     eclines = Replace[
+       OptionValue[EccentricityLines],
+       {None -> {},
+        x_?NumberQ :> {x},
+        Automatic -> {1.25, 2.5, 5.0, 10.0, 20.0, 40.0, 90.0}}],
+     palines = Replace[
+       OptionValue[PolarAngleLines],
+       {None -> {},
+        x_?NumberQ :> {x},
+        Automatic -> {0.0, 45.0, 90.0, 135.0, 180.0}}]},
+    f[t_?NumericQ, r_?NumericQ, k_Integer] := Part[fn[t, r], k];
+    With[
+      {msg = Which[
+         !NumericQ[range[[1, 1]]], "theta-min must be a number",
+         !NumericQ[range[[1, 2]]], "theta-max must be a number",
+         !NumericQ[range[[2, 1]]], "rho-min must be a number",
+         !NumericQ[range[[2, 2]]], "rho-max must be a number",
+         !(0 <= range[[1, 1]] < range[[1, 2]]), "theta-min must be in [0,theta-max)",
+         range[[1, 2]] > 180, "theta-max must be in (theta-min,180]",
+         !(0 <= range[[2, 1]] < range[[2, 2]]), "rho-min must be in [0,rho-max)",
+         range[[2, 2]] > 90, "rho-max must be in (rho-min,90]",
+         True, None]},
+      If[StringQ[msg], (Message[V123LinePlot::badarg, msg]; Throw[$Failed])]];
+    With[
+     {optseq = Sequence @@ FilterRules[
+        {opts},
+        ReplacePart[Options[ParametricPlot], {_, 2} -> _]],
+      optseqShow = Sequence @@ FilterRules[
+        {opts},
+        ReplacePart[Options[Show], {_, 2} -> _]],
+      rhoTrans = Function[{rho}, range[[2, 1]] + (range[[2, 2]] - range[[2, 1]])*rho^3.5], 
+      thetaLower = If[range[[1, 1]] > 90, None, {range[[1, 1]], Min[{90, range[[1, 2]]}]}], 
+      thetaUpper = If[range[[1, 2]] < 90, None, {Max[{90, range[[1, 1]]}], range[[1, 2]]}],
+      angLines = Replace[
+        areas,
+        {(-4 | 4) :> palines,
+         (-3 | -2) :> Select[palines, # <= 90 &] /. (90|90.0 -> 90.0 - epsilon),
+         -1 :> Select[palines, # <= 90 &],
+         (2 | 3) :> Select[palines, # >= 90 &] /. (90|90.0 -> 90.0 + epsilon),
+         1 -> Select[palines, # >= 90 &]},
+        {1}],
+      eccLines = Table[eclines, {Length@areas}]},
+     With[
+       {areaIdcs = Which[# == -4, 4, # == 4, 5, True, Abs[#]] & /@ areas,
+        thetaMinIdeals = If[# == 4 || # < 0, thetaLower[[1]], thetaUpper[[1]]] & /@ areas,
+        thetaMaxIdeals = If[# == -4 || # > 0, thetaUpper[[2]], thetaLower[[2]]] & /@ areas},
+       With[
+         {thetaMins = MapThread[
+            Function[
+              If[#1 == 2 || #1 == 3, 
+                Max[{#2, 90.0 + epsilon}], 
+                #2]], 
+            {areas, thetaMinIdeals}], 
+          thetaMaxs = MapThread[
+            Function[
+              If[#1 == -3 || #1 == -2, 
+                Min[{#2, 90.0 - epsilon}], 
+                #2]],
+            {areas, thetaMaxIdeals}]},
+         With[
+           {angPrep = Flatten[
+              MapThread[
+                Function[{lines, idx},
+                  Map[
+                    Function[
+                      {Hold[
+                         Evaluate[#1],
+                         Evaluate[Block[{rho}, rhoTrans[rho]]],
+                         Evaluate[idx]],
+                       #1}],
+                    lines]],
+                {angLines, areaIdcs}],
+              1],
+            eccPrep = Flatten[
+              MapThread[
+                Function[{lines, min, max, idx},
+                  Map[
+                    Function[
+                      {Hold[
+                         Evaluate[Block[{theta}, min + (max - min)*theta]],
+                         Evaluate[#1],
+                         Evaluate[idx]],
+                       #1}],
+                    lines]],
+                {eccLines, thetaMins, thetaMaxs, areaIdcs}],
+              1]},
+           With[
+             {graphics = Flatten[
+                {If[Length[angPrep] == 0,
+                   {},
+                   ReplacePart[
+                     Hold[
+                       Evaluate[ReplacePart[angPrep[[All, 1]], {_, 0} -> f]],
+                       {rho, 0, 1},
+                       Evaluate[PlotStyle -> psf /@ angPrep[[All, 2]]],
+                       Evaluate[PlotRange -> plotRangeArg],
+                       Evaluate[optseq]],
+                     {0 -> ParametricPlot}]],
+                 If[Length[eccPrep] == 0,
+                   {},
+                   ReplacePart[
+                     Hold[
+                       Evaluate[ReplacePart[eccPrep[[All, 1]], {_, 0} -> f]],
+                       {theta, 0, 1},
+                       Evaluate[PlotStyle -> esf /@ eccPrep[[All, 2]]],
+                       Evaluate[PlotRange -> plotRangeArg],
+                       Evaluate[optseq]],
+                     {0 -> ParametricPlot}]]}]},
+             With[
+               {plotRange = If[plotRangeArg =!= Automatic && plotRangeArg =!= Full,
+                  plotRangeArg,
+                  With[
+                    {ranges = Cases[Options /@ graphics, (PlotRange -> r_) :>r, {2}]},
+                    {{Min[ranges[[All, 1, 1]]], Max[ranges[[All, 1, 2]]]},
+                     {Min[ranges[[All, 2, 1]]], Max[ranges[[All, 2, 2]]]}}]]}, 
+               Show[graphics, PlotRange -> plotRange, optseqShow]]]]]]]]];
+
+Protect[SchiraParametricPlot, SchiraLinePlot,
+        V123ParametricPlot, V123LinePlot,
+        PolarAngleLegend, EccentricityLegend, VisualAreas,
         SchiraLinePlot, EccentricityStyleFunction, PolarAngleStyleFunction,
         EccentricityLines, PolarAngleLines];
 
@@ -1584,6 +1932,16 @@ V123Model[OptionsPattern[]] := With[
                               <|"CorticalMapToVisualField" -> fns[[1]],
                                 "VisualFieldToCorticalMap" -> fns[[2]]|>]]]]]]]]]]]]]]];
 Protect[V123Model];
+
+(* #V123ModelQ ************************************************************************************)
+V123ModelQ[_] := False;
+V123ModelQ[mdl_?AssociationQ] := And[
+  KeyExistsQ[mdl, "VisualFieldToCorticalMap"],
+  KeyExistsQ[mdl, "CorticalMapToVisualField"],
+  KeyExistsQ[mdl, "Mesh"],
+  KeyExistsQ[mdl, "PolarAngle"],
+  KeyExistsQ[mdl, "Eccentricity"]];
+Protect[V123ModelQ];
 
 End[];
 EndPackage[];
