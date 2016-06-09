@@ -447,7 +447,7 @@ ImportNifTI2Header[stream_, opts___Rule] := Check[
             If[# == {13, 10, 26, 10},
               #,
               Message[ImportNifTI::badfmt, "nifti2 magic signature invalid"]]]},
-          "Datatype" -> "Integer16",
+          "Datatype" -> {"Integer16", 1, NifTIDatatypeTranslate[#[[1]]]&},
           "BitsPerVoxel" -> "Integer16",
           "Dimensions" -> {"Integer64", 8, #[[2 ;; (#[[1]] + 1)]]&},
           "IntentParameters" -> {"Real64", 3},
