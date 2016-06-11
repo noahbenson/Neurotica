@@ -1208,28 +1208,39 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
                Show[graphics, PlotRange -> plotRange, optseqShow]]]]]]]]];
 
 (* #InterpretRangeOption (Private) ****************************************************************)
-InterpretRangeArgument[opt_] := Replace[
-     opt,
+InterpretRangeOption[opt_] := Replace[
+  opt,
   {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
    r : {{_, _}, {_, _}} :> r,
+   r : {_?NumericQ, _?NumericQ} :> {{0, 180}, r},
    {t : {_, _}, r : Except[{_, _}]} :> {t, {0, r}},
    {t : {_, _}, (All | Full | Automatic)} :> {t, {0, 90}},
    {(All | Full | Automatic), r : {_, _}} :> {{0, 180}, r},
    {(All | Full | Automatic), 
     r : Except[{_, _}]} :> {{0, 180}, {0, r}},
    r_ :> {{0, 180}, {0, r}}}];
-Protect[InterpretRangeArgument];
+Protect[InterpretRangeOption];
 
 (* #InterpretVisualAreasOption (Private) **********************************************************)
-InterpretVisualAreasOption[opt_] := Union@Replace[
-  opt,
-  {All -> {-4, -3, -2, -1, 1, 2, 3, 4},
-   Automatic -> {-3, -2, -1, 1, 2, 3},
-   i_Integer /; -5 < i < 5 && i != 0 :> {i},
-   l_List /; Length[l] == Count[l, i_Integer /; -5 < i < 5 && i != 0, {1}] :> Union[l],
-   _ :> Message[
-     V123LinePlot::badarg, 
-     "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}];
+InterpretVisualAreasOption[opt_] := With[
+  {r = Union@Replace[
+     opt,
+     {All -> {1, 2, 3, 4, 5},
+      Automatic -> {1, 2, 3},
+      i_Integer :> {i},
+      s_String :> List@Replace[
+        s,
+        {"V1" -> 1, "V2" -> 2, "V3" -> 3, "V4"|"hV4"|"HV4" -> 4, "V3a"|"V3A"|"V3AB"|"V3ab" -> 5}],
+      l_List :> Replace[
+        l,
+        {"V1" -> 1, "V2" -> 2, "V3" -> 3, "V4"|"hV4"|"HV4" -> 4, "V3a"|"V3A"|"V3AB"|"V3ab" -> 5},
+        {1}]}]},
+  If[!ListQ[r] || Length@Complement[r, {1,2,3,4,5}] != 0,
+    (Message[
+       V123LinePlot::badarg, 
+       "VisualAreas must be All, one of {V1, V2, V3, hV4, V4a} or a list of such ids"];
+     $Failed),
+    r]];
 Protect[InterpretVisualAreasOption];
 
 (* #V123IsoEccentricityLine ***********************************************************************)
@@ -1240,21 +1251,30 @@ Options[V123IsoEccentricityLine] = {
 V123IsoEccentricityLine[mdl_?V123ModelQ, ecc_?NumericQ, OptionsPattern[]] := With[
   {space = Replace[
      OptionValue[Spacings],
-     Automatic :> Mean@PropertyValue[{mdl["Mesh"], 1}, MeshCellMeasure]]
+     Automatic :> Mean@PropertyValue[{mdl["Mesh"], 1}, MeshCellMeasure]],
    range = InterpretRangeOption@OptionValue[Range],
    areas = InterpretVisualAreasOption@OptionValue[VisualAreas]},
   With[
-    {angs = If[Last[#] == 180.0, #, Append[#, 180.0]]&@Range[0.0, 180.0, space]},
+    {amin = range[[1,1]], amax = range[[1,2]]},
     With[
-      {dat = VisualFieldToCorticalMap[mdl, ConstantArray[ecc, Length[angs]], angs],
-       pre90 = First@FirstPosition[angs, x_ /; x >= 90, {1}] - 1},
-      {dat[[All,              5]],
-       dat[[1 ;; pre90,       3]],
-       dat[[1 ;; pre90,       2]],
-       dat[[All,              1]],
-       dat[[pre90 + 1 ;; All, 2]],
-       dat[[pre90 + 1 ;; All, 3]],
-       dat[[All,              4]]}]]];
+      {angs = If[Last[#] == amax, #, Append[#, amax]]&@Range[amin, amax, space],
+       boolAreas = Table[MemberQ[areas, k], {k, 1, 5}]},
+      With[
+        {dat = VisualFieldToCorticalMap[mdl, angs, ConstantArray[ecc, Length[angs]]],
+         pre90 = First@FirstPosition[angs, x_ /; x >= 90, {1}] - 1},
+        Pick[
+          {Reverse[dat[[ All,              4]]],
+           dat[[         1 ;; pre90-1,     3]],
+           Reverse[dat[[ 1 ;; pre90-1,     2]]],
+           dat[[         All,              1]],
+           Reverse[dat[[ pre90 + 2 ;; All, 2]]],
+           dat[[         pre90 + 2 ;; All,  3]],
+           Reverse[dat[[ All,              5]]]},
+          boolAreas[[{4,3,2,1,2,3,5}]],
+          True]]]]];
+V123IsoEccentricityLine[mdl_?V123ModelQ, e_ /; VectorQ[e, NumericQ], opts:OptionsPattern[]] := Map[
+  V123IsoEccentricityLine[mdl, #, opts]&,
+  e];  
 Protect[V123IsoEccentricityLine];
 
 (* #V123IsoAngleLine ******************************************************************************)
@@ -1264,13 +1284,32 @@ V123IsoAngleLine[mdl_?V123ModelQ, ang_?NumericQ, OptionsPattern[]] := With[
      OptionValue[Spacings],
      Automatic :> Mean@PropertyValue[{mdl["Mesh"], 1}, MeshCellMeasure]],
    range = InterpretRangeOption@OptionValue[Range],
-   areas = InterpretVisualAreasOption@OptionValue[VisualAreas]},
+   areas = InterpretVisualAreasOption@OptionValue[VisualAreas],
+   exp = 9.0},
   With[
-    {eccs = If[Last[#] == 90.0, #, Append[#, 90.0]]&@Range[0.0, 180.0, space]},
+    {emin = range[[2,1]],
+     emax = range[[2,2]]},
     With[
-      {dat = VisualFieldToCorticalMap[mdl, ConstantArray[ecc, Length[angs]], angs],
-       pre90 = First@FirstPosition[angs, x_ /; x >= 90, {1}] - 1},
-      (* #here *)Null]]];
+      {eccs = Join[Most[#], Union[{Last[#], emax}]]&@Range[emin, emax, space],
+       boolAreas = Table[MemberQ[areas, k], {k, 1, 5}]},
+      With[
+        {dat = VisualFieldToCorticalMap[
+           mdl,
+           ConstantArray[ang, Length[eccs]],
+           (((eccs - emin)/(emax - emin))^exp * (emax - emin) + emin)]},
+        Pick[
+          Transpose[dat],
+          boolAreas[[{1,2,3,4,5}]],
+          True]]]]];
+V123IsoAngleLine[mdl_?V123ModelQ, a_Rule, opts:OptionsPattern[]] := V123IsoAngleLine[
+  mdl, a[[1]], VisualAreas -> a[[2]], opts];
+V123IsoAngleLine[mdl_?V123ModelQ, a_List, opts:OptionsPattern[]] := Map[
+  Function@If[Head[#] === Rule,
+    With[
+      {r = V123IsoAngleLine[mdl, #[[1]], VisualAreas -> #[[2]], opts]},
+      If[StringQ[#[[2]]] || IntegerQ[#[[2]]], r[[1]], r]],
+    V123IsoAngleLine[mdl, #, opts]],
+  a];
 Protect[V123IsoAngleLine];
 
 (* #V123LinePlot **********************************************************************************)
@@ -1284,29 +1323,9 @@ Options[V123LinePlot] = Join[
    Range -> Full}];
 V123LinePlot[mdl_?AssociationQ, opts : OptionsPattern[]] := Catch[
   With[
-    {epsilon = 0.000001,
-     plotRangeArg = OptionValue[PlotRange],
-     areas = Union@Replace[
-        OptionValue[VisualAreas],
-        {All -> {-4, -3, -2, -1, 1, 2, 3, 4},
-         Automatic -> {-3, -2, -1, 1, 2, 3},
-         i_Integer /; -5 < i < 5 && i != 0 :> {i},
-         l_List /; Length[l] == Count[l, i_Integer /; -5 < i < 5 && i != 0, {1}] :> Union[l],
-         _ :> Message[
-           V123LinePlot::badarg, 
-           "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}],
-     fn = Function@VisualFieldToCorticalMap[mdl, ##],
-     f = TemporarySymbol["f"],
-     range = Replace[
-       OptionValue[Range],
-       {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
-        r : {{_, _}, {_, _}} :> r,
-        {t : {_, _}, r : Except[{_, _}]} :> {t, {0, r}},
-        {t : {_, _}, (All | Full | Automatic)} :> {t, {0, 90}},
-        {(All | Full | Automatic), r : {_, _}} :> {{0, 180}, r},
-        {(All | Full | Automatic), 
-        r : Except[{_, _}]} :> {{0, 180}, {0, r}},
-        r_ :> {{0, 180}, {0, r}}}],
+    {epsilon = 0.01,
+     areas = InterpretVisualAreasOption@OptionValue[VisualAreas],
+     range = InterpretRangeOption@OptionValue[Range],
      esf = Replace[
        OptionValue[EccentricityStyleFunction],
        x : (Automatic | Thick | Thin | Dotted | Dashed) :> With[
@@ -1321,13 +1340,12 @@ V123LinePlot[mdl_?AssociationQ, opts : OptionsPattern[]] := Catch[
        OptionValue[EccentricityLines],
        {None -> {},
         x_?NumberQ :> {x},
-        Automatic -> {1.25, 2.5, 5.0, 10.0, 20.0, 40.0, 90.0}}],
+        Automatic -> {1.25, 2.5, 5.0, 10.0, 20.0, 40.0, 88.0}}],
      palines = Replace[
        OptionValue[PolarAngleLines],
        {None -> {},
         x_?NumberQ :> {x},
-        Automatic -> {0.0, 45.0, 90.0, 135.0, 180.0}}]},
-    f[t_?NumericQ, r_?NumericQ, k_Integer] := Part[fn[t, r], k];
+        Automatic -> {0.0, 90.0, 180.0}}]},
     With[
       {msg = Which[
          !NumericQ[range[[1, 1]]], "theta-min must be a number",
@@ -1341,98 +1359,38 @@ V123LinePlot[mdl_?AssociationQ, opts : OptionsPattern[]] := Catch[
          True, None]},
       If[StringQ[msg], (Message[V123LinePlot::badarg, msg]; Throw[$Failed])]];
     With[
-     {optseq = Sequence @@ FilterRules[
-        {opts},
-        ReplacePart[Options[ParametricPlot], {_, 2} -> _]],
-      optseqShow = Sequence @@ FilterRules[
-        {opts},
-        ReplacePart[Options[Show], {_, 2} -> _]],
-      rhoTrans = Function[{rho}, range[[2, 1]] + (range[[2, 2]] - range[[2, 1]])*rho^3.5], 
-      thetaLower = If[range[[1, 1]] > 90, None, {range[[1, 1]], Min[{90, range[[1, 2]]}]}], 
-      thetaUpper = If[range[[1, 2]] < 90, None, {Max[{90, range[[1, 1]]}], range[[1, 2]]}],
-      angLines = Replace[
-        areas,
-        {(-4 | 4) :> palines,
-         (-3 | -2) :> Select[palines, # <= 90 &] /. (90|90.0 -> 90.0 - epsilon),
-         -1 :> Select[palines, # <= 90 &],
-         (2 | 3) :> Select[palines, # >= 90 &] /. (90|90.0 -> 90.0 + epsilon),
-         1 -> Select[palines, # >= 90 &]},
-        {1}],
-      eccLines = Table[eclines, {Length@areas}]},
-     With[
-       {areaIdcs = Which[# == -4, 4, # == 4, 5, True, Abs[#]] & /@ areas,
-        thetaMinIdeals = If[# == 4 || # < 0, thetaLower[[1]], thetaUpper[[1]]] & /@ areas,
-        thetaMaxIdeals = If[# == -4 || # > 0, thetaUpper[[2]], thetaLower[[2]]] & /@ areas},
-       With[
-         {thetaMins = MapThread[
-            Function[
-              If[#1 == 2 || #1 == 3, 
-                Max[{#2, 90.0 + epsilon}], 
-                #2]], 
-            {areas, thetaMinIdeals}], 
-          thetaMaxs = MapThread[
-            Function[
-              If[#1 == -3 || #1 == -2, 
-                Min[{#2, 90.0 - epsilon}], 
-                #2]],
-            {areas, thetaMaxIdeals}]},
-         With[
-           {angPrep = Flatten[
-              MapThread[
-                Function[{lines, idx},
-                  Map[
-                    Function[
-                      {Hold[
-                         Evaluate[#1],
-                         Evaluate[Block[{rho}, rhoTrans[rho]]],
-                         Evaluate[idx]],
-                       #1}],
-                    lines]],
-                {angLines, areaIdcs}],
-              1],
-            eccPrep = Flatten[
-              MapThread[
-                Function[{lines, min, max, idx},
-                  Map[
-                    Function[
-                      {Hold[
-                         Evaluate[Block[{theta}, min + (max - min)*theta]],
-                         Evaluate[#1],
-                         Evaluate[idx]],
-                       #1}],
-                    lines]],
-                {eccLines, thetaMins, thetaMaxs, areaIdcs}],
-              1]},
-           With[
-             {graphics = Flatten[
-                {If[Length[angPrep] == 0,
-                   {},
-                   ReplacePart[
-                     Hold[
-                       Evaluate[ReplacePart[angPrep[[All, 1]], {_, 0} -> f]],
-                       {rho, 0, 1},
-                       Evaluate[PlotStyle -> psf /@ angPrep[[All, 2]]],
-                       Evaluate[PlotRange -> plotRangeArg],
-                       Evaluate[optseq]],
-                     {0 -> ParametricPlot}]],
-                 If[Length[eccPrep] == 0,
-                   {},
-                   ReplacePart[
-                     Hold[
-                       Evaluate[ReplacePart[eccPrep[[All, 1]], {_, 0} -> f]],
-                       {theta, 0, 1},
-                       Evaluate[PlotStyle -> esf /@ eccPrep[[All, 2]]],
-                       Evaluate[PlotRange -> plotRangeArg],
-                       Evaluate[optseq]],
-                     {0 -> ParametricPlot}]]}]},
-             With[
-               {plotRange = If[plotRangeArg =!= Automatic && plotRangeArg =!= Full,
-                  plotRangeArg,
-                  With[
-                    {ranges = Cases[Options /@ graphics, (PlotRange -> r_) :>r, {2}]},
-                    {{Min[ranges[[All, 1, 1]]], Max[ranges[[All, 1, 2]]]},
-                     {Min[ranges[[All, 2, 1]]], Max[ranges[[All, 2, 2]]]}}]]}, 
-               Show[graphics, PlotRange -> plotRange, optseqShow]]]]]]]]];
+      {rhoTrans = Function[{rho}, range[[2, 1]] + (range[[2, 2]] - range[[2, 1]])*rho^9.0], 
+       thetaLower = If[range[[1, 1]] > 90, None, {range[[1, 1]], Min[{90, range[[1, 2]]}]}], 
+       thetaUpper = If[range[[1, 2]] < 90, None, {Max[{90, range[[1, 1]]}], range[[1, 2]]}],
+       angLines = Join@@Replace[
+         areas,
+         {a:1|4|5 :> Thread[palines -> a],
+          2 :> Thread[# -> 2]&@Union@Fold[
+            Function@If[MemberQ[areas, #2[[1]]], Pick[#1, Unitize[#1 - #2[[2]]], 1]],
+            Join[
+              palines /. (90|90.0 -> (90.0 - epsilon)),
+              palines /. (90|90.0 -> (90.0 + epsilon))],
+            {{1, 0}, {1, 180}}],
+          3 :> Thread[# -> 3]&@Union@Fold[
+            Function@If[MemberQ[areas, #2[[1]]], Pick[#1, Unitize[#1 - #2[[2]]], 1]],
+            If[MemberQ[areas, 2],
+              palines,
+              Join[
+                palines /. (90|90.0 -> (90.0 - epsilon)),
+                palines /. (90|90.0 -> (90.0 + epsilon))]],
+            {{2, 90}}]},
+         {1}],
+       eccLines = eclines,
+       erange = ReplacePart[range, {2,2} -> Min[{range[[2,2]], Max[eclines]}]]},
+      WithOptions[
+        Graphics@Join[
+          Map[
+            {esf[#], Line@WithOptions[V123IsoEccentricityLine[mdl, #], opts]}&,
+            eccLines],
+          Map[
+            {psf[#[[1]]], Line@WithOptions[V123IsoAngleLine[mdl, #], Range -> erange, opts]}&,
+            angLines]],
+        opts]]]];
 
 Protect[SchiraParametricPlot, SchiraLinePlot,
         V123ParametricPlot, V123LinePlot,
@@ -1631,14 +1589,19 @@ Protect[V123Anchors, V123AnchorsParameter, V123AnchorsIndices];
 
 
 (* #V123MeshFunctions (Private) *******************************************************************)
-V123MeshFunctions[data_, tx0_: None] := With[
+V123MeshFunctions[data_, tx0_:Automatic] := With[
   {mesh = data["Mesh"],
    coords = MeshCoordinates@data["Mesh"],
    cells = MeshCells[data["Mesh"], 2][[All, 1]],
    angle = data["PolarAngle"],
    eccen = data["Eccentricity"],
    iregions = {"V1", "V2", "V3", "V4Ventral", "V4Dorsal"},
-   tx = If[tx0 === None, Identity, tx0]},
+   tx = Which[
+     tx0 === None, Identity,
+     tx0 === Automatic, With[
+       {tx1 = If[AssociationQ[#], #["AffineTransform"], None]&@data["Options"]},
+       If[tx1 === None, Identity, tx1]],
+     True, tx0]},
   With[
     {field = eccen*Exp[I*angle],
      ifieldAll = Flatten[coords.{{1}, {I}}],
@@ -1655,25 +1618,37 @@ V123MeshFunctions[data_, tx0_: None] := With[
                  xy,
                  Polygon /@ Pick[
                    Transpose[F],
-                   Transpose@Sign@RegionDistance[bound, coords[[#]] & /@ F],
-                   {0, 0, 0}]]],
+                   Total@Unitize[RegionDistance[bound, coords[[#]]] & /@ F],
+                   0]]],
              {id, iregions}]],
-         near = Nearest[xy -> Automatic]},
+         near = Association@Table[
+           id -> With[
+             {idcs = Pick[
+                Range@Length[coords],
+                Unitize@RegionDistance[data[id<>"BoundaryMesh"], coords],
+                0]},
+             Nearest[xy[[idcs]] -> idcs]],
+           {id, iregions}]},
         With[
           {ifields = Association@Table[
-             reg -> ifieldAll[[near[MeshCoordinates@imesh[reg], 1][[All, 1]]]],
+             reg -> ifieldAll[[near[reg][MeshCoordinates@imesh[reg], 1][[All, 1]]]],
              {reg, iregions}]},
-          {Function@Which[
-             MatrixQ[#], MeshRegionInterpolate[mesh, field, itx[#]],
-             VectorQ[#],
-             First@MeshRegionInterpolate[mesh, field, itx[{#}]],
-             True, $Failed],
-           Function@With[
-             {dat = If[VectorQ[#], #, {#}],
-              post = If[VectorQ[#], Identity, (First /@ #) &]},
-             post@Transpose@Table[
-               tx@ReIm[MeshRegionInterpolate[imesh[reg], ifields[reg], ReIm[dat]]],
-               {reg, iregions}]]}]]]]];
+          Join[
+            data,
+            <|"CorticalMapToVisualField" -> Function@Which[
+                MatrixQ[#], MeshRegionInterpolate[mesh, field, itx[#], Chop -> 0.1],
+                VectorQ[#], First@MeshRegionInterpolate[mesh, field, itx[{#}], Chop -> 0.1],
+                True,       $Failed],
+              "VisualFieldToCorticalMap" -> Function@With[
+                {dat = If[VectorQ[#], #, {#}],
+                 post = If[VectorQ[#], Identity, #[[All,1]]&]},
+                post@Transpose@Table[
+                  tx@ReIm@MeshRegionInterpolate[
+                    imesh[reg], ifields[reg], ReIm[dat],
+                    Chop -> Infinity],
+                  {reg, iregions}]],
+              "VisualFieldMeshes" -> imesh,
+              "VisualFieldFields" -> ifield|>]]]]]];
 Protect[V123MeshFunctions];
 
 (* MeshRegionOrthogonalFields *********************************************************************)
@@ -1727,15 +1702,13 @@ Options[V123Model] = {
   Scale -> {15, 5, 5, 3},
   AspectRatio -> 0.32,
   Intersection -> 0.6*Pi,
-  Exponent -> 9.0,
+  Function -> Function[0.06*# + #^14],
   MaxValue -> 90.0,
   AffineTransform -> AffineTransform[{RotationMatrix[5 Degree].{{1, -0.2}, {0, 1}}, {-7, -1}}],
   CellSize -> 0.1,
   MaxIterations -> 10000};
 V123Model[OptionsPattern[]] := With[
-  {assc =
-   Association@
-   Table[ToString[k] -> OptionValue[k], {k, Options[V123Model][[All, 1]]}]},
+  {assc = Association@Table[ToString[k] -> OptionValue[k], {k, Options[V123Model][[All, 1]]}]},
   assc // Function@With[
     {ellipseCenter = {0.5*#Scale[[1]]/#AspectRatio, 0},
      ellipseAxes = {#Scale[[1]]/#AspectRatio, #Scale[[1]]}/2,
@@ -1901,12 +1874,16 @@ V123Model[OptionsPattern[]] := With[
                         {fields = MeshRegionFields[
                            mesh,
                            angConst, eccConst,
-                           MaxIterations -> #MaxIterations]},
+                           MaxIterations -> #MaxIterations],
+                         eccfn = With[
+                           {f = #Function},
+                           With[{mn = f[0], mx = f[1]}, Function[(f[#] - mn) / (mx - mn)]]]},
                         With[
                           {data = <|
                            "Mesh" -> mesh,
+                           "Options" -> #,
                            "PolarAngle" -> fields[[1]],
-                           "Eccentricity" -> (#MaxValue*fields[[2]]^#Exponent),
+                           "Eccentricity" -> (#MaxValue * eccfn[fields[[2]]]),
                            "BoundaryMesh" -> b,
                            "V1BoundaryMesh" -> v1b,
                            "V2BoundaryMesh" -> v2b,
@@ -1925,12 +1902,7 @@ V123Model[OptionsPattern[]] := With[
                                 inV4v = 1 - Unitize@RegionDistance[v4vb, x0],
                                 inV4d = 1 - Unitize@RegionDistance[v4db, x0]},
                                1*inV1 + 2*inV2 + 3*inV3 + 4*inV4v + 5*inV4d]]|>},
-                          With[
-                            {fns = V123MeshFunctions[data, tx]},
-                            Join[
-                              data,
-                              <|"CorticalMapToVisualField" -> fns[[1]],
-                                "VisualFieldToCorticalMap" -> fns[[2]]|>]]]]]]]]]]]]]]];
+                          V123MeshFunctions[data, tx]]]]]]]]]]]]]];
 Protect[V123Model];
 
 (* #V123ModelQ ************************************************************************************)

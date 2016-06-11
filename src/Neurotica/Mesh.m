@@ -75,6 +75,7 @@ CorticalMesh2D::usage = "CorticalMesh2D is a form used to store data for 2D proj
 CorticalMapQ::usage = "CorticalMapQ[x] yields True if x is a 2D cortical projection and False otherwise.";
 CorticalMap::error = "Error in cortical map function `1`: `2`";
 SourceMesh::usage = "SourceMesh[map] yields the mesh object from which the given cortical projection, map, was constructed.";
+SphericalMesh::usage = "SphericalMesh[map] yields the spherical mesh object from which coordinates were drawn for projection (if specified in the source mesh's MetaInformation; otherwise this is just the source mesh).";
 NearestFaceCenters::usage = "NearestFaceCenters[mesh] yields a Nearest object f such that f[x] yields the face index whose center is nearest the point x.";
 NearestFace::usage = "NearestFace[mesh, x] yields the face nearest to the point x. If x is a matrix, then the indices for all pointsi n x are yielded as a list.
 The option Points may be set to true, in which case a list of {indices, points} is returned with the indices of the faces containing the points in x and the 
@@ -264,7 +265,7 @@ InverseProjectVectorsTr::usage = "InverseProjectVectorsTr[map, Ut] is equivalent
 CortexResample::usage = "CortexResample[surf1, surf2] yields a cortical equivalent to the CorticalMesh object surf2 but such that the field of the surface has been resampled from the cortical mesh object surf1.
 CortexResample[surf2 -> surf1] is equivalent to CortexResample[surf1, surf2].
 The following options may be provided:
-  * Method: a Method option may specify Nearest (default) for nearest-neighbor interpolation, Interpolation, or List interpolation, for their respective functions. In the latter two cases, A list may be given instead of the argument such that the first argument is Interpolation or LitInterpolation and the remaining elements of the list are options to pass to these functions; e.g. Method -> {Interpolation, InterpolationOrder -> 4}.
+  * Method: a Method option may specify \"Interpolation\" (default) for trilinear interpolation  or \"Nearest\" for nearest-neighbor interpolation. Note that trilinear interpolation of a mesh gives the interpolation of the nearest point in the mesh to the queried point.
   * Properties: a Properties argument specifies that the given property should be resampled; a list of properties may also be given, or All. If no property is given then All is the default value.
   * Indeterminate: a value to insert into the interpolated values in the case that non-numeric values were found nearby";
 CortexResample::badarg = "Bad argument given to CortexResample: `1`";
@@ -1648,9 +1649,10 @@ Options[CorticalMap] = Join[
    Method -> "Orthographic",
    Center -> Automatic,
    Exclusions -> Automatic,
-   Radius -> Full}];
+   Radius -> Full,
+   AffineTransform -> None}];
 DefineImmutable[
-  CorticalMap[mesh_?CorticalMeshQ, OptionsPattern[]] :> map,
+  CorticalMap[mesh_?CorticalMeshQ, optsPatt:OptionsPattern[]] :> map,
   With[
     {optionalProperties = Last@Reap[
        Replace[
@@ -1667,15 +1669,29 @@ DefineImmutable[
      
      (* First we declare the simple constants for the projection *)
      SourceMesh[map] = mesh,
+     SphericalMesh[map] -> With[
+       {smesh = SourceMesh[map]},
+       With[
+         {smeta = Association[Options[smesh, MetaInformation] /. None -> {}]},
+         With[
+           {Xsph = Which[
+              KeyExistsQ[smeta, "SphericalCoordinates"], smeta["SphericalCoordinates"],
+              KeyExistsQ[smeta, "SphericalMesh"], VertexCoordinates@smeta["SphericalMesh"],
+              KeyExistsQ[smeta, SphericalMesh], VertexCoordinates@smeta[SphericalMesh],
+              True, None]},
+           If[Xsph === None, smesh, CorticalMesh[smesh, VertexCoordinates -> Xsph]]]]],
      
      (* Options is settable, but depends on nothing but the initial options
         (and should have nothing downstream but CorticalMapQ); 
         note that these are the graphics options only *)
-     Options[map] = Cases[
-       Options[CorticalMap][[All,1]],
-       opt:Except[Properties] :> (opt -> OptionValue[opt]),
-       {1}],
-     MetaInformation[map]    := Fold[
+     Options[map] = Normal@Join[
+       Association[$CortexPlotOptions],
+       Association@FilterRules[Options@SourceMesh[map], Options[CorticalMap]],
+       Association@Select[#, #[[2]] =!= Automatic&]&@Replace[
+         "CorticalMap",
+         Append[Options[mesh, MetaInformation], "CorticalMap" -> {}]],
+       Association@Select[{optsPatt}, #[[1]] =!= Properties && #[[2]] =!= Automatic&]],
+     MetaInformation[map] := Fold[
        Replace,
        MetaInformation,
        {Options[map], MetaInformation -> {}}],
@@ -1683,20 +1699,25 @@ DefineImmutable[
      
      (* Here, we setup all of the special map-specific parameters and translate them *)
      TranslatedCenter[map] -> CorticalMapTranslateCenter[
-       SourceMesh[map],
+       SphericalMesh[map],
        Center /. Join[Options[map], Options[CorticalMap]]],
      Inclusions[map] -> CorticalMapTranslateExclusions[
-       SourceMesh[map],
+       SphericalMesh[map],
        Method /. Join[Options[map], Options[CorticalMap]],
        TranslatedCenter[map],
        Exclusions /. Join[Options[map], Options[CorticalMap]],
        Radius /. Join[Options[map], Options[CorticalMap]]],
-     TransformationFunctions[map] -> CorticalMapTranslateMethod[
-       SourceMesh[map],
-       Method /. Join[Options[map], Options[CorticalMap]],
-       TranslatedCenter[map],
-       Inclusions[map],
-       Radius /. Join[Options[map], Options[CorticalMap]]],
+     TransformationFunctions[map] -> With[
+       {mthd = CorticalMapTranslateMethod[
+          SphericalMesh[map],
+          Method /. Join[Options[map], Options[CorticalMap]],
+          TranslatedCenter[map],
+          Inclusions[map],
+          Radius /. Join[Options[map], Options[CorticalMap]]],
+        tx = (AffineTransform /. Options[map]) /. AffineTransform|None -> Identity},
+       With[
+         {itx = If[tx === Identity, tx, InverseFunction[tx]]},
+         {Transpose@tx@Transpose[mthd[[1]][##]]&, mthd[[2]][Transpose@itx@Transpose[#]]&}]],
    
 
      (* ====================================== Properties ======================================= *)
@@ -1811,7 +1832,7 @@ DefineImmutable[
      VertexList[map] -> Part[VertexList[SourceMesh[map]], Inclusions[map][[1]]],
      VertexCoordinatesTr[map] = With[
        {f = TransformationFunctions[map][[1]]},
-       f[VertexCoordinatesTr[SourceMesh[map]][[All, Inclusions[map][[1]]]]]],
+       f@VertexCoordinatesTr[SphericalMesh[map]][[All, Inclusions[map][[1]]]]],
      FaceListTr[map] -> Part[FaceListTr[SourceMesh[map]], All, Inclusions[map][[3]]],
      EdgePairsTr[map] -> Part[EdgePairsTr[SourceMesh[map]], All, Inclusions[map][[2]]],
      
@@ -2174,12 +2195,12 @@ DefineImmutable[
      (* #Reproject *)
      ReprojectTr[map, Xtr_List] := With[
        {f = TransformationFunctions[map][[1]],
-        m = SourceMesh[map]},
-       If[Dimensions[Xtr] == Dimensions[VertexCoordinatesTr[m]],
+        m = SphericalMesh[map]},
+       If[Dimensions[Xtr] == Dimensions@VertexCoordinatesTr[m],
          Clone[map, VertexCoordinatesTr -> f[Xtr[[All, Inclusions[map][[1]]]]]],
-         (Message[Reproject::badarg, "Dimensions of coordinates do not match source mesh"];
+         (Message[Reproject::badarg, "Dimensions of coordinates do not match spherical mesh"];
           $Failed)]],
-     Reproject[map, X_List] := ReprojectTr[map, Transpose @ X],
+     Reproject[map, X_List] := ReprojectTr[map, Transpose[X]],
      Reproject[map, mesh_?CoticalMeshQ] := If[
        Dimensions[VertexCoordinateTr[mesh]] == Dimensions[VertexCoordinatesTr[SourceMesh[map]]],
        Clone[map, SourceMesh -> mesh],
@@ -2210,7 +2231,7 @@ DefineImmutable[
 
      (* #InverseProjectVectors *)
      InverseProjectVectorsTr[map, Ut_List] := With[
-       {sourceMesh = SourceMesh[map]},
+       {sourceMesh = SphericalMesh[map]},
        With[
          {Xtp = InverseProjectTr[map],
           XUtp = InverseProjectTr[map, VertexCoordinatesTr[map] + Ut],
@@ -2335,7 +2356,7 @@ DefineImmutable[
  *  - Options
  *)
 $CorticalMapReconstructionOptions = Join[
-  {SourceMesh, VertexCoordinates},
+  {SourceMesh, SphericalMesh, VertexCoordinates},
   Cases[Options[CorticalMap][[All,1]], Except[Properties], {1}]];
 Protect[$CorticalMapReconstructionOptions];
 CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
@@ -2345,26 +2366,47 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
          #,
          Message[
            CorticalMap::badarg,
-           "CorticalMap[] reconstructor may only be passed CorticalMesh options or SourceMesh"]]]},
+           "CorticalMap[] reconstructor may only be passed CorticalMesh options or SourceMesh" <>
+           " or SphericalMesh"]]]},
     If[Length[optsarg] == 0,
       map,
       With[
         {source = Replace[SourceMesh, optsarg],
+         sphere = Replace[SphericalMesh, optsarg],
          coords = Replace[VertexCoordinates, optsarg],
+         sourceMesh = SourceMesh[map],
          opts = Select[optsarg, (#[[1]] =!= SourceMesh && #[[1]] =!= VertexCoordinates)&]},
-        Clone[
-          map,
-          Sequence @@ Flatten[
-            {If[source =!= SourceMesh, SourceMesh -> source, {}],
-             If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords], {}],
-             If[Length[opts] > 0,
-               Options -> Fold[
-                 Function @ With[
-                   {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
-                   If[SameQ[edit, #1], Append[#1, #2], edit]],
-                 Options[map],
-                 opts],
-               {}]}]]]]],
+        With[
+          {ss = Which[
+             source === SourceMesh && sphere === SphericalMesh, None,
+             source =!= SourceMesh && sphere === SphericalMesh, source,
+             source === SourceMesh && sphere =!= SphericalMesh, With[
+               {meta = Replace[Options[sourceMesh, MetaInformation], None -> {}]},
+               CorticalMesh[
+                 sourceMesh,
+                 MetaInformation -> Normal@Append[
+                 Association[meta],
+                   "SphericalMesh" -> sphere]]],
+             source =!= SourceMesh && sphere =!= SphericalMesh, With[
+               {meta = Replace[Options[source, MetaInformation], None -> {}]},
+               CorticalMesh[
+                 source,
+                 MetaInformation -> Normal@Append[
+                   Association[meta],
+                   "SphericalMesh" -> sphere]]]]}m
+          Clone[
+            map,
+            Sequence @@ Flatten[
+              {If[ss =!= None, SourceMesh -> source, {}],
+               If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords], {}],
+               If[Length[opts] > 0,
+                 Options -> Fold[
+                   Function @ With[
+                     {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
+                     If[SameQ[edit, #1], Append[#1, #2], edit]],
+                   Options[map],
+                   opts],
+                 {}]}]]]]]],
   $Failed];
 
 (* #CorticalMapQ *)

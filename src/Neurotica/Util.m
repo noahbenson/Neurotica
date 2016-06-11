@@ -1352,24 +1352,34 @@ PrincipalAxes[mtx_?MatrixQ, OptionsPattern[]] := Catch@With[
 Protect[PrincipalAxes];
 
 (* #MeshRegionInterpolate *************************************************************************)
-MeshRegionInterpolate[reg_, field_, pts_] := With[
-  {cl = RegionNearest[reg, pts],
-   faces = Transpose[MeshCells[reg, 2] /. Polygon[p_] :> p],
-   X = Transpose@MeshCoordinates[reg]},
+Options[MeshRegionInterpolate] = {Chop -> 10^-4};
+MeshRegionInterpolate[reg_, field_, pts0_, OptionsPattern[]] := With[
+  {faces = Transpose[MeshCells[reg, 2][[All,1]]],
+   X = Transpose@MeshCoordinates[reg],
+   chop = OptionValue[Chop],
+   pts = RegionNearest[reg, pts0]},
   With[
-    {cells = Region`Mesh`MeshMemberCellIndex[reg, cl][[All, 2]]},
+    {cells = Region`Mesh`MeshMemberCellIndex[reg, pts][[All, 2]],
+     void = Unitize@Chop[RowNorms[pts0-pts], chop]},
     With[
-      {fx = Transpose[X[[All, #]]] & /@ faces[[All, cells]],
-       vals = field[[#]] & /@ faces[[All, cells]]},
+      {ff = faces[[All, cells + void]]},
       With[
-        {areas = Table[
-           MapThread[
-             Function@Quiet@Check[Area@Triangle[{#1, #2, #3}], 0],
-             {pts, fx[[Mod[k, 3] + 1]], fx[[Mod[k + 1, 3] + 1]]}],
-           {k, {1, 2, 3}}]},
+        {fx   = X[[All,#]]& /@ ff,
+         vals = field[[#]]& /@ ff},
         With[
-          {w = vals*areas, tot = Total[areas]},
-          Total[w]/tot]]]]];
+          {vtcs = MapThread[List, {Transpose[{pts,pts,pts}, {1,3,2}], RotateLeft[fx], fx}]},
+          With[
+            {s2 = Transpose@Table[Total /@ ((RotateLeft[v] - v)^2), {v, vtcs}]},
+            With[
+              {areas = With[
+                 {tmp = 4.0*s2[[1]]*s2[[2]] - (s2[[1]] + s2[[2]] - s2[[3]])^2},
+                 0.25 * Sqrt[tmp + tmp*Clip[tmp, {0,0}, {-1,0}]]]},
+              With[
+                {w = RotateRight[vals]*areas,
+                 tot = Total[areas]},
+                Plus[
+                  Total[w]/(tot + (1 - Unitize[tot])),
+                  Replace[Unitize[void + (1 - Unitize[tot])], 1 -> Indeterminate, {1}]]]]]]]]]];
 Protect[MeshRegionInterpolate];
 
 End[];
