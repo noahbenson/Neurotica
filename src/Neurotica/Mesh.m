@@ -2375,7 +2375,9 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
          sphere = Replace[SphericalMesh, optsarg],
          coords = Replace[VertexCoordinates, optsarg],
          sourceMesh = SourceMesh[map],
-         opts = Select[optsarg, (#[[1]] =!= SourceMesh && #[[1]] =!= VertexCoordinates)&]},
+         opts = Select[
+           optsarg,
+           (#[[1]] =!= SourceMesh && #[[1]] =!= VertexCoordinates && #[[1]] =!= SphericalMesh)&]},
         With[
           {ss = Which[
              source === SourceMesh && sphere === SphericalMesh, None,
@@ -2393,7 +2395,7 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
                  source,
                  MetaInformation -> Normal@Append[
                    Association[meta],
-                   "SphericalMesh" -> sphere]]]]}m
+                   "SphericalMesh" -> sphere]]]]},
           Clone[
             map,
             Sequence @@ Flatten[

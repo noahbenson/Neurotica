@@ -1283,6 +1283,7 @@ DefineImmutable[
          {StandardDeviation -> Replace[
             OptionValue[StandardDeviation],
             {s_?NumericQ /; s > 0 :> s,
+             s_ /; VectorQ[s, NumericQ] :> s,
              _ :> Message[PotentialField::badarg, "standard deviation must be a positive number"]}]},
          {}],
        If[d == "Mesh",
