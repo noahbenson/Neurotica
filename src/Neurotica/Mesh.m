@@ -1202,7 +1202,7 @@ DefineImmutable[
      EdgeCount[mesh, patt_] := Count[EdgePairs[mesh], patt, {1}],
      
      (* EdgeList is here just for the compatibility with graph-like operations (use EdgePairs) *)
-     EdgeList[mesh] := UndirectedEdges@@@EdgePairs[mesh],
+     EdgeList[mesh] := UndirectedEdge@@@EdgePairs[mesh],
      EdgeList[mesh, patt_] := Cases[EdgeList[mesh], patt, {1}],
      
      (* Untransposed accessors to basic data *)
@@ -1402,7 +1402,7 @@ DefineImmutable[
        EdgeIndex[mesh, es]],
      EdgeWeight[mesh, es:{(List|UndirectedEdge)[_Integer, _Integer]..}] := Part[
        EdgeLengths[mesh],
-       EdgeIndex[mesh, ReplaceAll[es, UndirectedEdges -> List]]],
+       EdgeIndex[mesh, ReplaceAll[es, UndirectedEdge -> List]]],
 
      (* ---------------------------------------- Vertices --------------------------------------- *)
 
@@ -1616,6 +1616,15 @@ CorticalMesh[mesh_?CorticalMeshQ, args___Rule] := Check[
               {Options -> opts},
               {}]]]]]],
   $Failed];
+
+(* We want to be able to pass options to MeshRegion and BoundaryMeshRegion *)
+Unprotect[CorticalMesh3D];
+CorticalMesh3D /: MeshRegion[m_CorticalMesh3D, opts__] := MeshRegion[MeshRegion[m], opts];
+CorticalMesh3D /: BoundaryMeshRegion[m_CorticalMesh3D, opts__] := BoundaryMeshRegion[
+  BoundaryMeshRegion[m],
+  opts];
+CorticalMesh3D /: Graph[m_CorticalMesh3D, opts__] := Graph[Graph[m], opts];
+Protect[CorticalMesh3D];
 
 (* #CorticalMeshQ *)
 CorticalMeshQ[_] := False;
@@ -2134,7 +2143,7 @@ DefineImmutable[
        EdgeIndex[map, es]],
      EdgeWeight[map, es:{(List|UndirectedEdge)[_Integer, _Integer]..}] := Part[
        EdgeLengths[map],
-       EdgeIndex[map, ReplaceAll[es, UndirectedEdges -> List]]],
+       EdgeIndex[map, ReplaceAll[es, UndirectedEdge -> List]]],
      EdgeLengths[map, X_] := With[
        {EL = VertexIndex[map, EdgePairsTr[map]],
         Xt = Transpose @ X},
@@ -2410,6 +2419,14 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
                    opts],
                  {}]}]]]]]],
   $Failed];
+
+Unprotect[CorticalMesh2D];
+CorticalMesh2D /: MeshRegion[m_CorticalMesh2D, opts__] := MeshRegion[MeshRegion[m], opts];
+CorticalMesh2D /: BoundaryMeshRegion[m_CorticalMesh2D, opts__] := BoundaryMeshRegion[
+  BoundaryMeshRegion[m],
+  opts];
+CorticalMesh2D /: Graph[m_CorticalMesh2D, opts__] := Graph[Graph[m], opts];
+Protect[CorticalMesh2D];
 
 (* #CorticalMapQ *)
 CorticalMapQ[_] := False;
@@ -3127,7 +3144,11 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
             {Which[
                ffn === None, {},
                ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
-               True, {EdgeForm[], Gray, ffn /@ Normal@FaceDataset[mesh]}],
+               True, {
+                 EdgeForm[], Gray,
+                 MapThread[
+                   ffn@Append[#1, "VertexColors" -> #2]&,
+                   {Normal@FaceDataset[mesh], vcolors[[#]]& /@ F}]}],
              Which[
                efn === None || efn === Automatic, {},
                efn === Line, {
@@ -3138,7 +3159,9 @@ CortexPlot3D[mesh_?CorticalMeshQ, opts:OptionsPattern[]] := With[
                True, efn /@ Normal@EdgeDataset[mesh]],
              If[vfn === None || vfn === Automatic,
                {},
-               vfn /@ Normal@VertexDataset[mesh]]},
+               MapThread[
+                 vfn@Append[#1,"VertexColor" -> #2]&,
+                 {Normal@VertexDataset[mesh], vcolors}]]},
             VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
               vcolors,
               None],
@@ -3158,7 +3181,8 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
         (name|Automatic) :> Replace[name, $CortexPlotOptions]}]],
    U = VertexList[mesh],
    X = VertexCoordinates[mesh],
-   F = Transpose@VertexIndex[mesh, FaceListTr[mesh]]},
+   F = IndexedFaceList[mesh],
+   Q = IndexedEdgePairs[mesh]},
   With[
     {vcolors = GetVertexColors[
        mesh,
@@ -3175,7 +3199,11 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
             {Which[
                ffn === None, {},
                ffn === Automatic, {EdgeForm[], Gray, Polygon[F]},
-               True, {EdgeForm[], Gray, ffn /@ Normal@FaceDataset[mesh]}],
+               True, {
+                 EdgeForm[], Gray,
+                 MapThread[
+                   ffn@Append[#1, "VertexColors" -> #2]&,
+                   {Normal@FaceDataset[mesh], vcolors[[#]]& /@ F}]}]}],
              Which[
                efn === None || efn === Automatic, {},
                efn === Line, {
@@ -3183,10 +3211,17 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
                  Map[
                    Function@Line[#1, VertexColors -> vcolors[[#1]]],
                    Transpose@VertexIndex[mesh, EdgePairsTr[mesh]]]},
-               True, efn /@ Normal@EdgeDataset[mesh]],
+               True, {
+                 Thin, Gray,
+                 MapThread[
+                   efn@Append[#1, "VertexColors" -> #2]&,
+                   {Normal@EdgeDataset[mesh], vcolors[[#]]& /@ Q}]}],
              If[vfn === None || vfn === Automatic,
                {},
-               vfn /@ Normal@VertexDataset[mesh]]},
+               {Gray, PointSize[Tiny],
+                MapThread[
+                  vfn@Append[#1, "VertexColor" -> #2]&,
+                  {Normal@VertexDataset[mesh], vcolors}]},
             VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
               vcolors,
               None]]],
