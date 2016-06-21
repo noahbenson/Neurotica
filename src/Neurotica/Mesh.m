@@ -3203,7 +3203,7 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
                  EdgeForm[], Gray,
                  MapThread[
                    ffn@Append[#1, "VertexColors" -> #2]&,
-                   {Normal@FaceDataset[mesh], vcolors[[#]]& /@ F}]}]}],
+                   {Normal@FaceDataset[mesh], vcolors[[#]]& /@ F}]}],
              Which[
                efn === None || efn === Automatic, {},
                efn === Line, {
@@ -3221,7 +3221,7 @@ CortexPlot[mesh_?CorticalMapQ, opts:OptionsPattern[]] := With[
                {Gray, PointSize[Tiny],
                 MapThread[
                   vfn@Append[#1, "VertexColor" -> #2]&,
-                  {Normal@VertexDataset[mesh], vcolors}]},
+                  {Normal@VertexDataset[mesh], vcolors}]}]},
             VertexColors -> If[(ffn === Automatic || ffn === None) && vcolors =!= None, 
               vcolors,
               None]]],
