@@ -188,6 +188,8 @@ V123Model::usage = "V123Model[] yields a data structure (an Association) of rele
     * AffineTransform (default: a shear of {{1,-0.2},{0,1}} followed by a 5\[Degree] rotation and a translation of {-7,-1}) specifies the transform to be applied to the mesh after it has been solved.";
 V123ModelQ::usage = "V123ModelQ[mdl] yields true if the given obejct, mdl, is a valid V123 model, otherwise False.";
 
+ExportV123Model::usage = "ExportV123Model[flname, mdl] yields the filename of the file to which the fundamentals of the given V123Model, mdl, have been written.";
+
 (**************************************************************************************************)
 (**************************************************************************************************)
 Begin["`Private`"];
@@ -1587,6 +1589,64 @@ V123AnchorsParameter[map_?CorticalMapQ, paramArg_, opts:OptionsPattern[]] := Wit
 
 Protect[V123Anchors, V123AnchorsParameter, V123AnchorsIndices];
 
+(* #ExportV123Model *******************************************************************************)
+ExportV123Model[fl_String, mdl_?AssociationQ] := With[
+  {f = OpenWrite[fl]},
+  If[f === $Failed,
+    $Failed,
+    With[
+      {res = Check[
+         With[
+           {mesh = mdl["Mesh"],
+            tx = TransformationMatrix@Replace[
+              mdl["Options"]["AffineTransform"],
+              None -> AffineTransform[{{{1, 0}, {0, 1}}, {0, 0}}]],
+            nstr = ToString@NumberForm[#, {8, 5}] &,
+            ang = mdl["PolarAngle"],
+            ecc = mdl["Eccentricity"],
+            regions = <|"V1" -> 1, "V2" -> 2, "V3" -> 3, "V4Ventral" -> 4, "V4Dorsal" -> 5|>},
+           With[
+             {X = MeshCoordinates[mesh],
+              faces = MeshCells[mesh, 2][[All, 1]]},
+             With[
+               {areaIdcs = With[
+                  {areas0 = Fold[
+                     Function@With[
+                       {dat = #1, reg = #2, bound = mdl[#2 <> "BoundaryMesh"]},
+                       With[
+                         {ids = Pick[Range@Length[X], Unitize@RegionDistance[bound, X], 0]},
+                         Append[dat, reg -> ids]]],
+                     <||>,
+                     Keys[regions]]},
+                  (* remove dups *)
+                  With[
+                    {dups = Select[Tally[Join @@ Values[areas0]], #[[2]] > 1&][[All, 1]]},
+                    Association@KeyValueMap[#1 -> Complement[#2, dups] &, areas0]]]},
+               With[
+                 {areas = Normal@Sum[
+                    SparseArray[Thread[areaIdcs[k] -> regions[k]], Length[X], boundaryFlag],
+                    {k, Keys[areaIdcs]}]},
+                 WriteLine[f, "Flat Mesh Model Version: 1.0"];
+                 WriteLine[f, "Points: " <> ToString@Length[X]];
+                 WriteLine[f, "Triangles: " <> ToString@Length[faces]];
+                 WriteLine[
+                   f,
+                   StringJoin[
+                     "Transform: [",
+                     Riffle[StringJoin@Riffle[nstr /@ #, ","] & /@ tx, ";"],
+                     "]"]];
+                 MapThread[
+                   Function@WriteLine[
+                     f,
+                     Riffle[nstr /@ #1, ","] <> " :: " <> Riffle[nstr /@ #2, ","]],
+                   {X, Transpose[{ang, ecc, areas}]}];
+                 Scan[
+                   Function@WriteLine[f, StringJoin@Riffle[ToString /@ #, ","]],
+                   faces]]]]],
+         $Failed]},
+      Close[f];
+      If[res === $Failed, res, fl]]]];
+Protect[ExportV123Model];
 
 (* #V123MeshFunctions (Private) *******************************************************************)
 V123MeshFunctions[data_, tx0_:Automatic] := With[
