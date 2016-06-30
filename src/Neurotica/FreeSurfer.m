@@ -649,7 +649,10 @@ ExportSurface[filename_, data_, opts___] := Block[
          True, {}]],
      dfltMeta = {
        "SurfaceFormat" -> "Triangle",
-       "CreatorString" -> "Created by Neurotica for Mathematica",
+       "CreatorString" -> StringJoin[
+         "Created by Neurotica v",
+         ToString[$NeuroticaVersionNumber],
+         " for Mathematica"],
        "VertexCount" -> VertexCount[data],
        "FaceCount" -> FaceCount[data]},
      outtype = Replace["OutputFormat", Append[Flatten[{opts}], "OutputFormat" -> "Real32"]],

@@ -164,9 +164,13 @@ SchiraAnchors::usage = "SchiraAnchors[map, model] yields a list appropriate for 
 SchiraAnchors::badarg = "Bad argument given to SchiraAnchors: `1`";
 SchiraAnchorsParameter::usage = "SchiraAnchorsParameter[map, param] yields a list appropriate for specification of a Schira potential parameters via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> SchiraAnchors[mesh, model], Scale -> SchiraAnchorsParameter[map, scaleData]].";
 
-V123Anchors::usage = "V123Anchors[map, model] yields a list appropriate for specification of a V1-V3 model potential of the given model over the given mesh via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> V123Anchors[mesh, model]]. To construct these anchors, the function uses the retinotopy data found in the mesh properties \"PolarAngle\" and \"Eccentricity\" of the given mesh. If the property \"VertexWeight\" or \"Weight\" is also present, then all vertices with a value above 0 are included and they are weighted by the given weights. Otherwise, any vertex with missing polar angle or eccentricity values ($Failed, None, or Indeterminate) are excluded.";
+V123Anchors::usage = "V123Anchors[map, model] yields a list appropriate for specification of a V1-V3 model potential of the given model over the given mesh via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> V123Anchors[mesh, model]]. To construct these anchors, the function uses the retinotopy data found in the mesh properties \"PolarAngle\" and \"Eccentricity\" of the given mesh. If the property \"VertexWeight\" or \"Weight\" is also present, then all vertices with a value above 0 are included and they are weighted by the given weights. Otherwise, any vertex with missing polar angle or eccentricity values ($Failed, None, or Indeterminate) are excluded.
+Note that the return value of V123Anchors is a list of {labels, anchors}, in which the elements of labels may repeat; the lists specify that for every i, the vertex with label labels[[i]] should be anchored to the point anchors[[i]].
+
+The following options may be given:
+  * VertexWeight (default: Automatic) specifies the property name (or weight values themselves, if given a list) of the vertex weights.
+  * Select (default: All) specifies a function that can be used to select which anchors are applied; if the function f is passed as the Select argument, then f[dat, anc] is called once for each vertex with at least one anchor; dat is the VertexDataset row corresponding to the relevant vertex and anc is a list of anchor points to which the vertex can be attached. The function f should return a list like the anc parameter containing all anchors to which the vertex should be anchored; i.e., f may filter or modify the anc list for each vertex. If Select is given the string \"Close\", then vertices are only attached to anchors that are within 20*e0 (where e0 is the mean edge length) of their starting position; {\"Close\", d} and {\"Close\", {s}} use the same logic but specify that the cutoff distances are either d or s*e0, respectively.";
 V123Anchors::badarg = "Bad argument given to V123Anchors: `1`";
-V123AnchorsParameter::usage = "V123AnchorsParameter[map, param] yields a list appropriate for specification of a V1-V3 model potential parameters via the \"Anchors\" potential type of the PotentialField function. Generally, this would be used as PotentialField[mesh, \"Anchors\" -> V123Anchors[mesh, model], Scale -> V123AnchorsParameter[map, scaleData]].";
 
 MeshRegionOrthogonalFields::usage = "MeshRegionOrthogonalFields[mesh, init1, init2] yields a pair of orthogonal fields at the vertex coordinates in the given mesh region; the fields are discovered by minimization in which the smoothness and the orthogonality of the fields are minimized such that the given init values are held constant. The init values should be lists of (vertexIndex -> value) rules. All options that can be given the FindArgMin may be passed to this function.";
 
@@ -1563,31 +1567,43 @@ V123AnchorsIndices[map_?CorticalMapQ, OptionsPattern[]] := With[
       (Message[V123Anchors::badarg, "No vertices selected"]; $Failed),
       idcs]]];
 
-Options[V123Anchors] = Options[V123AnchorsIndices];
+V123AnchorMinDistances[anc_List] := With[
+  {ord = Ordering[anc[[All, 1]]],
+   ancT = Transpose[anc]},
+  Part[
+    Join@@Map[
+      Function[Min /@ Outer[EuclideanDistance, #[[2]], #[[2]], 1, 1]],
+      SplitBy[ancT[[ord]], First]],
+    Ordering[ord]]];
+
+Options[V123Anchors] = Join[
+  Options[V123AnchorsIndices],
+  {Select -> {"Close", {20}}}];
 V123Anchors[map_?CorticalMapQ, model_?AssociationQ, opts:OptionsPattern[]] := With[
   {angle = VertexPropertyValues[map, "PolarAngle"],
    eccen = VertexPropertyValues[map, "Eccentricity"],
-   idcs = V123AnchorsIndices[map, opts]},
+   idcs = WithOptions[V123AnchorsIndices[map], opts],
+   selfn = Replace[
+     OptionValue[Select],
+     {All|Full|Automatic -> (#2&),
+      "Close"|Close :> With[
+        {e0 = 20 * Mean@EdgeLengths[map]},
+        Function@With[{x0 = #VertexCoordinates}, Select[#2, Norm[x0 - #[[1]]] < e0&]]],
+      {"Close"|Close, d0_?NumericQ} :> Function@With[
+         {x0 = #VertexCoordinates},
+         Select[#2, Norm[x0 - #[[1]]] < d&]],
+      {"Close"|Close, {dsc_NumericQ}} :> With[
+         {e0 = dsc * Mean@EdgeLengths[map]},
+         Function@With[{x0 = #VertexCoordinates}, Select[#2, Norm[x0 - #[[1]]] < e0&]]]}]},
   With[
     {preds = VisualFieldToCorticalMap[model, angle[[idcs]], eccen[[idcs]]]},
-    {Join@@ConstantArray[VertexList[map][[idcs]], 5],
-     Transpose[Join @@ Transpose[preds]]}]];
+    Join @@@ Transpose@MapThread[
+      Function@With[
+        {s = selfn[#1, #2]},
+        {ConstantArray[#Label, Length[s]], s}],
+      {Normal[VertexDataset[map]][[idcs]], preds}]]];
 
-Options[V123AnchorsParameter] = Options[V123Anchors];
-V123AnchorsParameter[map_?CorticalMapQ, paramArg_, opts:OptionsPattern[]] := With[
-  {param = Which[
-     StringQ[paramArg], VertexPropertyValues[map, paramArg],
-     ListQ[paramArg], paramArg,
-     True, Message[SchiraAnchors::badarg, "parameter must be a list or a property name"]],
-   idcs = V123AnchorsIndices[map, opts]},
-  Join@@ConstantArray[
-    Which[
-      Length[param] == VertexCount[map], param[[idcs]],
-      Length[param] == Length[idcs], param,
-      True, Message[V123Anchors::badarg, "given parameter is wrong size"]],
-    5]];
-
-Protect[V123Anchors, V123AnchorsParameter, V123AnchorsIndices];
+Protect[V123Anchors, V123AnchorsIndices];
 
 (* #ExportV123Model *******************************************************************************)
 ExportV123Model[fl_String, mdl_?AssociationQ] := With[
