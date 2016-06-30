@@ -1592,7 +1592,7 @@ V123Anchors[map_?CorticalMapQ, model_?AssociationQ, opts:OptionsPattern[]] := Wi
       {"Close"|Close, d0_?NumericQ} :> Function@With[
          {x0 = #VertexCoordinates},
          Select[#2, Norm[x0 - #[[1]]] < d&]],
-      {"Close"|Close, {dsc_NumericQ}} :> With[
+      {"Close"|Close, {dsc_?NumericQ}} :> With[
          {e0 = dsc * Mean@EdgeLengths[map]},
          Function@With[{x0 = #VertexCoordinates}, Select[#2, Norm[x0 - #[[1]]] < e0&]]]}]},
   With[
