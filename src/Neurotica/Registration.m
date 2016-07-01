@@ -1397,6 +1397,7 @@ DefineImmutable[
           faces, X0]]]},
   SetSafe -> True,
   Symbol -> MeshPotentialField];
+
 Unprotect[MeshPotentialField];
 
 PotentialFieldQ[_] := False;
@@ -1411,6 +1412,18 @@ MakeBoxes[p_MeshPotentialField, form_] := MakeBoxes[#, form]&@With[
        True, Subscript[dir <> "PotentialField", sh]]},
     Row[{name["..."]}]]];
 
+MeshPotentialField /: Grad[p_MeshPotentialField, X_ /; MatrixQ[X, NumericQ]] := With[
+  {obj = JavaObject[p],
+   Xt = If[Length[X] > 3, Transpose[X], X]},
+  With[
+    {grad = MakeJavaObject@ConstantArray[0.0, Dimensions[Xt]]},
+    obj@calculate[Xt, grad];
+    Join @@ If[Xt === X, #, Transpose[#]]&@JavaObjectToExpression[grad]]];
+p_MeshPotentialField[X_ /; MatrixQ[X, NumericQ]] := With[
+  {obj = JavaObject[p],
+   Xt = If[Length[X] > 3, Transpose[X], X]},
+  obj@calculate[Xt, Null]];
+  
 MeshPotentialField /: Plus[f___MeshPotentialField] := With[
   {fields = {f}},
   If[Length@Union[SourceMesh /@ fields] != 1,
