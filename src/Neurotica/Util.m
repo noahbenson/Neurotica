@@ -35,11 +35,14 @@ The following options may be used:
  * Quiet (default: False) prevents the function from producing messages when updating or overwriting the cache file if False.
  * Check (default: True) if True instructs AutoCache to yield $Failed and not generate the cache file whenever messages are produced during the execution of body.
  * Directory (default: Automatic) names the directory in which the cache file should go; if Automatic, then uses $CacheDirectory.
- * CreateDirectory (default: Automatic) determines whether AutoCache can automatically create the $CacheDirectory if it is needed. If True, then AutoCache will always create the directory; if False it will never create the directory; if Automatically, it will defer to $AutoCreateCacheDirectory.";
+ * CreateDirectory (default: Automatic) determines whether AutoCache can automatically create the $CacheDirectory if it is needed. If True, then AutoCache will always create the directory; if False it will never create the directory; if Automatically, it will defer to $AutoCreateCacheDirectory.
+See also $AutoCacheEvaluateQ.";
 AutoCache::expired = "AutoCache file `1` has expired; recalculating";
 AutoCache::nodir = "AutoCache directory (`1`) does not exist and cannot be created";
 AutoCache::nomkdir = "AutoCache directory (`1`) does not exist and AutoCache is not allowed to create it";
 AutoCache::badopt = "Bad option to AutoCache: `1`"
+
+$AutoCacheEvaluateQ::usage = "If the $AutoCacheEvaluateQ variable is set to anything but True, then calls to AutoCache will never evaluate the body and will return $Failed if such a point is reached. They will still return valid results if the data is already cached. In this sense, the variable can be used to load a cached result if it exists and fail if it does not.";
 
 AutoCacheFilename::usage = "AutoCacheFilename[name] yields the filename that would be used to store the auto-cache with the given name.
 AutoCacheFilename accepts the same arguments, Directory and CreateDirectory, as AutoCache and will create directories is specified.";
@@ -254,6 +257,9 @@ AutoCacheFilename[name_String, OptionsPattern[]] := With[
        file}]]];
 Protect[AutoCacheFilename];
 
+(* #$AutoCacheEvaluateQ ***************************************************************************)
+$AutoCacheEvaluateQ = True;
+
 (* #AutoCache *************************************************************************************)
 Options[AutoCache] = {
   Quiet -> False,
@@ -274,7 +280,10 @@ AutoCache[name_String, body_, OptionsPattern[]] := Catch@With[
        None]},
     With[
       {theRes = If[cachedRes === None || cachedRes === $Failed,
-         If[check, Check[body, $Failed], body],
+         Which[
+           !TrueQ[$AutoCacheEvaluateQ], Throw[$Failed],
+           check,                       Check[body, $Failed],
+           True,                        body],
          cachedRes]},
       If[cachedRes === None || cachedRes == $Failed,
         Block[{Global`data = theRes}, If[theRes =!= $Failed, DumpSave[fileName, Global`data]]]];
