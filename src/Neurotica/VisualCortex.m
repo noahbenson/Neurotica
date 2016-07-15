@@ -1391,10 +1391,12 @@ V123LinePlot[mdl_?AssociationQ, opts : OptionsPattern[]] := Catch[
       WithOptions[
         Graphics@Join[
           Map[
-            {esf[#], Line@WithOptions[V123IsoEccentricityLine[mdl, #], opts]}&,
+            {If[ListQ[#], Sequence@@#, #]&@esf[#],
+             Line@WithOptions[V123IsoEccentricityLine[mdl, #], opts]}&,
             eccLines],
           Map[
-            {psf[#[[1]]], Line@WithOptions[V123IsoAngleLine[mdl, #], Range -> erange, opts]}&,
+            {If[ListQ[#], Sequence@@#, #]&@psf[#[[1]]],
+             Line@WithOptions[V123IsoAngleLine[mdl, #], Range -> erange, opts]}&,
             angLines]],
         opts]]]];
 
