@@ -2540,13 +2540,15 @@ CortexAddress[mesh_?CorticalObjectQ, X0_ /; MatrixQ[X0, NumericQ]] := With[
       With[
         {unormed = NormalizeColumns[u],
          vnormed = NormalizeColumns[v],
-         wnormed = NormalizeColumns[w]},
+         wnormed = NormalizeColumns[w],
+         wnorms = ColumnNorms[w]},
         With[
-          {t = ArcCos@Total[unormed * wnormed] / ArcCos@Total[unormed * vnormed]},
+          {t = ArcCos@Total[unormed * wnormed] / ArcCos@Total[unormed * vnormed],
+           wunit = 1 - Unitize[wnorms]},
           With[
             {q = u*ConstantArray[1 - t, Length[u]] + v*ConstantArray[t, Length[v]]},
             With[
-              {r = ColumnNorms[q] / ColumnNorms[w]},
+              {r = wunit * ColumnNorms[q] / (wnorms + (1 - wunit))},
               If[Length[X0] == Length@VertexCoordinatesTr[mesh],
                 {Transpose[faces], {t, r}},
                 Transpose[{faces, Transpose[{t, r}]}]]]]]]]]];
