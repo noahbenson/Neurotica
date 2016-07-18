@@ -78,9 +78,10 @@ SourceMesh::usage = "SourceMesh[map] yields the mesh object from which the given
 SphericalMesh::usage = "SphericalMesh[map] yields the spherical mesh object from which coordinates were drawn for projection (if specified in the source mesh's MetaInformation; otherwise this is just the source mesh).";
 NearestFaceCenters::usage = "NearestFaceCenters[mesh] yields a Nearest object f such that f[x] yields the face index whose center is nearest the point x.";
 NearestFace::usage = "NearestFace[mesh, x] yields the face nearest to the point x. If x is a matrix, then the indices for all pointsi n x are yielded as a list.
-The option Points may be set to true, in which case a list of {indices, points} is returned with the indices of the faces containing the points in x and the 
+The option NearestPoints may be set to true, in which case a list of {indices, points} is returned with the indices of the faces containing the points in x and the 
 points that are themselves on the mesh in points.
 NearestFace[mesh] yields a function f such that f[x] is equivalent to NearestFace[mesh, x].";
+NearestPoints::usage = "NearestPoints is an option for the function NearestFace that indicates that {indices, points} should be returned instead of just the indices.";
 CortexAddress::usage = "CortexAddress[mesh, x] yields the cortical face address of the given point or points x. A face address is a list {{a, b, c}, {t, r}} that allows the topologically equivalent point to be blooked up in any mesh with the same face topology as the given mesh. In the address, {a,b,c} are the vertex labels of the vertices of the triangle containing the point q in mesh nearest to the point x; t is the angle from the vector (a->b) to the vector (a->q) normalized by the angle from (a->b) to (a->c); and r is the distance from a to q normalized by the distance from a to the point on line-segment bc that is colinear with a and q.
 CortexAddress[mesh] yields a function f such that f[x] is equivalent to CortexAddress[mesh, x].
 Cortical addresses can be looked up using the function CortexLookup.";
@@ -2489,9 +2490,9 @@ Protect[CorticalMesh, CorticalMeshQ, Inclusions, VertexCoordinates, VertexCoordi
         FacePropertyAssociation, VertexDataset, EdgeDataset, FaceDataset];
 
 (* #NearestFace ***********************************************************************************)
-Options[NearestFace] = {Points -> False};
+Options[NearestFace] = {NearestPoints -> False};
 NearestFace[mesh_?CorticalObjectQ, x0_, OptionsPattern[]] := With[
-  {doPoints = Replace[OptionValue[Points], Except[False] -> True],
+  {doPoints = Replace[OptionValue[NearestPoints], Except[False] -> True],
    region = MeshRegion[mesh],
    dims = If[CorticalMapQ[mesh], 2, 3]},
   With[
@@ -2528,7 +2529,7 @@ CortexAddress[mesh_?CorticalObjectQ, X0_ /; MatrixQ[X0, NumericQ]] := With[
        Length@First[X0] == Length@VertexCoordinatesTr[mesh], X0,
        Length[X0] == Length@VertexCoordinatesTr[mesh], Transpose[X0],
        True, Message[CortexAddress::err, "Dimensionality of argument is incorrect"]],
-     Points -> True]},
+     NearestPoints -> True]},
   With[
     {faces = FaceList[mesh][[idcs[[1]]]],
      coords = Transpose[FaceCoordinatesTr[mesh][[All, All, idcs[[1]]]]]},
@@ -3364,7 +3365,7 @@ CortexResampleNearest[X_?MatrixQ, from_?CorticalObjectQ] := With[
     {idcs = near[If[Length[X] < 4 && Length@First[X] > 3, Transpose[X], X], 1]},
     {VertexIndex[from, #]&/@Transpose[idcs], ConstantArray[1, Length[idcs]]}]];
 CortexResampleTrilinear[X_?MatrixQ, from_?CorticalObjectQ] := With[
-  {dat = NearestFace[from, X, Points -> True],
+  {dat = NearestFace[from, X, NearestPoints -> True],
    Fx = Transpose[FaceCoordinatesTr[from], {3, 1, 2}]},
   With[
     {px = dat[[2]],
