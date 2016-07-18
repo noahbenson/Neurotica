@@ -2544,7 +2544,7 @@ CortexAddress[mesh_?CorticalObjectQ, X0_ /; MatrixQ[X0, NumericQ]] := With[
          wnorms = ColumnNorms[w]},
         With[
           {t = ArcCos@Total[unormed * wnormed] / ArcCos@Total[unormed * vnormed],
-           wunit = 1 - Unitize[wnorms]},
+           wunit = Unitize@Chop[wnorms]},
           With[
             {q = u*ConstantArray[1 - t, Length[u]] + v*ConstantArray[t, Length[v]]},
             With[
