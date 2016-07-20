@@ -1652,6 +1652,12 @@ $CortexPlotOptions = Join[
    FaceRenderingFunction -> Automatic}];
 Protect[$CortexPlotOptions];
 
+(* $CortexProjectionOptions is a list of the options to CorticalMap that affect the map projection;
+ * i.e., these options require the vertex coordinates to be changed if set.
+ *)
+$CortexProjectionOptions = {Method, Center, Exclusions, Radius, AffineTransform};
+Protect[$CortexProjectionOptions];
+
 Options[CorticalMap] = Join[
   $CortexPlotOptions,
   {MetaInformation -> {},
@@ -1690,41 +1696,52 @@ DefineImmutable[
               KeyExistsQ[smeta, SphericalMesh], VertexCoordinates@smeta[SphericalMesh],
               True, None]},
            If[Xsph === None, smesh, CorticalMesh[smesh, VertexCoordinates -> Xsph]]]]],
-     
-     (* Options is settable, but depends on nothing but the initial options
-        (and should have nothing downstream but CorticalMapQ); 
-        note that these are the graphics options only *)
-     Options[map] = Normal@Join[
+
+     (* These two options are private to the namespace and are used so that the the projection 
+        data in the map doesn't depend on options like MetaInformation. We don't want 
+        MetaInformation to trigger a recalculation of the vertex coordinates when changed.     *)
+     InitialOptions[map] -> Normal@Join[
        Association[$CortexPlotOptions],
        Association@FilterRules[Options@SourceMesh[map], Options[CorticalMap]],
        Association@Select[#, #[[2]] =!= Automatic&]&@Replace[
          "CorticalMap",
          Append[Options[mesh, MetaInformation], "CorticalMap" -> {}]],
        Association@Select[{optsPatt}, #[[1]] =!= Properties && #[[2]] =!= Automatic&]],
+     ProjectionOptions[map] = Select[
+       InitialOptions[map],
+       MemberQ[$CortexProjectionOptions, #[[1]]]&],
+     NonprojectionOptions[map] = Select[
+       InitialOptions[map],
+       !MemberQ[$CortexProjectionOptions, #[[1]]]&],
+     
+     (* Options is settable, but depends on nothing but the initial options
+        (and should have nothing downstream but CorticalMapQ); 
+        note that these are the graphics options only *)
+     Options[map] -> Join[ProjectionOptions[map], NonprojectionOptions[map]],
      MetaInformation[map] := Fold[
        Replace,
        MetaInformation,
-       {Options[map], MetaInformation -> {}}],
+       {NonprojectionOptions[map], MetaInformation -> {}}],
 
      
      (* Here, we setup all of the special map-specific parameters and translate them *)
      TranslatedCenter[map] -> CorticalMapTranslateCenter[
        SphericalMesh[map],
-       Center /. Join[Options[map], Options[CorticalMap]]],
+       Center /. Join[ProjectionOptions[map], Options[CorticalMap]]],
      Inclusions[map] -> CorticalMapTranslateExclusions[
        SphericalMesh[map],
-       Method /. Join[Options[map], Options[CorticalMap]],
+       Method /. Join[ProjectionOptions[map], Options[CorticalMap]],
        TranslatedCenter[map],
-       Exclusions /. Join[Options[map], Options[CorticalMap]],
-       Radius /. Join[Options[map], Options[CorticalMap]]],
+       Exclusions /. Join[ProjectionOptions[map], Options[CorticalMap]],
+       Radius /. Join[ProjectionOptions[map], Options[CorticalMap]]],
      TransformationFunctions[map] -> With[
        {mthd = CorticalMapTranslateMethod[
           SphericalMesh[map],
-          Method /. Join[Options[map], Options[CorticalMap]],
+          Method /. Join[ProjectionOptions[map], Options[CorticalMap]],
           TranslatedCenter[map],
           Inclusions[map],
-          Radius /. Join[Options[map], Options[CorticalMap]]],
-        tx = (AffineTransform /. Options[map]) /. AffineTransform|None -> Identity},
+          Radius /. Join[ProjectionOptions[map], Options[CorticalMap]]],
+        tx = (AffineTransform /. ProjectionOptions[map]) /. AffineTransform|None -> Identity},
        With[
          {itx = If[tx === Identity, tx, InverseFunction[tx]]},
          {Transpose@tx@Transpose[mthd[[1]][##]]&, mthd[[2]][Transpose@itx@Transpose[#]]&}]],
@@ -1879,13 +1896,10 @@ DefineImmutable[
        Length@Intersection[FaceProperties[map][[All,1]], $FaceReadOnlyProperties] > 0, Message[
          CorticalMap::badarg,
          "Unable to set read-only face property"],
-       And[
-         Options[map] =!= Automatic,
-         Complement[
-           Options[map][[All,1]],
-           Cases[Options[CorticalMap][[All, 1]], Except[Properties], {1}]] != {}], Message[
-             CorticalMap::badarg,
-             "Unrecognized option given to CorticalMap"],
+       {} != Complement[
+         Options[map][[All,1]],
+         Cases[Options[CorticalMap][[All, 1]], Except[Properties], {1}]],
+       Message[CorticalMap::badarg, "Unrecognized option given to CorticalMap"],
        True, True],
 
 
@@ -2200,7 +2214,7 @@ DefineImmutable[
      (* ======================================= Functions ======================================= *)
 
      (* Extension of Options... *)
-     Options[map, opt_] := Replace[opt, Options[map]],
+     Options[map, opt_] := Replace[opt, Options[map], If[ListQ[opt], {1}, {0}]],
 
      (* #Reproject *)
      ReprojectTr[map, Xtr_List] := With[
@@ -2376,8 +2390,8 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
          #,
          Message[
            CorticalMap::badarg,
-           "CorticalMap[] reconstructor may only be passed CorticalMesh options or SourceMesh" <>
-           " or SphericalMesh"]]]},
+           "CorticalMap[] reconstructor may only be passed CorticalMap options or SourceMesh," <>
+           " SphericalMesh, or VertexCoordinates"]]]},
     If[Length[optsarg] == 0,
       map,
       With[
@@ -2397,7 +2411,7 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
                CorticalMesh[
                  sourceMesh,
                  MetaInformation -> Normal@Append[
-                 Association[meta],
+                   Association[meta],
                    "SphericalMesh" -> sphere]]],
              source =!= SourceMesh && sphere =!= SphericalMesh, With[
                {meta = Replace[Options[source, MetaInformation], None -> {}]},
@@ -2412,12 +2426,19 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
               {If[ss =!= None, SourceMesh -> source, {}],
                If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords], {}],
                If[Length[opts] > 0,
-                 Options -> Fold[
-                   Function @ With[
-                     {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
-                     If[SameQ[edit, #1], Append[#1, #2], edit]],
-                   Options[map],
-                   opts],
+                 With[
+                   {opts = Fold[
+                      Function @ With[
+                        {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
+                        If[SameQ[edit, #1], Append[#1, #2], edit]],
+                      Options[map],
+                      opts]},
+                   {ProjectionOptions -> Select[
+                      opts,
+                      MemberQ[$CortexProjectionOptions, #[[1]]]&],
+                    NonprojectionOptions -> Select[
+                      opts,
+                      !MemberQ[$CortexProjectionOptions, #[[1]]]&]}],
                  {}]}]]]]]],
   $Failed];
 
@@ -2531,27 +2552,23 @@ CortexAddress[mesh_?CorticalObjectQ, X0_ /; MatrixQ[X0, NumericQ]] := With[
        True, Message[CortexAddress::err, "Dimensionality of argument is incorrect"]],
      NearestPoints -> True]},
   With[
-    {faces = FaceList[mesh][[idcs[[1]]]],
-     coords = Transpose[FaceCoordinatesTr[mesh][[All, All, idcs[[1]]]]]},
+    {faces = FaceListTr[mesh][[All, idcs[[1]]]],
+     coords = Transpose[FaceCoordinatesTr[mesh][[All, All, idcs[[1]]]]],
+     triArea = Function[0.5 * (#1[[2]]*(#3[[1]] - #2[[1]]) + #1[[1]]*(#2[[2]] - #3[[2]])
+                               + #2[[1]]*#3[[2]] - #2[[2]]*#3[[1]])],
+     Xt = Transpose[idcs[[2]]]},
     With[
-      {u = coords[[2]]          - coords[[1]],
-       v = coords[[3]]          - coords[[1]],
-       w = Transpose[idcs[[2]]] - coords[[1]]},
+      {area = triArea@@coords,
+       a1 = triArea@@ReplacePart[coords, 1 -> Xt],
+       a2 = triArea@@ReplacePart[coords, 2 -> Xt],
+       a3 = triArea@@ReplacePart[coords, 3 -> Xt]},
       With[
-        {unormed = NormalizeColumns[u],
-         vnormed = NormalizeColumns[v],
-         wnormed = NormalizeColumns[w],
-         wnorms = ColumnNorms[w]},
+        {aZero = 1 - Unitize@Chop[area]},
         With[
-          {t = ArcCos@Total[unormed * wnormed] / ArcCos@Total[unormed * vnormed],
-           wunit = Unitize@Chop[wnorms]},
-          With[
-            {q = u*ConstantArray[1 - t, Length[u]] + v*ConstantArray[t, Length[v]]},
-            With[
-              {r = wunit * ColumnNorms[q] / (wnorms + (1 - wunit))},
-              If[Length[X0] == Length@VertexCoordinatesTr[mesh],
-                {Transpose[faces], {t, r}},
-                Transpose[{faces, Transpose[{t, r}]}]]]]]]]]];
+          {bary = ConstantArray[aZero/3.0, 2] + (((1 - aZero)*# / (area + aZero))&/@{a1, a2})},
+          If[Length[X0] == Length[Xt],
+            {faces, bary},
+            Transpose[{Transpose[faces], Transpose[bary]}]]]]]]];
 CortexAddress[mesh_?CorticalMapQ, X0:{_?NumericQ, _?NumericQ}] := First@CortexAddress[mesh, {X0}];
 CortexAddress[mesh_?CorticalMeshQ, X0:{_?NumericQ, _?NumericQ, _?NumericQ}] := First@CortexAddress[
   mesh, {X0}];
@@ -2559,24 +2576,21 @@ CortexAddress[mesh_?CorticalObjectQ] := Function@CortexAddress[mesh, #];
 Protect[CortexAddress];
 
 (* #CortexLookup **********************************************************************************)
-CortexLookup[mesh_?CorticalObjectQ, {faces0_ /; MatrixQ[faces, IntegerQ],
-                                     tr0_    /; MatrixQ[tr0, NumericQ]  }] := With[
+CortexLookup[mesh_?CorticalObjectQ, {faces0_ /; MatrixQ[faces0, IntegerQ],
+                                     bary0_  /; MatrixQ[bary0, NumericQ]  }] := With[
   {faces = VertexIndex[mesh, If[Length@First[faces0] == 3, Transpose[faces0], faces0]],
-   tr = If[Length@First[tr0] == 2, Transpose[tr0], tr0],
+   bary = If[Length@First[bary0] == 2, Transpose[bary0], bary0],
    Xt = VertexCoordinatesTr[mesh]},
   With[
-    {coords = (Xt[[All, #]])& /@ faces},
-    With[
-      {u = coords[[2]] - coords[[1]],
-       v = coords[[3]] - coords[[1]],
-       t = tr[[1]], r = tr[[2]]},
-      With[
-        {q = u*ConstantArray[1 - t, Length[u]] + v*ConstantArray[t, Length[v]]},
-        coords[[1]]*ConstantArray[1 - r, Length[q]] + q*ConstantArray[r, Length[q]]]]]];
-CorticalLookup[mesh_, a:{{{_Integer,_Integer,_Integer}, {_?NumericQ, _?NumericQ}}..}] := Transpose[
-  CorticalLookup[mesh, Transpose[a]]];
-CorticalLookup[mesh_, addr:{{_Integer, _Integer, _Integer}, {_?NumericQ, _?NumericQ}}] := First[
-  CorticalLookup[mesh, {addr}]];
+    {coords = (Xt[[All, #]])& /@ faces,
+     b3 = 1 - Total[bary]},
+    Total@MapThread[
+      #1 * ConstantArray[#2, Length[#1]]&,
+      {coords, Append[bary, b3]}]]];
+CortexLookup[mesh_, a:{{{_Integer,_Integer,_Integer}, {_?NumericQ, _?NumericQ}}..}] := Transpose[
+  CortexLookup[mesh, Transpose[a]]];
+CortexLookup[mesh_, addr:{{_Integer, _Integer, _Integer}, {_?NumericQ, _?NumericQ}}] := First[
+  CortexLookup[mesh, {addr}]];
 CortexLookup[mesh_] := Function@CortexLookup[mesh, #];
 Protect[CortexLookup];
 
@@ -2722,12 +2736,15 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)},
   With[
     {list = Replace[prop, allList]},
     Which[
-      Length[vals] != Length[type[mesh]], $Failed,
+      Length[vals] != Length[type[mesh]], (
+        Message[CorticalMesh::error, "SetProperty", "Incorrect value list length"];
+        $Failed),
       (* If the property doesn't yet exist, add it. *)
       list === prop || list === $Failed, Switch[prop,
         VertexCoordinates|"VertexCoordinates", If[type === VertexList,
           Clone[mesh, VertexCoordinatesTr -> Transpose[vals]],
-          $Failed],
+          (Message[CorticalMesh::error, "SetProperty", "VertexCoordinates not set with VertexList"];
+           $Failed)],
         _, Clone[mesh, propType -> Append[allList, prop -> vals]]],
       (* If the property already exists, we overwrite it *)
       True, Clone[
@@ -2754,7 +2771,8 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
       Switch[prop,
         VertexCoordinates|"VertexCoordinates", If[type === VertexList,
           Clone[mesh, VertexCoordinatesTr -> Transpose[vals]],
-          $Failed],
+          (Message[CorticalMesh::error, "SetProperty", "VertexCoordinates not set with VertexList"];
+           $Failed)],
         _, Clone[mesh, propType -> Append[allList, (prop :> sym)]]],
       (* If the property already exists, we overwrite it *)
       Clone[
@@ -2774,22 +2792,35 @@ SetProperty[mesh_?CorticalObjectQ, r:(_ -> vals_List)] := Switch[
   VertexCount[mesh], SetProperty[{mesh, VertexList}, r],
   EdgeCount[mesh],   SetProperty[{mesh, EdgeList}, r],
   FaceCount[mesh],   SetProperty[{mesh, FaceList}, r],
-  _, $Failed];
+  _, (
+    Message[
+      CorticalMesh::error,
+      "SetProperty",
+      "Could not deduce type for property of length " <> ToString@Length[vals]];
+    $Failed)];
 
 (* Set individual vertices/edges/faces *)
-SetProperty[{mesh_?CorticalObjectQ, obj_}, prop_ -> val_] := With[
+SetProperty[{mesh_?CorticalObjectQ, obj:(_Integer|_List|_UndirectedEdge)}, prop_ -> val_] := With[
   {type = Switch[obj,
      _Integer,                                  VertexProperties -> obj,
      (List|UndirectedEdge)[_Integer, _Integer], EdgeProperties -> EdgeIndex[mesh, obj],
      {_Integer, _Integer, _Integer},            FaceProperties -> FaceIndex[mesh, obj],
      _, $Failed]},
   If[type === $Failed,
-    $Failed,
+    (Message[CorticalMesh::error, "SetProperty", "Invalid mesh part (" <> obj <> ")"];
+     $Failed),
     Which[
-      prop === VertexCoordinates, If[type[[1]] =!= VertexProperties, 
-        $Failed,
+      prop === VertexCoordinates || (StringQ[prop] && prop === "VertexCoordinates"), If[
+        type[[1]] =!= VertexProperties,
+        (Message[
+           CorticalMesh::error,
+           "SetProperty",
+           "VertexCoordinates can only be set for a vertex"];
+         $Failed),
         Clone[mesh, VertexCoordinates -> ReplacePart[VertexCoordinates[mesh], obj -> val]]],
-      prop === EdgeWeight, $Failed,
+      prop === EdgeWeight || (StringQ[prop] && prop == "EdgeWeight"), (
+        Message[CorticalMesh::error, "SetProperty", "EdgeWeight is a read-only property"];
+        $Failed),
       True, With[
         {list = Replace[prop, type[[1]][mesh]]},
         Clone[
@@ -2814,12 +2845,20 @@ SetProperty[{mesh_?CorticalObjectQ, obj_}, prop_ :> val_] := With[
      {_Integer, _Integer, _Integer},            FaceProperties -> FaceIndex[mesh, obj],
      _, $Failed]},
   If[type === $Failed,
-    $Failed,
+    (Message[CorticalMesh::error, "SetProperty", "Invalid mesh part (" <> obj <> ")"];
+     $Failed),
     Which[
-      prop === VertexCoordinates, If[type[[1]] =!= VertexProperties, 
-        $Failed,
+      prop === VertexCoordinates || (StringQ[prop] && prop == "VertexCoordinates"), If[
+        type[[1]] =!= VertexProperties, 
+        (Message[
+           CorticalMesh::error,
+           "SetProperty",
+           "VertexCoordinates can only be set for a vertex"];
+         $Failed),
         Clone[mesh, VertexCoordinates -> ReplacePart[VertexCoordinates[mesh], obj :> val]]],
-      prop === EdgeWeight, $Failed,
+      prop === EdgeWeight || (StringQ[prop] && prop == "EdgeWeight"), (
+        Message[CorticalMesh::error, "SetProperty", "EdgeWeight is a read-only property"];
+        $Failed),
       True, With[
         {list = Replace[prop, type[[1]][mesh]]},
         Clone[
