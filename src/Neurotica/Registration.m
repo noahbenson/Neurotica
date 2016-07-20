@@ -1594,14 +1594,14 @@ MapTangles[map_?CorticalMapQ, Xarg_] := With[
         With[
           {signs = Tally[th]},
           (* if signs has 1 value, there are no tangles *)
-          If[Length[signs] == 1, 
+          If[Length[signs] == 1,
             {},
             (* otherwise, we take the more common value to be the 'correct' one *)
             With[
               {bad = SortBy[signs, Last][[1 ;; -2, 1]]},
               With[
                 {angIDs = Union@Indices[th, If[Length[bad] == 1, bad[[1]], Alternatives@@bad]]},
-                Union@Flatten@Part[Ft, All, angIDs]]]]]]]]];                  
+                Union@Transpose@Part[Ft, All, angIDs]]]]]]]]];
 (*
 MapTangles[map_?CorticalMapQ, X_] := With[
   {nei = VertexIndex[map, NeighborhoodList[map]]},
