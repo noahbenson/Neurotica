@@ -1007,8 +1007,8 @@ FlatIterator[args__] := Flatten[
 SetAttributes[FlatIterate, HoldAll];
 Protect[FlatIterate];
 
-(* WithOptions ************************************************************************************)
-Attributes[WithOptions] = {HoldAll};
+(* #WithOptions ***********************************************************************************)
+Attributes[WithOptions] = {HoldFirst};
 WithOptions[f_[args___]] := f[args];
 WithOptions[f_[args___], opts_List] := With[
   {head = f},
@@ -1268,14 +1268,13 @@ DefineImmutable[
            {weights = PDF[
               distribution,
               MapThread[
-                distFn,
+                MapThread[distFn, {#1, #2}]&,
                 {MapThread[ConstantArray, {xs, Length /@ idcs}],
-                 X[[#]]& /@ idcs},
-                2]]},
+                 X[[#]]& /@ idcs}]]},
            MapThread[
              Function[Dot[Y[[#1]], #2] / Total[#2]],
              {idcs, weights}]]],
-       dims === Length[xs], Lookup[G, Transpose[xs]],
+       dims === Length[xs], GaussianInterpolationLookup[G, Transpose[xs]],
        True, Message[GaussianInterpolation::xdims]]],
    GaussianInterpolationLookup[G, xs_ /; VectorQ[xs, NumericQ]] := If[Dimensions[G] == 1,
      GaussianInterpolationLookup[G, Transpose[{xs}]][[All, 1]],
