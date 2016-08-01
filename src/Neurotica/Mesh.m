@@ -2422,24 +2422,29 @@ CorticalMap[map_?CorticalMapQ, args___Rule] := Check[
                    "SphericalMesh" -> sphere]]]]},
           Clone[
             map,
-            Sequence @@ Flatten[
-              {If[ss =!= None, SourceMesh -> source, {}],
-               If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords], {}],
-               If[Length[opts] > 0,
-                 With[
-                   {opts = Fold[
-                      Function @ With[
-                        {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
-                        If[SameQ[edit, #1], Append[#1, #2], edit]],
-                      Options[map],
-                      opts]},
-                   {ProjectionOptions -> Select[
-                      opts,
-                      MemberQ[$CortexProjectionOptions, #[[1]]]&],
-                    NonprojectionOptions -> Select[
-                      opts,
-                      !MemberQ[$CortexProjectionOptions, #[[1]]]&]}],
-                 {}]}]]]]]],
+            Sequence @@ With[
+              {newOpts = Flatten[
+                 {If[ss =!= None, SourceMesh -> source, {}],
+                  If[coords =!= VertexCoordinates, VertexCoordinatesTr -> Transpose[coords], {}],
+                  If[Length[opts] > 0,
+                    With[
+                      {opts = Fold[
+                         Function @ With[
+                           {edit = Replace[#1, (Rule|RuleDelayed)[#2[[1]], _] :> #2, {1}]},
+                           If[SameQ[edit, #1], Append[#1, #2], edit]],
+                         Options[map],
+                         opts]},
+                      {ProjectionOptions -> Select[
+                         opts,
+                         MemberQ[$CortexProjectionOptions, #[[1]]]&],
+                       NonprojectionOptions -> Select[
+                         opts,
+                         !MemberQ[$CortexProjectionOptions, #[[1]]]&]}],
+                    {}]}],
+               nowOpts = Association@Options[map]},
+              Map[
+                If[0 == Length@Select[#[[2]], !SameQ[#[[2]], nowOpts[#[[1]]]]&], Nothing, #]&,
+                newOpts]]]]]]],
   $Failed];
 
 Unprotect[CorticalMesh2D];
