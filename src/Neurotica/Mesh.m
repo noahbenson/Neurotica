@@ -3364,6 +3364,17 @@ CorticalColorData["EccentricityReverse"] = CorticalColorSchema[
        {40/90.0,  Purple},
        {90/90.0,  Black}},
       #/90]]];
+CorticalColorData["PRFSize"] = CorticalColorSchema[
+  "PRFSize" -> Function[
+    Blend[
+      {{0/90.0,   Black},
+       {1.25/90,  Purple},
+       {2.5/90.0, Blue},
+       {5/90.0,   Cyan},
+       {10/90.0,  Green},
+       {25/90.0,  Yellow},
+       {50/90.0,  White}},
+      #/90]]];
 
 (* #ColorCortex ***********************************************************************************)
 SetAttributes[ColorCortex, HoldAll];
