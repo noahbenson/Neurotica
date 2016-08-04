@@ -33,6 +33,7 @@ ImportMatlabDataDirectory::usage = "ImportMatlabDataDirectory[dir] yields an ass
 ImportVistaSoftGrayData::usage = "ImportVistaSoftGrayData[path] yields an association containing the data stored in the \"Gray\" directory given by path.";
 
 VistaSoftPRFModel::usage = "VistaSoftPRFModel[fit, coords] yields an association of PRF model data detived from the given PRF fit data and the given subject coordinate data. If fit and/or coords are filenames fo the PRF result file and the coords.mat file, then these are loaded automatically; otherwise these argument should be the result of loading these data files.";
+VistaSoftPRFModel::badarg = "Bad argument given to VistaSoftPRFModel: `1`";
 
 VistaSoftImport::badarg = "Bad argument given to VistaSoft importer `1`: `2`";
 VistaSoft::err = "VistaSoft error in `1`: `2`";
@@ -105,39 +106,48 @@ Protect[$VistaSoftGrayDataFields, ImportVistaSoftGrayData];
 
 (* #VistaSoftPRFModel *****************************************************************************)
 Options[VistaSoftPRFModel] = {Reverse -> True};
-VistaSoftPRFModel[fit_, coords_, OptionsPattern[]] := Which[
+VistaSoftPRFModel[fit_, coords_, opts:OptionsPattern[]] := Which[
   StringQ[fit] && FileExistsQ[fit], VistaSoftPRFModel[
     ImportVistaSoftMATFile[fit],
     coords,
     opts],
   StringQ[coords] && FileExistsQ[coords], VistaSoftPRFModel[
     fit,
-    ImportVistaSoftMATFile[fit],
+    ImportVistaSoftMATFile[coords],
     opts],
   AssociationQ[coords] && KeyExistsQ[coords, "coords"], VistaSoftPRFModel[
     fit,
     coords["coords"],
     opts],
+  !AssociationQ[fit] || !KeyExistsQ[fit, "model"], (
+    Message[VistaSoftPRFModel::badarg, "fit must be an associaiton with the key \"model\""];
+    $Failed),
   True, With[
     {yc = Replace[OptionValue[Reverse], {True -> -1, _ -> 1}],
      colnames = {
-       "Voxel", "X0", "Y0",
+       "Voxel", "X0", "Y0", "PRFSize",
        "SigmaMinor", "SigmaMajor", "SigmaTheta",
-       "VarianceExplained"}},
-    Dataset[
-      Association@Thread[colnames -> #] & /@ Transpose[
-        {{#[[3]], 257 - #[[2]], 257 - #[[1]]} & /@ Transpose[coords["coords"]],
-         fit["x0"][[1]],
-         fit["y0"][[1]] * yc,
-         fit["sigma"]["minor"][[1]],
-         fit["sigma"]["major"][[1]],
-         fit["sigma"]["theta"][[1]],
-         Unitize[fit["rawrss"][[1]]]*(
-           1 - Clip[
-             fit["rss"][[1]]/(# + (1 - Unitize[#])) &@fit["rawrss"][[1]],
-             {0, 1},
-             {0, 1}])}]]]];
-
+       "Exponent", "VarianceExplained"},
+     mdl = fit["model"]},
+    Dataset@Map[
+      Association@Thread[colnames -> #] &,
+      Transpose@List[
+        Round[{#[[3]], 257 - #[[2]], 257 - #[[1]]} & /@ Transpose[coords]],
+        mdl["x0"][[1]],
+        mdl["y0"][[1]] * yc,
+        (#3 * #1 / ((1 - #3) + #2))&[
+           0.5*(mdl["sigma"]["major"][[1]] + mdl["sigma"]["minor"][[1]]),
+           Sqrt[mdl["exponent"][[1]]],
+           Unitize@Chop[mdl["exponent"][[1]]]],
+        mdl["sigma"]["minor"][[1]],
+        mdl["sigma"]["major"][[1]],
+        mdl["sigma"]["theta"][[1]],
+        mdl["exponent"][[1]],
+        Unitize[mdl["rawrss"][[1]]]*(
+          1 - Clip[
+            mdl["rss"][[1]]/(# + (1 - Unitize[#])) &@mdl["rawrss"][[1]],
+            {0, 1},
+            {0, 1}])]]]];
 
 
 End[];
