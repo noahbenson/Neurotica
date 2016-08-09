@@ -1907,14 +1907,14 @@ $FreeSurferImageData = <|
   "Ribbon" -> <|
     "Pattern" -> "ribbonimage",
     "Load" -> <|LR -> FreeSurferSubjectRibbon,
-                LH -> Function@FreeSurferSubjectRibbon[#1, LH]&,
+                LH -> Function@FreeSurferSubjectRibbon[#1, LH],
                 RH -> Function@FreeSurferSubjectRibbon[#1, RH]|>,
     "Filename" -> <|LR -> "ribbon", LH -> "lh.ribbon", RH -> "rh.ribbon"|>,
     "Arrangement" -> "Native"|>,
   "WhiteMask" -> <|
     "Pattern" -> "wmmask"|"whitemattermask"|"filledmask",
     "Load" -> <|LH -> Function@FreeSurferSubjectWhiteMask[#1, LH],
-                RH -> Function@FreeSurferSubjectWhiteMask[#1, RH]
+                RH -> Function@FreeSurferSubjectWhiteMask[#1, RH],
                 LR -> Function@FreeSurferSubjectWhiteMask[#1, LR]|>,
     "Filename" -> <|LH -> "ribbon", RH -> "ribbon", LR -> "ribbon"|>,
     "Arrangement" -> "Native"|>,
@@ -1967,7 +1967,7 @@ FreeSurferImageLoadableQ[prefix_String, name_, hemi_?HemiQ] := With[
      Which[FileExistsQ[mgz], mgz,   FileExistsQ[mgh], mgh,   True, False]]},
   If[dat === $Failed || !KeyExistsQ[dat["Filename"], hemi],
     False,
-    FileExistsQ@getfl[dat["Filename"][hemi]]]];
+    (# =!= False && FileExistsQ[#])&@getfl[dat["Filename"][hemi]]]];
 FreeSurferImageHemispheres[prefix_String, name_] := Select[
   {LH, RH, LR},
   FreeSurferImageLoadableQ[prefix, name, #]&];
@@ -2210,7 +2210,7 @@ DefineImmutable[
    (* We also want an accessor for MRImages *)
    MRImage[sub] := MRImage[sub, LR, Automatic],
    MRImage[sub, name:Except[LH|RH|LR|All|None]] := MRImage[sub, LR, name],
-   MRImage[sub, hemi:LH|RH|LR|All|None] := MRImage[sub, LR, Automatic],
+   MRImage[sub, hemi:LH|RH|LR|All|None] := MRImage[sub, hemi, Automatic],
    MRImage[sub, All|None, name_] := MRImage[sub, LR, name],
    MRImage[sub, hemi:LR|LH|RH, name_] := Check[
      With[
