@@ -26,6 +26,10 @@ ClearAll ["Neurotica`Util`*", "Neurotica`Util`Private`*"];
 If[$VersionNumber < 10.2 && !ValueQ[MissingQ[Null]],
   MissingQ::usage = "MissingQ[expr] gives True if expr has head Missing."];
 
+Quote::usage = "Quote[expr] is identical to Hold[expr] except that it evaluates all of the statements inside expr that are wrapped in Eval. The return value of Quote[x] always has the head Quote. Note that if an Eval[_] form yields a Quote[_] form, then the (unevaluated) contents of the quote are inserted instead of the Quote form itself; this is not the case with Hold[_] forms, however.";
+Eval::usage = "Eval[expr], when inserted anywhere into a Quote[...] form, causes the given expr's value in the current contex instead of its literal full-form. If the result of evaluating Eval[expr] matches Quote[expr_], then expr instead of Quote[expr] is inserted. To avoid this, return a Hold[_] expression instead.";
+HoldQ::usage = "HoldQ[expr] is identical to Quote[expr] except that the head of the return value is Hold instead of Quote.";
+
 $CacheDirectory::usage = "$CacheDirectory is the directory in which cached data for this user is placed. If the directory does not exist at cache time and $AutoCreateCacheDirectory is True, then this directory is automatically created. By default it is the directory FileNameJoin[{$UserBaseDirectory, \"AutoCache\"}]. If set to Temporary, then the next use of AutoCache will create a temporary directory and set the $CacheDirectory to this path.";
 
 $AutoCreateCacheDirectory::usage = "$AutoCreateCacheDirectory is True if and only if the $CacheDirectory should be automatically created when AutoCache requires it.";
@@ -192,6 +196,25 @@ Begin["`Private`"];
 If[$VersionNumber < 10.2 && !ValueQ[MissingQ[Null]],
   (MissingQ[expr_] := (Head[expr] === Missing);
    Protect[MissingQ])];
+
+(* #Quote *****************************************************************************************)
+SetAttributes[Quote, HoldFirst];
+Quote[expr_ /; 0 == Min[Last /@ Position[Hold[expr], Eval]]] := With[
+  {held = Hold[expr]},
+  With[
+    {eidcs = First /@ Split[
+       Sort@Position[held, Eval[_]],
+       #1 == #2[[1 ;; Length[#1]]]&]},
+    With[
+      {evals = Extract[held, eidcs][[All, 1]]},
+      Quote@@ReplaceAll[
+        ReplacePart[held, Thread[eidcs -> evals]],
+        Quote[x_] :> x]]]];
+
+(* #HoldQ *****************************************************************************************)
+SetAttributes[HoldQ, HoldFirst];
+HoldQ[expr_] := Hold@@Quote[expr];
+Protect[Quote, Eval, HoldQ];
 
 (* #FlipIntegerBytes ******************************************************************************)
 (* This code was adapted (by Noah C. Benson, <nben@nyu.edu>) from a pull request given by 
@@ -380,16 +403,16 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
   Block[
     {sym},
     With[
-      {instructions0 = If[#[[1,0]] === Hold, ReplacePart[#, {1,0} -> List], #]&[Hold[args]],
-       type = Unique[SymbolName[Head[pattern]]],
+      {instructions0 = If[#[[1,0]] === Hold, ReplacePart[#, {1,0} -> List], #]&@Hold[args],
+       type = Unique@SymbolName@Head[pattern],
        box = Replace[
          OptionValue[Symbol],
-         {Automatic :> Unique[ToString[sym]],
+         {Automatic :> Unique@ToString[sym],
           Except[_Symbol] :> Message[DefineImmutable::badarg, "Symbol option must be a symbol"]}],
        setFn = Replace[OptionValue[SetSafe], {True -> SetSafe, Except[True] -> Set}]},
       With[
-        {instructions = Thread @ NestWhile[#[[{1},2]]&, instructions0, #[[1,0]] === With&],
-         outerWithPos = Last @ NestWhile[
+        {instructions = Thread@Evaluate@NestWhile[#[[{1},2]]&, instructions0, #[[1,0]] === With&],
+         outerWithPos = Last@NestWhile[
            {(#[[1]])[[{1}, 2]], Append[#[[2]], 2]}&,
            {instructions0, {}},
            (#[[1]])[[1, 0]] === With&]},
@@ -452,7 +475,7 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                Rule[#1, Rest[#2]]&]},
             With[
               {delay = "Delay" /. deps,
-               members = Complement[Range[Length@heads], "Delay" /. deps],
+               members = Complement[Range@Length[heads], "Delay" /. deps],
                init = "Init" /. deps,
                lazy = "Lazy" /. deps,
                lazyIdx = Part[
@@ -527,7 +550,7 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                      this is a big ugly code chunk due to the macro-nature of it... *)
                   SetDelayed @@ Join[
                     Hold[pattern],
-                    With[
+                    Hold@@With[
                       {constructorBody = ReplaceAll[
                          (* To construct the body of the custructor:
                           * (1) make a core: a body that sets the lazy symbols and makes the form
@@ -535,32 +558,30 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                           *)
                          Fold[
                            (* (2): wrap the core-so-far in the next outer layer of init vars *)
-                           Function[
-                             ReplacePart[
-                               Hold@Evaluate@Join[
-                                 Hold@Evaluate@Map[
-                                   Join[Hold@@{syms[[#]]}, bodies[[members[[#]]]]]&,
-                                   #2],
-                                 #1],
-                               {{1,1,_,0} -> Set,
-                                {1,0} -> With}]],
+                           Function@With[
+                             {bodySoFar = #1, bindIdcs = #2},
+                             Quote@With[
+                               Eval@Map[
+                                 Function@With[
+                                   {sym = syms[[#]], mem = Quote@@members[[#]]},
+                                   Quote[sym = mem]],
+                                 bindIdcs],
+                               bodySoFar]],
                            (* (1): make a core that sets the lazy symbols and yields the form *)
                            With[
                              {idcs = Map[
                                 Position[members,#][[1,1]]&,
                                 Complement[members, Flatten[initOrder]]],
                               formSym = Unique[],
-                              lazyRevIdx = Part[
-                                Map[
-                                  Rest[SortBy[#[[All, 2 ;; 3]], Last]]&,
+                              lazyRevIdx = (#[[All, All, 1]])&@Map[
+                                  Rest@SortBy[#[[All, 2 ;; 3]], Last]&,
                                   SortBy[
                                     GatherBy[
                                       Join[
                                         MapIndexed[{#1[[1]], #2[[1]], #1[[2]]}&, lazyIdx],
                                         {{1, 0, 0}, {2, 0, 0}}],
                                       First],
-                                    #[[1,1]]&]],
-                                All, All, 1]},
+                                    #[[1,1]]&]]},
                              ReplacePart[
                                Hold@Evaluate@Join[
                                  ReplacePart[
