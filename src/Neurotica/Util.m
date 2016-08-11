@@ -558,15 +558,14 @@ DefineImmutable[RuleDelayed[pattern_, sym_Symbol], args_, OptionsPattern[]] := C
                           *)
                          Fold[
                            (* (2): wrap the core-so-far in the next outer layer of init vars *)
-                           Function@With[
-                             {bodySoFar = #1, bindIdcs = #2},
-                             Quote@With[
-                               Eval@Map[
-                                 Function@With[
-                                   {sym = syms[[#]], mem = Quote@@members[[#]]},
-                                   Quote[sym = mem]],
-                                 bindIdcs],
-                               bodySoFar]],
+                           Function@ReplacePart[
+                             Hold@Evaluate@Join[
+                               Hold@Evaluate@Map[
+                                 Join[Hold@@{syms[[#]]}, bodies[[members[[#]]]]]&,
+                                 #2],
+                               #1],
+                             {{1,1,_,0} -> Set,
+                              {1,0} -> With}],
                            (* (1): make a core that sets the lazy symbols and yields the form *)
                            With[
                              {idcs = Map[
