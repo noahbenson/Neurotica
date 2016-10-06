@@ -449,8 +449,9 @@ ExportMGH[filename_, data_, opts___] := Block[
           {outtype = Replace[
              "OutputFormat", 
              Join[Flatten[{opts}], meta, {"OutputFormat" -> "Real32"}]],
-           dat = If[ArrayQ[datExtr, 3], {datExtr}, Transpose[datExtr, {2,3,4,1}]],
+           dat = Transpose[If[ArrayQ[datExtr, 3], {datExtr}, datExtr], {4,1,2,3}],
            fl = OpenWrite[filename, BinaryFormat -> True]},
+          Global`dbg = dat;
           With[
             {res = Catch[
                If[fl === $Failed,
@@ -458,8 +459,8 @@ ExportMGH[filename_, data_, opts___] := Block[
                  Throw[$Failed]];
                (* Write header... *)
                BinaryWrite[fl, 1, "Integer32"];
-               BinaryWrite[fl, Rest[Dimensions[dat]], "Integer32"];
-               BinaryWrite[fl, Length[dat], "Integer32"];
+               BinaryWrite[fl, Most@Dimensions[dat], "Integer32"];
+               BinaryWrite[fl, Last@Dimensions[dat], "Integer32"];
                BinaryWrite[fl, outtype /. $MMATypesToMGH, "Integer32"];
                BinaryWrite[fl, "DegreesOfFreedom" /. meta, "Integer32"];
                BinaryWrite[fl, 1, "Integer16"];
@@ -470,8 +471,8 @@ ExportMGH[filename_, data_, opts___] := Block[
                BinaryWrite[
                  fl,
                  Switch[Count[Dimensions[dat], Except[1]],
-                        1|2, Flatten@dat,
-                        _,   Flatten@Transpose[dat, {3,2,1}]],
+                        1|2, Flatten[dat],
+                        _,   Flatten@Transpose[dat, {4,3,2,1}]],
                  outtype];
                (* Optional data is not currently supported; zeros are written *)
                Scan[BinaryWrite[fl, 0, #[[2]]]&, $MGHOptionalData];
@@ -677,7 +678,7 @@ ExportSurface[filename_, data_, opts___] := Block[
               BinaryWrite[fl, Length[X], "Integer32"];
               BinaryWrite[fl, Length[F], "Integer32"];
               BinaryWrite[fl, Flatten[X], "Real32"];
-              BinaryWrite[fl, Flatten[F], "Integer32"]),
+              BinaryWrite[fl, Flatten[F]-1, "Integer32"]),
              $Failed]},
         Close[fl];
         If[res === $Failed, $Failed, filename]]]]]];

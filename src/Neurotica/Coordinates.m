@@ -164,18 +164,31 @@ ConvertCoordinates[data:{Rule[{_,_,_},_]..}, Rule[Cartesian, toStyle_]] := If[
 ConvertCoordinates[data:{{_,_,_}..}, Rule[Cartesian, toStyle_]] := If[
   toStyle === Cartesian, data,
   CartesianToSpherical[data, SphericalCoordinateStyle -> toStyle]];
+
 ConvertCoordinates[data:{Rule[{_,_},_]..}, Rule[fromStyle_, Cartesian]] := SphericalToCartesian[
   data,
   SphericalCoordinateStyle -> fromStyle];
-ConvertCoordinates[data:{{_,_}..}, Rule[Cartesian, toStyle_]] := SphericalToCartesian[
+ConvertCoordinates[data:{{_,_}..}, Rule[fromStyle_, Cartesian]] := SphericalToCartesian[
   data,
   SphericalCoordinateStyle -> fromStyle];
-ConvertCoordinates[data:{Rule[{_,_},_]..}, Rule[fromStyle_, toStyle_]] := CartesianToSpherical[
-  SphericalToCartesian[data, SphericalCoordinateStyle -> fromStyle],
+ConvertCoordinates[data:{Rule[{_,_},_]..}, Rule[Cartesian, toStyle_]] := CartesianToSpherical[
+  data,
   SphericalCoordinateStyle -> toStyle];
 ConvertCoordinates[data:{{_,_}..}, Rule[Cartesian, toStyle_]] := CartesianToSpherical[
+  data,
+  SphericalCoordinateStyle -> toStyle];
+
+ConvertCoordinates[data:{Rule[{_,_},_]..},
+                   Rule[fromStyle:Except[Cartesian], toStyle:Except[Cartesian]]
+                   ] := CartesianToSpherical[
   SphericalToCartesian[data, SphericalCoordinateStyle -> fromStyle],
   SphericalCoordinateStyle -> toStyle];
+ConvertCoordinates[data:{{_,_}..},
+                   Rule[fromStyle:Except[Cartesian], toStyle:Except[Cartesian]]
+                   ] := CartesianToSpherical[
+  SphericalToCartesian[data, SphericalCoordinateStyle -> fromStyle],
+  SphericalCoordinateStyle -> toStyle];
+
 ConvertCoordinates[data_List, _] := (
   Message[ConvertCoordinates::badfmt, "Cannot deduce conversion of data"];
   $Failed);

@@ -1608,7 +1608,8 @@ V123Anchors[map_?CorticalMapQ, model_?AssociationQ, opts:OptionsPattern[]] := Wi
 Protect[V123Anchors, V123AnchorsIndices];
 
 (* #ExportV123Model *******************************************************************************)
-ExportV123Model[fl_String, mdl_?AssociationQ] := With[
+Options[ExportV123Model] = {Center -> None, Method -> None, Sphere -> None, Hemi -> None};
+ExportV123Model[fl_String, mdl_?AssociationQ, opts:OptionsPattern[]] := With[
   {f = OpenWrite[fl]},
   If[f === $Failed,
     $Failed,
@@ -1642,11 +1643,26 @@ ExportV123Model[fl_String, mdl_?AssociationQ] := With[
                     Association@KeyValueMap[#1 -> Complement[#2, dups] &, areas0]]]},
                With[
                  {areas = Normal@Sum[
-                    SparseArray[Thread[areaIdcs[k] -> regions[k]], Length[X], boundaryFlag],
+                    SparseArray[Thread[areaIdcs[k] -> regions[k]], Length[X], 0], (* 0: boundaryFlag?*)
                     {k, Keys[areaIdcs]}]},
                  WriteLine[f, "Flat Mesh Model Version: 1.0"];
                  WriteLine[f, "Points: " <> ToString@Length[X]];
                  WriteLine[f, "Triangles: " <> ToString@Length[faces]];
+                 With[
+                   {reg = OptionValue[Sphere]},
+                   If[StringQ[reg], WriteLine[f, "Registration: " <> reg]]];
+                 With[
+                   {h = OptionValue[Hemi]},
+                   If[h =!= None, WriteLine[f, "Hemisphere: " <> ToString[h]]]];
+                 With[
+                   {c = OptionValue[Center]},
+                   Which[
+                     Dimensions[c] == {2,3}, (WriteLine[f, "Center: " <> Riffle[nstr/@c[[1]], ","]];
+                                              WriteLine[f, "OnXAxis: " <> Riffle[nstr/@c[[2]], ","]]),
+                     Dimensions[c] == {3}, WriteLine[f, "Center: " <> Riffle[nstr/@c, ","]]]];
+                 With[
+                   {m = OptionValue[Method]},
+                   If[StringQ[m], WriteLine[f, "Method: " <> m]]];
                  WriteLine[
                    f,
                    StringJoin[

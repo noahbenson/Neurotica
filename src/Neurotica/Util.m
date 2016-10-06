@@ -30,6 +30,8 @@ Quote::usage = "Quote[expr] is identical to Hold[expr] except that it evaluates 
 Eval::usage = "Eval[expr], when inserted anywhere into a Quote[...] form, causes the given expr's value in the current contex instead of its literal full-form. If the result of evaluating Eval[expr] matches Quote[expr_], then expr instead of Quote[expr] is inserted. To avoid this, return a Hold[_] expression instead.";
 HoldQ::usage = "HoldQ[expr] is identical to Quote[expr] except that the head of the return value is Hold instead of Quote.";
 
+FailMessage::usage = "FailMessage[tag, tmpl, args...] is equivalent to (Message[tmpl, args]; Failure[tag, <|\"MessageTemplate\" -> tmpl, \"MessageParameters\" -> args|>]).";
+
 $CacheDirectory::usage = "$CacheDirectory is the directory in which cached data for this user is placed. If the directory does not exist at cache time and $AutoCreateCacheDirectory is True, then this directory is automatically created. By default it is the directory FileNameJoin[{$UserBaseDirectory, \"AutoCache\"}]. If set to Temporary, then the next use of AutoCache will create a temporary directory and set the $CacheDirectory to this path.";
 
 $AutoCreateCacheDirectory::usage = "$AutoCreateCacheDirectory is True if and only if the $CacheDirectory should be automatically created when AutoCache requires it.";
@@ -215,6 +217,12 @@ Quote[expr_ /; 0 == Min[Last /@ Position[Hold[expr], Eval]]] := With[
 SetAttributes[HoldQ, HoldFirst];
 HoldQ[expr_] := Hold@@Quote[expr];
 Protect[Quote, Eval, HoldQ];
+
+(* #FailMessage ***********************************************************************************)
+FailMessage[tag_String, tmpl_, args___] := (
+  Message[tmpl, args];
+  Failure[tag, <|"MessageTemplate" -> tmpl, "MessageParameters" -> {args}|>]);
+Protect[FailMessage];
 
 (* #FlipIntegerBytes ******************************************************************************)
 (* This code was adapted (by Noah C. Benson, <nben@nyu.edu>) from a pull request given by 

@@ -611,6 +611,23 @@ CorticalMeshOrientForMap[Xt_, center_] := With[
     RMain,
     Xt]];
 
+(* #CorticalMapUnorientForMesh
+ * Performs the inverse of the above function.
+ *)
+CorticalMapUnorientForMesh[Xt_, center_] := With[
+  {RMain = If[center[[1]] === None || center[[1]] === Automatic, 
+    IdentityMatrix[3],
+    RotationMatrix[{center[[1]], {1,0,0}}]]},
+  Dot[
+    Inverse@Dot[
+      If[center[[2]] === None || center[[2]] === Automatic,
+        IdentityMatrix[3], 
+        With[
+          {orientPt = Dot[RMain, center[[2]]]},
+          RotationMatrix[-ArcTan[orientPt[[1]], orientPt[[2]]], {1,0,0}]]],
+      RMain],
+    Xt]];
+
 (* #CorticalMapTranslateCenter
  * Yields {center, orient-point}, both of which are 3D coordinates, when given a center argument;
  * The orient-point may be Automatic instead of a 3D coordinate, indicating that the first PC of the
@@ -856,7 +873,7 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
            {unorientRMtx = Inverse @ RotationMatrix[
               {projFn[[1]][CorticalMeshOrientForMap[List /@ center[[2]], center]][[All, 1]],
                {1,0}}]},
-           Function[orientRMtx . #]]]},
+           Function[unorientRMtx . #]]]},
       {Function[
          If[Length[#] == 3,
            orientFn @ projFn[[1]][CorticalMeshOrientForMap[#, center]],
@@ -865,9 +882,9 @@ CorticalMapTranslateMethod[mesh_, method_, center_, incl_, prad_] := Check[
          None,
          Function[
            If[Length[#] == 3,
-             CorticalMapUnorientForMesh[projFn[[2]][unorientFn @ #], center],
+             CorticalMapUnorientForMesh[projFn[[2]][unorientFn[#]], center],
              Transpose @ CorticalMapUnorientForMesh[
-               projFn[[2]][unorientFn @ Transpose @ #],
+               projFn[[2]][unorientFn[#]],
                center]]]]}]],
   $Failed];
 Protect[CorticalMapTranslateMethod];
