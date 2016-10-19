@@ -2275,9 +2275,9 @@ DefineImmutable[
         pial = Cortex[sub, hemi, "Pial"],
         ribbon = MRImage[sub, hemi, "GrayMask"]},
        With[
-         {idcs = Position[ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
+         {idcs = Position[Normal@ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
          With[
-           {xyz = VoxelIndexToCoordinate[ribbon, idcs]},
+           {xyz = VoxelIndexToRAS[ribbon, idcs]},
            Association @ MapThread[
              (#1 -> #2[[1]]) &,
              {idcs,
@@ -2293,14 +2293,14 @@ DefineImmutable[
        {surf = Cortex[sub, hemi, "Middle"],
         ribbon = MRImage[sub, hemi, "GrayMask"]},
        With[
-         {idcs = Position[ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
+         {idcs = Position[Normal@ImageData[ribbon], 1|1.0, {3,4}][[All, 1;;3]]},
          Association @ MapThread[
            (#1 -> #2[[1]]) &,
            {VertexList[surf],
             Nearest[
               MapThread[
                 Rule,
-                {VoxelIndexToCoordinate[ribbon, idcs], idcs}],
+                {VoxelIndexToRAS[ribbon, idcs], idcs}],
               VertexCoordinates[surf]]}]]],
      $Failed],
    VertexToVoxelMaps[sub] :> Association[
@@ -2419,23 +2419,20 @@ CortexToRibbon[sub_, hemi:(LH|RH), dat_List, OptionsPattern[]] := With[
 Protect[CortexToRibbon];
 
 (* #RibbonToCortex ********************************************************************************)
-Options[RibbonToCortex] = {Method -> Mean};
+(*Options[RibbonToCortex] = {Method -> Mean};*)
 RibbonToCortex[sub_, hemi:(LH|RH), img_] := With[
-  {vox2vtx = VoxelToVertexMap[sub, hemi],
+  {vtx2vox = VertexToVoxelMap[sub, hemi],
    pial = Cortex[sub, hemi, "Pial"],
-   aggf = OptionValue[Method],
    ribbon = MRImage[sub, hemi, "Ribbon"]},
   With[
     {dat = Which[
-       MRImageQ[img] && ImageDimensions[img] == ImageDimensions[ribbon], ImageData[img],
-       ImageQ[img] && ImageDimensions[img] == ImageDimensions[ribbon], ImageData[img],
-       ArrayQ[img, 3] && Dimensions[img] == ImageDimensions[ribbon], img,
+       MRImageQ[img] && ImageDimensions[img][[1;;3]] == ImageDimensions[ribbon], ImageData[img],
+       ImageQ[img] && ImageDimensions[img][[1;;3]] == ImageDimensions[ribbon], ImageData[img],
+       ArrayQ[img, 3|4] && Dimensions[img][[1;;3]] == ImageDimensions[ribbon], img,
        True, Message[
          RibbonToCortex::badarg,
          "image must be an MRImage, an Image3D, or a 3D array the same size as sub's ribbon"]]},
-  Map[
-    aggf[Extract[dat, vox2vtx[#]]]&,
-    VertexList[pial]]]];
+    Extract[dat, vtx2vox /@ VertexList[pial]]]];
 Protect[RibbonToCortex];
 
 End[];

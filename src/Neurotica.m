@@ -58,11 +58,11 @@ ImageToCortex::usage = "ImageToCortex[img, mesh] yields a a list of the values i
 ImageToCortex[img, sub, hemi] yields the interpolation, averaged across the thickness of the cortex, for the given subject and hemisphere. If the hemisphere is LR or All, the result is given as {ImageToCortex[img, sub, LH], ImageToCortex[img, sub, RH]}.
 ImageToCortex[img, sub] is equivalent to ImageToCortex[img, sub, LR].
 
-The additional option Weight may be given to instruct the algorithm to use a particular image as a weights in the interpolation. This must be an MRImage3D, Image3D, 3D array, or 3D SparseArray the same size as img.  If Weights are not None (the default), then the option Indeterminate may also be specified, and its value is used whenever the total weight for a vertex is 0 (default: 0).";
+The additional option Weights may be given to instruct the algorithm to use a particular image as a weights in the interpolation. This must be an MRImage3D, Image3D, 3D array, or 3D SparseArray the same size as img.  If Weightss are not None (the default), then the option Indeterminate may also be specified, and its value is used whenever the total weight for a vertex is 0 (default: 0).";
 CortexToImage::usage = "CortexToImage[sub, hemi, property] yields an MRImage3D object in which the voxels have been interpolated from the given property values on the cortical surface of the given hemisphere of the given subject; interpolation is done using the VoxelToVertexMap[sub, hemi]. If hemi is LR, then both hemispheres are interpolated.
 CortexToImage[sub, property] is equivalent to CortexToImage[sub, LR, property].
 
-The option Weight may be given to specify the property name or values of a weight to use when interpolating. If the Weight is not None, then the option Indeterminate may be used to indicate the value that is filled in when the total weight applied to a voxel is 0 (default: 0).";
+The option Weights may be given to specify the property name or values of a weight to use when interpolating. If the Weights is not None, then the option Indeterminate may be used to indicate the value that is filled in when the total weight applied to a voxel is 0 (default: 0).";
 ImageToCortex::badarg = "Bad argument given to ImageToCortex: `1`";
 CortexToImage::badarg = "Bad argument given to ImageToCortex: `1`";
 
@@ -223,7 +223,7 @@ NeuroticaFixJLinkMemoryPermanent[amount_String:"2g"] := Catch@With[
 Protect[NeuroticaFixJLinkMemoryPermanent];
 
 (* #ImageToCortex *********************************************************************************)
-Options[ImageToCortex] = {Weight -> None, Indeterminate -> 0};
+Options[ImageToCortex] = {Weights -> None, Indeterminate -> 0};
 ImageToCortex[img_?MRImageQ, mesh_?CorticalMeshQ, opts:OptionsPattern[]] := 0; (* #here *)
 ImageToCortex[img_?MRImageQ, sub_?SubjectQ, hemi:LH|RH|LR, opts:OptionsPattern[]] := 0;
 ImageToCortex[img_?MRImageQ, sub_?SubjectQ, opts:OptionsPattern[]] := ImageToCortex[
@@ -231,7 +231,7 @@ ImageToCortex[img_?MRImageQ, sub_?SubjectQ, opts:OptionsPattern[]] := ImageToCor
 Protect[ImageToCortex];
 
 (* #CortexToImage *********************************************************************************)
-Options[CortexToImage] = {Weight -> None, Indeterminate -> 0};
+Options[CortexToImage] = {Weights -> None, Indeterminate -> 0};
 CortexToImage[sub_?SubjectQ, hemi:LH|RH, prop_, opts:OptionsPattern[]] := 0; (* #here *)
 CortexToImage[sub_?SubjectQ, LR, prop_, opts:OptionsPattern[]] := {
   CortexToImage[sub, LH, prop, opts],
