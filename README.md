@@ -65,7 +65,7 @@ occurs on Mac OSX from the Terminal:
     ~/Code$ cd Neurotica
     ~/Code$ git submodule init
     Submodule 'src/Neurotica/lib/nben' (https://github.com/noahbenson/nben) registered for path 'src/Neurotica/lib/nben'
-    ~/Code$ git submodule upgrade
+    ~/Code$ git submodule update
     Cloning into 'src/Neurotica/lib/nben'...
     remote: Counting objects: 270, done.
     remote: Compressing objects: 100% (94/94), done.
