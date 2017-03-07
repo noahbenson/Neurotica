@@ -172,6 +172,8 @@ The following options may be given:
   * Select (default: All) specifies a function that can be used to select which anchors are applied; if the function f is passed as the Select argument, then f[dat, anc] is called once for each vertex with at least one anchor; dat is the VertexDataset row corresponding to the relevant vertex and anc is a list of anchor points to which the vertex can be attached. The function f should return a list like the anc parameter containing all anchors to which the vertex should be anchored; i.e., f may filter or modify the anc list for each vertex. If Select is given the string \"Close\", then vertices are only attached to anchors that are within 20*e0 (where e0 is the mean edge length) of their starting position; {\"Close\", d} and {\"Close\", {s}} use the same logic but specify that the cutoff distances are either d or s*e0, respectively.";
 V123Anchors::badarg = "Bad argument given to V123Anchors: `1`";
 
+V123AnchorMinDistances::usage = "V123AnchorMinDistances[anchors] yields a list with length equal to the number of anchor destinations, in the same order as the given anchors argument, such that the i'th element, q, specifies that the i'th anchor's closest paired anchor is distance q away. A \"paired anchor\" is any other anchor destination that belongs attracts same vertex. The result is used to determine standard deviation values.";
+
 MeshRegionOrthogonalFields::usage = "MeshRegionOrthogonalFields[mesh, init1, init2] yields a pair of orthogonal fields at the vertex coordinates in the given mesh region; the fields are discovered by minimization in which the smoothness and the orthogonality of the fields are minimized such that the given init values are held constant. The init values should be lists of (vertexIndex -> value) rules. All options that can be given the FindArgMin may be passed to this function.";
 
 V123Model::usage = "V123Model[] yields a data structure (an Association) of relevant data for a model of V1-V3 on the flattened cortical surface. The data structure includes the following elements:
@@ -191,6 +193,7 @@ V123Model::usage = "V123Model[] yields a data structure (an Association) of rele
     * MaxIterations (default: 10,000) specifies the maximum number of iterations when finding the polar angle and eccentricity values;
     * AffineTransform (default: a shear of {{1,-0.2},{0,1}} followed by a 5\[Degree] rotation and a translation of {-7,-1}) specifies the transform to be applied to the mesh after it has been solved.";
 V123ModelQ::usage = "V123ModelQ[mdl] yields true if the given obejct, mdl, is a valid V123 model, otherwise False.";
+V123MeshFunctions::usage = "V123MeshFunctions[mdl] yields a new set of mesh transformation functions for the given V123 model mdl. This should generally not be called except internally by Neurotica with one exception: to get a version of the transforms that ignore's the model's affine transform, use V123MeshFunctions[mdl, None].";
 
 ExportV123Model::usage = "ExportV123Model[flname, mdl] yields the filename of the file to which the fundamentals of the given V123Model, mdl, have been written.";
 
@@ -1569,15 +1572,22 @@ V123AnchorsIndices[map_?CorticalMapQ, OptionsPattern[]] := With[
       (Message[V123Anchors::badarg, "No vertices selected"]; $Failed),
       idcs]]];
 
+(* #V123AnchorMinDistances ************************************************************************)
 V123AnchorMinDistances[anc_List] := With[
-  {ord = Ordering[anc[[All, 1]]],
+  {ord = Ordering@First[anc],
    ancT = Transpose[anc]},
   Part[
     Join@@Map[
-      Function[Min /@ Outer[EuclideanDistance, #[[2]], #[[2]], 1, 1]],
+      Function@If[Length[#] == 1,
+        {0},
+        Min /@ Plus[
+          10.0^10*IdentityMatrix@Length[#],
+          Outer[EuclideanDistance, #[[All, 2]], #[[All, 2]], 1, 1]]],
       SplitBy[ancT[[ord]], First]],
     Ordering[ord]]];
+Protect[V123AnchorMinDistances];
 
+(* #V123Anchors ***********************************************************************************)
 Options[V123Anchors] = Join[
   Options[V123AnchorsIndices],
   {Select -> {"Close", {20}}}];
@@ -1701,7 +1711,8 @@ V123MeshFunctions[data_, tx0_:Automatic] := With[
      ifieldAll = Flatten[coords.{{1}, {I}}],
      itx = InverseFunction[tx]},
     With[
-      {xy = Transpose[{Re[field], Im[field]}]},
+      {xy = Transpose[{Re[field], Im[field]}],
+       bounds = Table[data[id <> "BoundaryMesh"], {id, iregions}]},
       With[
         {imesh = With[
            {F = Transpose@Select[cells, Length@Union[xy[[#]]] == 3 &]},
@@ -1729,20 +1740,43 @@ V123MeshFunctions[data_, tx0_:Automatic] := With[
              {reg, iregions}]},
           Join[
             data,
-            <|"CorticalMapToVisualField" -> Function@Which[
-                MatrixQ[#], MeshRegionInterpolate[mesh, field, itx[#], Chop -> 0.1],
-                VectorQ[#], First@MeshRegionInterpolate[mesh, field, itx[{#}], Chop -> 0.1],
-                True,       $Failed],
+            <|"CorticalMapToVisualField" -> Function@With[
+                {datAndPost = Which[
+                   Length[{##}] == 2, Which[
+                     ListQ[{##}[[1]]] && ListQ[{##}[[2]]], {Transpose[{##}], Identity},
+                     ListQ[{##}[[1]]], {Transpose[{#1, ConstantArray[{##}[[2]], Length[#1]]}],
+                                        Identity}
+                     ListQ[{##}[[2]]], {Transpose[{##}[[2]], ConstantArray[#1, Length[{##}[[2]]]]],
+                                        Identity},
+                     True, {{{##}}, First}],
+                   MatrixQ[#], {If[Length@First[#] == 2, #, Transpose[#]], Identity},
+                   VectorQ[#], {{#}, First},
+                   True, {#, Identity}]},
+                With[
+                  {dat = itx[datAndPost[[1]]], post = datAndPost[[2]]},
+                  {post@ReIm@MeshRegionInterpolate[mesh, field, dat, Chop -> 0.1],
+                   SparseArray@post@Transpose@Boole@Table[RegionMember[b, dat], {b, bounds}]}]],
               "VisualFieldToCorticalMap" -> Function@With[
-                {dat = If[VectorQ[#], #, {#}],
-                 post = If[VectorQ[#], Identity, #[[All,1]]&]},
-                post@Transpose@Table[
-                  tx@ReIm@MeshRegionInterpolate[
-                    imesh[reg], ifields[reg], ReIm[dat],
-                    Chop -> Infinity],
-                  {reg, iregions}]],
+                {datAndPost = Which[
+                   Length[{##}] == 2, Which[
+                     ListQ[{##}[[1]]] && ListQ[{##}[[2]]], {Transpose[{##}], Identity},
+                     ListQ[{##}[[1]]], {Transpose[{#1, ConstantArray[{##}[[2]], Length[#1]]}],
+                                        Identity}
+                     ListQ[{##}[[2]]], {Transpose[{##}[[2]], ConstantArray[#1, Length[{##}[[2]]]]],
+                                        Identity},
+                     True, {{{##}}, First}],
+                   MatrixQ[#], {If[Length@First[#] == 2, #, Transpose[#]], Identity},
+                   VectorQ[#], {{#}, First},
+                   True, {#, Identity}]},
+                With[
+                  {dat = datAndPost[[1]], post = datAndPost[[2]]},
+                  post@Transpose@Table[
+                    tx@ReIm@MeshRegionInterpolate[
+                      imesh[reg], ifields[reg], dat,
+                      Chop -> Infinity],
+                    {reg, iregions}]]],
               "VisualFieldMeshes" -> imesh,
-              "VisualFieldFields" -> ifield|>]]]]]];
+              "VisualFieldFields" -> ifields|>]]]]]];
 Protect[V123MeshFunctions];
 
 (* MeshRegionOrthogonalFields *********************************************************************)
