@@ -198,6 +198,8 @@ CortexPlot::usage = "CortexPlot[mesh] yields a Graphics form for the given Corti
 
 If a CorticalMesh3D is passed to CortexPlot, the function attempts to convert it into a map. If the mesh's MetaInformation includes a rule with the head \"CorticalMap\", then the tail must be a list and must contain valid options which are passed to CorticalMap.";
 
+InterpretVertexColor::usage = "InterpretVertexColor[instruction, vertexData] yields the color that corresponds to the given color instruction for the given vertex data; this is used by CortexPlot and CortexPlot3D to translate instructions into actual color value when the ColorFunction option is something such as ColorFunction -> (\"Curvature\"&) or ColorFunction -> {{\"PolarAngle\", \"Curvature\"}, 0.65}. The vertexData should be an association of the vertex's properties from, i.e., VertexData[mesh].";
+
 CorticalCurvatureColor::usage = "CorticalCurvatureColor[c] yields the appropriate color for cortical curvature c in a CortexPlot or CortexPlot3D; c may be a list or a single value.";
 CorticalCurvatureVertexColors::usage = "CorticalCurvatureVertexColors[m] yields the colors for each vertex in the given mesh m according to CorticalCurvatureColor[c] for the curvature c of each vertex; if there is no curvature proeprty defined, then Gray is used for each vertex.";
 
@@ -3058,11 +3060,11 @@ Protect[PropertyValue, SetProperty, RemoveProperty, PropertyList,
 
 (* #CorticalCurvatureColor ************************************************************************)
 CorticalCurvatureColor[c_?NumericQ] := If[c > 0, GrayLevel[0.2], Gray];
+CorticalCurvatureColor[c_ /; ArrayQ[c, _, NumericQ]] := Map[CorticalCurvatureColor, c];
 CorticalCurvatureColor[a_?AssociationQ] := CorticalCurvatureColor @ Which[
   KeyExistsQ[a, "Curvature"], a["Curvature"],
   KeyExistsQ[a, Curvature], a[Curvature],
   True, -0.5];
-SetAttributes[CorticalCurvatureColor, Listable];
 Protect[CorticalCurvatureColor];
 
 (* #CorticalCurvatureVertexColors *****************************************************************)
@@ -3134,6 +3136,17 @@ $CortexPlotDefaultColorSchemas = {
           (data - range[[1]]) / (range[[2]] - range[[1]])]]]]};
 Protect[$CortexPlotDefaultColorSchemas];
 
+(* Simple vertex color instructions interpreter *)
+InterpretVertexColor[r_, vtxData_?AssociationQ] := Which[
+  (* A string like "PolarAngle" or "Curvature" *)
+  StringQ[r] && Head[CorticalColorData[r]] === CorticalColorSchema, CorticalColorData[r][vtxData],
+  (* A Blended color, like {{"Curvature", "PolarAngle"}, 0.6} *)
+  ListQ[r] && Length[r] == 2 && VectorQ[r[[1]], StringQ] && NumericQ[r[[2]]], Blend[
+    Table[CorticalColorData[t][vtxData], {t, r[[1]]}],
+    r[[2]]],
+  (* Anything else (like a color) *)
+  True, r];
+
 (* A Function for figuring out the vertex colors *)
 GetVertexColors[mesh_, vcolorsOpt_, colorFnOpt_] := With[
   {allGray = ConstantArray[Gray, VertexCount[mesh]]},
@@ -3158,17 +3171,7 @@ GetVertexColors[mesh_, vcolorsOpt_, colorFnOpt_] := With[
          If[f =!= known,
            known[mesh],
            Map[
-             Function@With[
-               {r = f[#]},
-               Which[
-                 (* A string like "PolarAngle" or "Curvature" *)
-                 StringQ[r] && Head[CorticalColorData[r]] === CorticalColorSchema,
-                 CorticalColorData[r][#],
-                 (* A Blended color, like {{"Curvature", "PolarAngle"}, 0.6} *)
-                 ListQ[r] && Length[r] == 2 && VectorQ[r[[1]], StringQ] && NumericQ[r[[2]]],
-                 Blend[Table[CorticalColorData[t][#], {t, r[[1]]}], r[[2]]],
-                 (* Anything else (like a color) *)
-                 True, r]],
+             InterpretVertexColor,
              Normal@VertexDataset[mesh]]]]}]]];
 
 Options[CortexPlot3D] = Map[(#[[1]] -> Automatic)&, $CortexPlot3DOptions];
