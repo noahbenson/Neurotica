@@ -179,6 +179,7 @@ GaussianInterpolation::usage = "GaussianInterpolation[data] yields a function th
   * Threshold - the interpolation function is thresholded in that it only looks at the points close enough to be relevant. The threshold may be specified as a number (a distance cutoff), a list containing only an integer (always use the n closest points), or a list containing an integer followed by a distance cutoff.
   * VectorDifferenceFunction - in case the metric space is not Euclidean, this option must specify a function f that takes two vectors, u and v, and yields the vector subtraction of u from v; i.e., f[u, v] must be the vector from u to v. By default, this is (#2 - #1)&.
   * NormFunction - the function that yields the norm of a vector; by default, Norm.
+  * Weights - the weights of the data; may be None to indicate equal weight given to each point. 
 Additionally, all options that may be given to Nearest[] are accepted with the exception of DistanceFunction, which is replaced by the combination of VectorDifferenceFunction and NormFunction.";
 GaussianInterpolation::badarg = "Bad argument given to GaussianInterpolation: `1`";
 GaussianInterpolation::xdims = "Dimensions for given argument do not match those of interpolated space";
@@ -1132,7 +1133,8 @@ Options[GaussianInterpolation] = Join[
    MetaInformation -> {},
    NormFunction -> Automatic,
    VectorScaleFunction -> Automatic,
-   VectorDifferenceFunction -> Automatic},
+   VectorDifferenceFunction -> Automatic,
+   Weights -> None},
   FilterRules[
     Options[Nearest],
     Except[DistanceFunction]]];
@@ -1214,7 +1216,10 @@ DefineImmutable[
             Automatic -> $GaussianInterpolationDefaultScaleFunction],
           diffFn = Replace[
             OptionValue[VectorDifferenceFunction],
-            Automatic -> $GaussianInterpolationDefaultDifferenceFunction]},
+            Automatic -> $GaussianInterpolationDefaultDifferenceFunction],
+          ws = Replace[
+            OptionValue[Weights],
+            Automatic -> None]},
          With[
            {threshold = Replace[
               Threshold /. po,
@@ -1231,7 +1236,8 @@ DefineImmutable[
               MetaInformation -> meta,
               NormFunction -> normFn,
               VectorScaleFunction -> scaleFn,
-              VectorDifferenceFunction -> diffFn},
+              VectorDifferenceFunction -> diffFn,
+              Weights -> ws},
              DeleteCases[
                FilterRules[po, Options[Nearest]],
                (Rule|RuleDelayed)[DistanceFunction, _],
@@ -1277,6 +1283,13 @@ DefineImmutable[
        Function@@ReplaceAll[
          Hold@@{D[PDF[distribution, x[1]], x[1]]},
          x -> Slot]]],
+   Weights[G] -> With[
+     {ws = Weights /. Options[G],
+      n = Length@Array[G]},
+     Which[
+       NumericQ[ws] || ws === None,  ConstantArray[1.0, n],
+       ListQ[ws] && Length[ws] == n, ws,
+       True,                         Message[Options::optnf, Weights, GaussianInterpolation]]],
 
    (* The actual lookup calculation... *)
    GaussianInterpolationLookup[G, xs_ /; MatrixQ[xs, NumericQ]] := With[
@@ -1285,6 +1298,7 @@ DefineImmutable[
       thold = Threshold /. Options[G],
       distribution = GaussianFilter[G],
       distFn = DistanceFunction[G],
+      ws = Weights[G],
       X = Keys[G],
       Y = Values[G]},
      Which[
@@ -1293,7 +1307,7 @@ DefineImmutable[
             near[xs, thold[[1]]],
             MapThread[Union, {near[xs, thold[[1]]], near[xs, {Infinity, thold[[2]]}]}]]},
          With[
-           {weights = PDF[
+           {weights = (ws[[#]]&/@idcs) * PDF[
               distribution,
               MapThread[
                 MapThread[distFn, {#1, #2}]&,
@@ -1318,6 +1332,7 @@ DefineImmutable[
       normFn = NormFunction /. Options[G],
       diffFn = VectorDifferenceFunction /. Options[G],
       scaleFn = VectorScaleFunction /. Options[G],
+      ws = Weights[G],
       X = Keys[G],
       Y = Values[G]},
      Which[
@@ -1335,7 +1350,7 @@ DefineImmutable[
              {norms = Map[normFn, diffs, {2}]},
              With[
                {normeds = MapThread[scaleFn, {diffs, norms}, 2],
-                weights = PDF[distribution, norms],
+                weights = (ws[[#]]&/@idcs) * PDF[distribution, norms],
                 ys = Y[[#]]& /@ idcs},
                With[
                  {numer = Total /@ (weights * ys),
