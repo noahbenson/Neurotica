@@ -2907,14 +2907,14 @@ SetProperty[{mesh_?CorticalObjectQ, obj_}, rs:{(_Rule|_RuleDelayed)..}] := Fold[
 
 (* Remove Property stuff *)
 RemoveProperty[mesh_?CorticalObjectQ, prop:Except[_List]] := With[
-  {list = Replace[prop, Properties[mesh]]},
-  If[list === prop, 
+  {list = PropertyValue[mesh, prop]},
+  If[list === $Failed, 
     mesh,
     Clone[
       mesh,
-      VertexProperties -> DeleteCases[VertexProperties[mesh], Rule[prop, _]],
-      EdgeProperties -> DeleteCases[EdgeProperties[mesh], Rule[prop, _]],
-      FaceProperties -> DeleteCases[FaceProperties[mesh], Rule[prop, _]]]]];
+      VertexProperties -> DeleteCases[VertexProperties[mesh], (Rule|RuleDelayed)[prop, _]],
+      EdgeProperties -> DeleteCases[EdgeProperties[mesh], (Rule|RuleDelayed)[prop, _]],
+      FaceProperties -> DeleteCases[FaceProperties[mesh], (Rule|RuleDelayed)[prop, _]]]]];
 RemoveProperty[mesh_?CorticalObjectQ, prop:{_Rule..}] := Fold[RemoveProperty, mesh, prop];
 RemoveProperty[{mesh_?CorticalObjectQ, t:(VertexList|EdgeList|FaceList)},
                prop:Except[_List]] := With[
@@ -3171,7 +3171,7 @@ GetVertexColors[mesh_, vcolorsOpt_, colorFnOpt_] := With[
          If[f =!= known,
            known[mesh],
            Map[
-             InterpretVertexColor,
+             InterpretVertexColor[f[#], #]&,
              Normal@VertexDataset[mesh]]]]}]]];
 
 Options[CortexPlot3D] = Map[(#[[1]] -> Automatic)&, $CortexPlot3DOptions];
