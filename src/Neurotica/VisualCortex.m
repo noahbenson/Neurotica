@@ -197,6 +197,8 @@ V123MeshFunctions::usage = "V123MeshFunctions[mdl] yields a new set of mesh tran
 
 ExportV123Model::usage = "ExportV123Model[flname, mdl] yields the filename of the file to which the fundamentals of the given V123Model, mdl, have been written.";
 
+ImportFMM::usage = "ImportFMM[stream] is identical to Import[<filename>, \"FMM\"]; the latter form is usually prefered. Both yield the imported flat-mesh-model data as an association.";
+
 (**************************************************************************************************)
 (**************************************************************************************************)
 Begin["`Private`"];
@@ -332,18 +334,18 @@ Protect[
 
 
 (* Default Schira Parameters **********************************************************************)
-$DefaultSchiraA = 1.5;
-$DefaultSchiraB = 45.0;
-$DefaultSchira\[CapitalLambda] = 3.0;
-$DefaultSchira\[CapitalPsi] = 0.70;
-$DefaultSchiraV1Size = 1.10;
-$DefaultSchiraV2Size = 0.45;
-$DefaultSchiraV3Size = 0.35;
-$DefaultSchiraHV4Size = 0.3;
-$DefaultSchiraV3ASize = 0.3;
-$DefaultSchiraFC = {-0.15, -0.4};
-$DefaultSchiraScale = {40.0, 40.0};
-$DefaultSchiraShear = {{1, 0}, {-0.2, 1}};
+$DefaultSchiraA = 1.05;
+$DefaultSchiraB = 90.0;
+$DefaultSchira\[CapitalLambda] = 0.4;
+$DefaultSchira\[CapitalPsi] = 0.10;
+$DefaultSchiraV1Size = 1.20;
+$DefaultSchiraV2Size = 0.60;
+$DefaultSchiraV3Size = 0.40;
+$DefaultSchiraHV4Size = 0.90;
+$DefaultSchiraV3ASize = 0.90;
+$DefaultSchiraFC = {-6.0, 0.0};
+$DefaultSchiraScale = {21.0, 21.0};
+$DefaultSchiraShear = {{1, 0}, {0, 1}};
 $DefaultSchira\[CapitalRho]90 = 90;
 $SchiraParameters = List[
    A :> $DefaultSchiraA,
@@ -1108,8 +1110,8 @@ SchiraLinePlot[mdl_SchiraModelObject, opts : OptionsPattern[]] := Catch[
         x_?NumberQ :> {x},
         Automatic -> {0.0, 45.0, 90.0, 135.0, 180.0}}]},
     If[hemi === LH,
-      f[t_?NumericQ, r_?NumericQ, k_Integer] := Part[fn[t, r], k],
-      f[t_?NumericQ, r_?NumericQ, k_Integer] := ReplaceAll[Part[fn[t, r], k], {x_,y_}:>{-x,y}]];
+      f[t_?NumericQ, r_?NumericQ, k_Integer] := Part[fn0[t, r], k],
+      f[t_?NumericQ, r_?NumericQ, k_Integer] := ReplaceAll[Part[fn0[t, r], k], {x_,y_}:>{-x,y}]];
     With[
       {msg = Which[
          ! NumericQ[range[[1, 1]]], "theta-min must be a number",
@@ -2042,6 +2044,53 @@ V123ModelQ[mdl_?AssociationQ] := And[
   KeyExistsQ[mdl, "PolarAngle"],
   KeyExistsQ[mdl, "Eccentricity"]];
 Protect[V123ModelQ];
+
+
+(* #ImportFMM *************************************************************************************)
+ImportFMM[stream_, opts : (((Rule | RuleDelayed)[_, _]) ...)] := Check[
+  Catch@With[
+    {version = ReadLine[stream],
+     headerLines = Table[ReadLine[stream], {8}],
+     interps = {
+       {"Points: ", ToExpression},
+       {"Triangles: ", ToExpression},
+       {"Registration: ", Identity},
+       {"Hemisphere: ", ToExpression},
+       {"Center: ", ToExpression["{" <> # <> "}"] &},
+       {"OnXAxis: ", ToExpression["{" <> # <> "}"] &},
+       {"Method: ", Identity},
+       {"Transform: ",
+        Function@ToExpression@StringReplace[
+          #,
+          {"[" -> "{{", "]" -> "}}", ";" -> "},{"}]}},
+     ptinterp = Function@With[
+       {parts =
+        ToExpression["{" <> # <> "}"] & /@
+        StringSplit[#, " :: "]},
+       {parts[[1]], {#1, #2, Round[#3]} & @@ parts[[2]]}]},
+    If[version != "Flat Mesh Model Version: 1.0",
+      Message[ImportFMM::badfmt, "First line must announce version 1.0"];
+      Throw[$Failed]];
+    With[
+      {header = Association@MapThread[
+         Function@If[! StringStartsQ[#1, #2[[1]]],
+           (Message[ImportFMM::badfmt, "Header incorrect"];
+            Throw[$Failed]),
+           Rule[
+             First@StringSplit[#1, ":"],
+             (#2[[2]])@
+             StringTake[#1, StringLength[#2[[1]]] + 1 ;; All]]],
+         {headerLines, interps}]},
+      With[
+        {points = Table[ptinterp@ReadLine[stream],                    {header["Points"]}],
+         faces  = Table[ToExpression["{" <> ReadLine[stream] <> "}"], {header["Triangles"]}]},
+        <|"Header" -> header, "Points" -> points, "Triangles" -> faces|>]]],
+  $Failed];
+ImportExport`RegisterImport[
+  "FMM",
+  {ImportFMM},
+  "FunctionChannels" -> {"Streams"},
+  "BinaryFormat" -> False];
 
 End[];
 EndPackage[];
