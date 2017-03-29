@@ -129,25 +129,31 @@ VistaSoftPRFModel[fit_, coords_, opts:OptionsPattern[]] := Which[
        "SigmaMinor", "SigmaMajor", "SigmaTheta",
        "Exponent", "VarianceExplained"},
      mdl = fit["model"]},
-    Dataset@Map[
-      Association@Thread[colnames -> #] &,
-      Transpose@List[
-        Round[{#[[3]], 257 - #[[2]], 257 - #[[1]]} & /@ Transpose[coords]],
-        mdl["x0"][[1]],
-        mdl["y0"][[1]] * yc,
-        (#3 * #1 / ((1 - #3) + #2))&[
-           0.5*(mdl["sigma"]["major"][[1]] + mdl["sigma"]["minor"][[1]]),
-           Sqrt[mdl["exponent"][[1]]],
-           Unitize@Chop[mdl["exponent"][[1]]]],
-        mdl["sigma"]["minor"][[1]],
-        mdl["sigma"]["major"][[1]],
-        mdl["sigma"]["theta"][[1]],
-        mdl["exponent"][[1]],
-        Unitize[mdl["rawrss"][[1]]]*(
-          1 - Clip[
-            mdl["rss"][[1]]/(# + (1 - Unitize[#])) &@mdl["rawrss"][[1]],
-            {0, 1},
-            {0, 1}])]]]];
+    With[
+      {n = Length@First@mdl["x0"]},
+      With[
+        {x0 = mdl["x0"][[1]], y0 = mdl["y0"][[1]],
+         sigMajor = First[mdl["sigma"]["major"]],
+         sigMinor = First[mdl["sigma"]["minor"]],
+         sigTheta = First[mdl["sigma"]["theta"]],
+         exp = If[KeyExistsQ[mdl, "exponent"], mdl["exponent"][[1]], ConstantArray[1.0, n]]},
+        Dataset@Map[
+          Association@Thread[colnames -> #] &,
+          Transpose@List[
+            Round[{#[[3]], 257 - #[[2]], 257 - #[[1]]} & /@ Transpose[coords]],
+            x0, y0*yc,
+            With[
+              {unit = Unitize@Chop[exp]},
+              unit * 0.5 * (sigMajor + sigMinor) / ((1 - unit) + Sqrt[exp])],
+            sigMinor,
+            sigMajor,
+            sigTheta,
+            exp,
+            Unitize[mdl["rawrss"][[1]]]*(
+              1 - Clip[
+                mdl["rss"][[1]]/(# + (1 - Unitize[#])) &@mdl["rawrss"][[1]],
+                {0, 1},
+                {0, 1}])]]]]]];
 
 
 End[];
