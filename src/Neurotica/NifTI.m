@@ -588,7 +588,7 @@ InterpretNifTI[data_List] := With[
               {RightDirectionVector    -> mtx[[1, 1;;3]],
                AnteriorDirectionVector -> mtx[[2, 1;;3]],
                SuperiorDirectionVector -> mtx[[3, 1;;3]],
-               Center                  -> (mtx[[1;;3, 4]] - 0.5*dims)},
+               Center                  -> (mtx[[1;;3, 4]] - 0.5*dims[[-3;;-1]])},
               {}]],
           MetaInformation -> hdr]]]]];
 
