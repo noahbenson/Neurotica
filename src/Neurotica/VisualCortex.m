@@ -866,7 +866,7 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
          _ :> Message[
            SchiraParametricPlot::badarg,
            "VisualAreas must be All, one of +/- {1,2,3,4}, or a list of such integers"]}],
-     f = mdl[VisualFieldToCorticalMap],
+     ff = mdl[VisualFieldToCorticalMap],
      range = Replace[
        OptionValue[Range],
        {(All | Full | Automatic) -> {{0, 180}, {0, 90}},
@@ -904,9 +904,10 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
        {rMin = rhoTransInv[range[[2,1]]],
         rMax = rhoTransInv[range[[2,2]]]},
        With[
-         {graphics = Map[
-            Function[
-              With[
+         {graphics = Block[{f},
+            f[x_?NumericQ, y_?NumericQ, k_Integer] := ff[x,y][[k]];
+            Map[
+              Function@With[
                 {k = Which[# == -4, 4, # == 4, 5, True, Abs[#]],
                  thetaMinIdeal = If[# == 4 || # < 0, thetaLower[[1]], thetaUpper[[1]]],
                  thetaMaxIdeal = If[# == -4 || # > 0, thetaUpper[[2]], thetaLower[[2]]]},
@@ -919,7 +920,7 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
                      thetaMaxIdeal]},
                   Quiet[
                     ParametricPlot[
-                      Part[f[theta, rhoTrans[rho]], k],
+                      f[theta, rhoTrans[rho], k],
                       {theta, thetaMin, thetaMax},
                       {rho, rMin, rMax},
                       PlotRange -> plotRangeArg,
@@ -933,8 +934,8 @@ SchiraParametricPlot[mdl_SchiraModelObject, opts:OptionsPattern[]] := Catch[
                           Function[colorFun[#1,#2,#3,rhoTrans[#4]]],
                           Function[colorFun[#1,#2,#3,rhoTrans[#4]/90.0]]]],
                       optseq],
-                    {CompiledFunction::cfsa}]]]],
-            areas]},
+                    {CompiledFunction::cfsa}]]],
+              areas]]},
          With[
            {plotRange = With[
               {ranges = Cases[
@@ -1747,7 +1748,7 @@ V123MeshFunctions[data_, tx0_:Automatic] := With[
                    Length[{##}] == 2, Which[
                      ListQ[{##}[[1]]] && ListQ[{##}[[2]]], {Transpose[{##}], Identity},
                      ListQ[{##}[[1]]], {Transpose[{#1, ConstantArray[{##}[[2]], Length[#1]]}],
-                                        Identity}
+                                        Identity},
                      ListQ[{##}[[2]]], {Transpose[{##}[[2]], ConstantArray[#1, Length[{##}[[2]]]]],
                                         Identity},
                      True, {{{##}}, First}],
@@ -1763,7 +1764,7 @@ V123MeshFunctions[data_, tx0_:Automatic] := With[
                    Length[{##}] == 2, Which[
                      ListQ[{##}[[1]]] && ListQ[{##}[[2]]], {Transpose[{##}], Identity},
                      ListQ[{##}[[1]]], {Transpose[{#1, ConstantArray[{##}[[2]], Length[#1]]}],
-                                        Identity}
+                                        Identity},
                      ListQ[{##}[[2]]], {Transpose[{##}[[2]], ConstantArray[#1, Length[{##}[[2]]]]],
                                         Identity},
                      True, {{{##}}, First}],

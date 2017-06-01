@@ -2769,7 +2769,7 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)},
           Clone[mesh, VertexCoordinatesTr -> Transpose[vals]],
           (Message[CorticalMesh::error, "SetProperty", "VertexCoordinates not set with VertexList"];
            $Failed)],
-        _, Clone[mesh, propType -> Append[allList, prop -> vals]]],
+        _, Clone[mesh, propType -> Append[allList, prop -> Normal[vals]]]],
       (* If the property already exists, we overwrite it *)
       True, Clone[
         mesh,
@@ -2786,7 +2786,7 @@ SetProperty[{mesh_?CorticalObjectQ, type:(VertexList|EdgeList|FaceList)}, prop_ 
     {list = Replace[prop, allList],
      sym = Unique["delayedProperty"]},
     sym := With[
-      {res = vals},
+      {res = Normal[vals]},
       If[!ArrayQ[res] || Length[res] != Length[type[mesh]],
         Table[$Failed, {Length[type[mesh]]}],
         (sym = res)]];
@@ -3311,15 +3311,17 @@ CorticalColorSchema[property_ -> {range_, colors_}][assoc_?AssociationQ] := If[
   KeyExistsQ[assoc, property],
   With[
     {val = assoc[property]},
-    If[val === None || val === $Failed || val === Indeterminate,
+    If[!NumericQ[val],
       $Failed,
-      Blend[colors, Clip[Rescale[val, range], {0,1}]]]],
+      If[MatrixQ[colors],
+        Blend[colors, val], 
+        Blend[colors, Clip[Rescale[val, range], {0,1}]]]]],
   $Failed];
 CorticalColorSchema[property_ -> f:Except[{_, _}]][assoc_?AssociationQ] := If[
   KeyExistsQ[assoc, property],
   With[
     {val = assoc[property]},
-    If[val === None || val === $Failed || val === Indeterminate,
+    If[!NumericQ[val],
       $Failed,
       f[val]]],
   $Failed];
@@ -3330,22 +3332,36 @@ Protect[CorticalColorSchema];
 (* #CorticalColorData *****************************************************************************)
 CorticalColorData[unknown_] := $Failed;
 (* Some cortical color data schemas that we use... *)
+polarAngleColors = <|
+    -90 -> Magenta,
+    0 -> Blue, 45 -> Darker[Cyan, 1/6], 90 -> Darker[Green],
+    135 -> Darker[Yellow, 1/6], 180 -> Red|>;
 CorticalColorData[Curvature] = CorticalColorSchema[Curvature -> CorticalCurvatureColor];
 CorticalColorData["Curvature"] = CorticalColorSchema["Curvature" -> CorticalCurvatureColor];
 CorticalColorData["PolarAngle"] = CorticalColorSchema[
   "PolarAngle" -> {
-    {-180, 180}, 
-    {Red, Darker[Yellow, 1/6], Darker[Green], Darker[Cyan, 1/6],
-     Blue,
-     Darker[Cyan, 1/6], Darker[Green], Darker[Yellow, 1/6], Red}}]; 
+    {-360, 360},
+    Table[
+      {k, polarAngleColors@Min[{#, 360-#}]&@Mod[k, 360]},
+      {k, -360, 360, 45}]}];
 CorticalColorData["PolarAngleLH"] = CorticalColorSchema[
   "PolarAngle" -> {
-    {0, 180}, 
-    {Blue, Darker[Cyan, 1/6], Darker[Green], Darker[Yellow, 1/6], Red}}]; 
+    {-360, 360},
+    Join[
+      Table[{k, polarAngleColors[k + 360]}, {k, -360, -180, 45}],
+      {{-90, polarAngleColors[-90]}},
+      Table[{k, polarAngleColors[k]}, {k, 0, 180, 45}],
+      {{270, polarAngleColors[-90]},
+       {360, polarAngleColors[0]}}]}];
 CorticalColorData["PolarAngleRH"] = CorticalColorSchema[
   "PolarAngle" -> {
-    {-180, 0}, 
-    {Red, Darker[Yellow, 1/6], Darker[Green], Darker[Cyan, 1/6], Blue}}]; 
+    {-360, 360},
+    Join[
+      {{-360, polarAngleColors[0]},
+       {-270, polarAngleColors[-90]}},
+      Table[{k, polarAngleColors[-k]}, {k, -180, 0, 45}],
+      {{90, polarAngleColors[-90]}},
+      Table[{k, polarAngleColors[360 - k]}, {k, 180, 360, 45}]]}];
 (*
 CorticalColorData["Eccentricity"] = CorticalColorSchema[
   "Eccentricity" -> {
