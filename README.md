@@ -120,10 +120,10 @@ here in the order of the Neurotica Author's preference:
    include these lines, ending with your inclusion of Neurotica:
    
    <pre><code>Needs["Jlink`"];
-SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
-SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
-ReinstallJava[];
-Needs["Neurotica`"];</code></pre>
+   SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
+   SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
+   ReinstallJava[];
+   Needs["Neurotica`"];</code></pre>
 
 3. Reinstall Java yourself, then reload Neurotica. This can be done with the
    following code:
