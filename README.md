@@ -104,9 +104,9 @@ here in the order of the Neurotica Author's preference:
 1. Edit your init file to include the following lines:
    
    <pre><code>Needs["Jlink`"];
-SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
-SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
-ReinstallJava[];</code></pre>
+   SetOptions[InstallJava, JVMArguments->"-Xmx2g"];
+   SetOptions[ReinstallJava, JVMArguments->"-Xmx2g"];
+   ReinstallJava[];</code></pre>
 
    (Note that this will allow the JVM to take up at most 2 GB of RAM; for a
    different amount you can edit the JVMArguments).  Neurotica provides a
@@ -129,7 +129,7 @@ Needs["Neurotica`"];</code></pre>
    following code:
    
    <pre><code>ReinstallJava[JVMArguments->"Xmx2g"];
-NeuroticaReload[];</code></pre>
+   NeuroticaReload[];</code></pre>
 
    Neurotica provides a function that will perform this fix for you, which is
    identical to the `NeuroticaFixJLinkMemoryPermanent[amount]` function except
