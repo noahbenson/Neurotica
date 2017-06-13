@@ -40,8 +40,8 @@ documents all currently supported public functions.
 
 To install Neurotica, you will need to make sure that Mathematica can
 find a copy of it in its library directories. On Linux/Unix systems,
-the local library directory is "~/.Mathematica/Applications"; on Mac
-OSX, it is "~/Library/Mathematica/Applications"; and in Windows it is
+the local library directory is "&#126;/.Mathematica/Applications"; on Mac
+OSX, it is "&#126;/Library/Mathematica/Applications"; and in Windows it is
 "C:\Users\<username>\AppData\Roaming\Mathematica\Applications". To
 obtain the library's code itself, you can download the library from
 GitHub: https://github.com/noahbenson/Neurotica. Note that, in order
