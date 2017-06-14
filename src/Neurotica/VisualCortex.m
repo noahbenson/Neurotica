@@ -337,7 +337,7 @@ Protect[
 $DefaultSchiraA = 1.05;
 $DefaultSchiraB = 90.0;
 $DefaultSchira\[CapitalLambda] = 0.4;
-$DefaultSchira\[CapitalPsi] = 0.10;
+$DefaultSchira\[CapitalPsi] = 0.15;
 $DefaultSchiraV1Size = 1.20;
 $DefaultSchiraV2Size = 0.60;
 $DefaultSchiraV3Size = 0.40;
