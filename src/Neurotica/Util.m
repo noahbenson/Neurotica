@@ -193,6 +193,59 @@ PrincipalAxes::moptx = "Method option `1` in PrincipalAxes is not one of {\"Cova
 
 MeshRegionInterpolate::usage = "MeshRegionInterpolate[region, field, points] yields the result of interpolating the given field values across the nodes of the given mesh at the given point or points using an interpolation order of 1.";
 
+InsetAxis::usage = "InsetAxis[from, to] yields a list of graphics primitives that draws a floating axis between the given points from and to. The following options may be given:
+  * Position (Automatic) may be Left, Right, Top, or Bottom, specifying that the axis is being drawn in the relevant location of the graphic. This affects the directions that the ticks point, the side that the tick labels appear on, and the side that the axis label appears on. If Automatic, will auto-detect the side based on the angle of the axis, assuming that it is either on the Left or Bottom of the plot.
+  * DataRange (Automatic) specifies the distance covered by the axis; if {min, max} is given, then the axis assumes that between the from and to points the axis should be values that vary linearly from min to max.
+  * Function (Identity) not yet supported.
+  * BaseStyle (Automatic) style for text.
+  * AxesStyle (Automatic) style for the axis line.
+  * TicksStyle (Automatic) style for the tick lines.
+  * TickLengths (Automatic) the length of the {major, minor} ticks; if Automatic, uses 0.015 and 0.01 times the length of the axis.
+  * Ticks (Automatic) specifies which ticks should be drawn. This may be a list of {n, m} where n is the number of major ticks and m is the number of minor ticks between each pair of major ticks; alternately a list of explicit ticks may be given for n, and a list of values between 0 and 1 may be given for m.
+  * TickSide (Automatic) specifies the side of the axis that the ticks should appear on; for a Left or Right positioned axis, 1 indicates the right and -1 indicates the left; for a Top or Bottom positioned axis, 1 indicates up and -1 indicates down.
+  * LabelSide (Automatic) specifies the side of the axis that the tick labels should appear on.
+  * LabelFunction (Automatic) specifies a function that is passed the value for each tick and which should return a form to render as the label for that tick; if None is returned, then nothing is rendered.
+  * LabelAlignment (Automatic) specifies the alignment of the labels; this is {1,0} by default and is not rotated in any way.
+  * LabelSpacing (Automatic) specifies the amount of space between the axis and the label; this is specified in terms of the ImageScaled units of each label.
+  * LabelStyle (Automatic) specifies the style to be used (after BaseStyle) for the tick labels.
+  * AxisLabelSide (Automatic) specifies the side of the axis that the axis label should appear on.
+  * AxisLabel (None) specifies the label of the axis.
+  * AxisLabelPosition (Automatic) specifies the position along the axis that the label should appear (by default, uses the middle of the axis).
+  * AxisLabelAlignment (Automatic) specifies the axis label text direction; this vector is rotated with the axis, so a value of {1,0} will always be parallel the axis.
+  * AxisLabelSpacing (Automatic) specifies the amount of space between the axis and the axis label in terms of the ImageScaled axis units.";
+InsetAxis::badpos = "Position `1` not recognized (should be Top, Right, Bottom, Left, or Automatic)";
+
+TickLengths::usage = "TickLengths is a keyword option for InsetAxis that specifies the lengths of the {major, minor} ticks.";
+TickSide::usage = "TickSide is a keyword option for InsetAxis that specifies the side of the axis the ticks should appear on.";
+LabelSide::usage = "LabelSide is a keyword option for InsetAxis that specifies the side of the axis that the tick labels should appear on.";
+LabelFunction::usage = "LabelFunction is a keyword option for InsetAxis that specifies how a value along the axis should be converted into a tick label.";
+LabelAlignment::usage = "LabelAlignment is a keyword option for InsetAxis that specifies the text direction for the tick labels.";
+LabelSpacing::usage = "LabelSpacing is a keyword option for InsetAxis that specifies the spacing between the tick labels and the axis.";
+AxisLabel::usage = "AxisLabel is a keyword option for InsetAxis that specifies the label that should be printed for the axis.";
+AxisLabelPosition::usage = "AxisLabelPosition is a keyword option for InsetAxis that specifies the position, along the axis, that the axis label should be aligned with.";
+AxisLabelSide::usage = "AxisLabelSide is a keyword option for InsetAxis that specifies the side of the axis that the axis label should appear on.";
+AxisLabelAlignment::usage = "AxisLabelAlignment is a keyword option for InsetAxis that specifies the text direction of the axis label.";
+AxisLabelSpacing::usage = "AxisLabelSpacing is a keyword option for InsetAxis that specifies the spacing between the axis and the axis label.";
+
+Canvas::usage = "Canvas[] creates a new canvas object. The following options may be given:
+  * Style may specify a Directive used for text in the canvas.
+  * ImageSize may specify the size of the canvas in inches; by default, the canvas is 7 x 7 inches.
+  * Background may specify the background color of the canvas; by default this is White.";
+CanvasInset::usage = "CanvasInset[canvas, obj, args...] declares that Inset[obj, args...] should be included in the given canvas. Note that the coordinate system of a canvas is in inches starting from the lower left corner.";
+CanvasGraphics::usage = "CanvasGraphics[canvas, graphics] declares that the given graphics should be included in the given canvas. Note that the coordinate system of a canvas is in inches starting from the lower left corner.";
+CanvasText::usage = "CanvasText[canvas, text, args...] declares that Text[text, args...] should be included in the given canvas. Note that the coordinate system of a canvas is in inches starting from the lower left corner.";
+$CanvasTop::usage = "$CanvasTop is the y coordinate of the top of the canvas.";
+$CanvasBottom::usage = "$CanvasBottom is the y coordinate of the bottom of the canvas.";
+$CanvasLeft::usage = "$CanvasLeft is the x coordinate of the left side of the canvas.";
+$CanvasRight::usage = "$CanvasRight is the x coordinate of the right side of the canvas.";
+$CanvasUR::usage = "$CanvasUR is the coordinates of the upper right corner of the canvas.";
+$CanvasUL::usage = "$CanvasUL is the coordinates of the upper left corner of the canvas.";
+$CanvasLR::usage = "$CanvasLR is the coordinates of the lower right corner of the canvas.";
+$CanvasLL::usage = "$CanvasLL is the coordinates of the lower left corner of the canvas.";
+$CanvasCenter::usage = "$CanvasCenter is the coordinate of the center of the canvas.";
+$CanvasHeight::usage = "$CanvasHeight is the height of the canvas in inches.";
+$CanvasWidth::usage = "$CanvasWidth is the width of the canvas in inches.";
+
 Begin["`Private`"];
 
 (* MissingQ, if we need to define it... *)
@@ -1432,6 +1485,294 @@ MeshRegionInterpolate[reg_, field_, pts0_, OptionsPattern[]] := With[
                   Total[w]/(tot + (1 - Unitize[tot])),
                   Replace[Unitize[void + (1 - Unitize[tot])], 1 -> Indeterminate, {1}]]]]]]]]]];
 Protect[MeshRegionInterpolate];
+
+(* #InsetAxis *************************************************************************************)
+ClearAll["Neurotica`Util`InsetAxis`*"];
+Options[InsetAxis] = {
+  Position -> Automatic,
+  DataRange -> Automatic,
+  Function -> Identity,
+  BaseStyle -> Automatic,
+  AxesStyle -> Automatic,
+  TicksStyle -> Automatic,
+  TickLengths -> Automatic,
+  Ticks -> Automatic,
+  TickSide -> Automatic,
+  LabelSide -> Automatic,
+  LabelFunction -> Automatic,
+  LabelAlignment -> Automatic,
+  LabelSpacing -> Automatic,
+  LabelStyle -> Automatic,
+  AxisLabelSide -> Automatic,
+  AxisLabel -> None,
+  AxisLabelPosition -> Automatic,
+  AxisLabelAlignment -> Automatic,
+  AxisLabelSpacing -> Automatic};
+InsetAxis`imscaled[dir_, mag_] := ImageScaled[{0.5, 0.5} + mag*0.5*dir];
+InsetAxis`metaData[{from_, to_}, opts : OptionsPattern[InsetAxis]] := First@Last@Reap[
+  With[
+    {u0 = Normalize[to - from],
+     spec = Replace[
+       OptionValue[Ticks],
+       {Automatic -> {Automatic, Automatic},
+        None -> {None, None},
+        k_Integer :> {k, Automatic},
+        l_List /; Length[l] != 2 :> {l, Automatic}}],
+     range = Replace[
+       OptionValue[DataRange],
+       {x_?NumericQ :> {0, x},
+        Automatic :> Which[
+          from[[1]] == to[[1]], {from[[2]], to[[2]]},
+          from[[2]] == to[[2]], {from[[1]], to[[1]]},
+          True, {0, Norm[to - from]}]}],
+     lblfn = Replace[OptionValue[LabelFunction], Automatic -> TraditionalForm]},
+    With[
+      {dlen = range[[2]] - range[[1]],
+       plen = Norm[from - to],
+       pos = Replace[OptionValue[Position], Automatic :> If[u0[[1]]^2 >= 0.5, Bottom, Left]]},
+      With[
+        {tickLens = Replace[
+           OptionValue[TickLengths],
+           {Automatic :> plen*{0.015, 0.01},
+            x:Except[_List] :> {x, 2/3*x},
+            {x_} :> {x[[1]], 2/3*x}}],
+         ticks = {
+           Replace[
+             spec[[1]],
+             {None -> {},
+              k_Integer :> Map[(range.{1 - #, #}) &, Range[0, 1, 1/k]],
+              Automatic :> Select[FindDivisions[range, 8], range[[1]] <= # <= range[[2]] &]}],
+           Replace[
+             spec[[2]],
+             {None -> {},
+              k_Integer :> Most@Rest@Range[0, 1, 1/(k + 1)],
+              Automatic :> {0.5}}]},
+         tickSide = Replace[OptionValue[TickSide], Automatic -> 1],
+         txtSide =
+         Replace[OptionValue[AxisLabelSide], Automatic -> -1],
+         lblSide = Replace[OptionValue[LabelSide], Automatic -> -1],
+         uv = Which[
+           pos === Top, With[
+             {u = If[u0[[1]] < 0, -u0, u0]},
+             {u, {u[[2]], -u[[1]]}}],
+           pos === Bottom, With[
+             {u = If[u0[[1]] < 0, -u0, u0]},
+             {u, {-u[[2]], u[[1]]}}],
+           pos === Left, With[
+             {u = If[u0[[2]] < 0, -u0, u0]},
+             {u, {u[[2]], -u[[1]]}}],
+           pos === Right, With[
+             {u = If[u0[[2]] < 0, -u0, u0]},
+             {u, {-u[[2]], u[[1]]}}],
+           True, Message[InsetAxis::badpos, pos]]},
+        Sow["DataRange" -> range];
+        Sow["DataLength" -> dlen];
+        Sow["PlotLength" -> plen];
+        Sow["Position" -> pos];
+        Sow["AxisDirection" -> uv[[1]]];
+        Sow["AxisNormal" -> uv[[2]]];
+        Sow["AxesStyle" -> Replace[
+          OptionValue[AxesStyle],
+          {Automatic -> {Black, Dashing[{}], Thickness[Small]},
+           x:Except[_List] :> {x}}]];
+        Sow["TicksStyle" -> Replace[
+          OptionValue[TicksStyle],
+          {Automatic -> {Black, Dashing[{}], Thickness[Small]},
+           x:Except[_List] :> {x}}]];
+        Sow["BaseStyle" -> Replace[
+          OptionValue[BaseStyle],
+          Automatic -> Directive[FontFamily -> "Helvetica Neue",
+                                 FontColor -> Black,
+                                 FontWeight -> "Light"]]];
+        Sow["AxisLabel" -> OptionValue[AxisLabel]];
+        Sow["AxisLabelPosition" -> Replace[
+          OptionValue[AxisLabelPosition],
+          Automatic :> 0.5*(range[[2]] + range[[1]])]];
+        Sow["AxisLabelAlignment" -> Replace[
+          OptionValue[AxisLabelAlignment],
+          Automatic -> {1, 0}]];
+        Sow["LabelFunction" -> lblfn];
+        Sow[
+          "LabelAlignment" ->
+          Replace[OptionValue[LabelAlignment], Automatic -> {1, 0}]];
+        Sow["LabelStyle" -> Replace[
+          OptionValue[LabelStyle],
+          Automatic -> Directive[FontFamily -> "Helvetica Neue",
+                                 FontWeight -> "Thin",
+                                 FontColor -> Black]]];
+        Sow["AxisLabelSpacing" -> Replace[
+          OptionValue[AxisLabelSpacing],
+          Automatic :> Plus[
+            If[tickSide == txtSide, 0.75, 0],
+            If[lblSide == txtSide, 2.5, 0],
+            1]]];
+        Sow["LabelSpacing" -> Replace[
+          OptionValue[LabelSpacing],
+          Automatic :> If[tickSide == lblSide, 1.0, 0.5]]];
+        Sow["Function" -> Replace[OptionValue[Function], Automatic -> Identity]];
+        Sow["TickSide" -> tickSide];
+        Sow["LabelSide" -> lblSide];
+        Sow["AxisLabelSide" -> txtSide];
+        Sow["Ticks" -> ticks];
+        Sow["MajorTickLength" -> tickLens[[1]]];
+        Sow["MinorTickLength" -> tickLens[[1]]];
+        With[
+          {ticksMaj = Map[
+             Function@Association@With[
+               {crd = ((from*(1 - #) + to*#) &[(# - range[[1]])/(range[[2]] - range[[1]])])},
+               {"Position" -> #, "Label" -> lblfn[#],
+                "Start" -> crd, "End" -> (crd + tickSide*uv[[2]]*tickLens[[1]])}],
+             ticks[[1]]]},
+          Sow["MajorTicks" -> ticksMaj];
+          Sow["MinorTicks" -> With[
+            {dt = ticksMaj[[2]]["Position"] - ticksMaj[[1]]["Position"],
+             dx = ticksMaj[[2]]["Start"] - ticksMaj[[1]]["Start"]},
+            Join@@Map[
+              Function@With[
+                {x0 = dx*#, t0 = dt*#},
+                Table[
+                  With[
+                    {x = x0 + maj["Start"], p = t0 + maj["Position"]},
+                    <|"Start" -> x,
+                      "End" -> (x + tickSide*uv[[2]]*tickLens[[2]]),
+                      "Position" -> p|>],
+                  {maj, Most[ticksMaj]}]],
+              ticks[[2]]]]]];
+        Sow["EndPoints" -> {from, to}]]]],
+  _,
+  Association@*First];
+InsetAxis`drawAxis = Function@Append[#AxesStyle, Line[#EndPoints]];
+InsetAxis`drawTicks = Function@List[
+  (* Major Ticks... *)
+  If[#MajorTicks === None,
+    Nothing,
+    Join[#AxesStyle, #TicksStyle, Line[{#Start, #End}] & /@ #MajorTicks]],
+  (* Minor Ticks... *)
+  If[#MinorTicks === None,
+    Nothing,
+    Join[#AxesStyle, #TicksStyle, Line[{#Start, #End}] & /@ #MinorTicks]]];
+InsetAxis`drawTickLabels = Function@With[
+  {lblPos = InsetAxis`imscaled[-#LabelSide*#AxisNormal, 1 + #LabelSpacing],
+   sty = Join[#BaseStyle, #LabelStyle],
+   lblAlign = #LabelAlignment},
+  Map[
+    Function@If[#Label === None,
+      Nothing,
+      Text[#Label, #Start, lblPos, lblAlign, BaseStyle -> sty]],
+    #MajorTicks]];
+InsetAxis`drawAxisLabel = Function@With[
+  {rot = RotationMatrix[ArcTan @@ #AxisDirection],
+   mn = #DataRange[[1]], mx = #DataRange[[2]],
+   from = #EndPoints[[1]], to = #EndPoints[[2]]},
+  Text[
+    #AxisLabel,
+    (from*(1 - #) + #*to) &[(#AxisLabelPosition - mn)/(mx - mn)],
+    InsetAxis`imscaled[-Inverse[rot].(#AxisLabelSide*#AxisNormal), 1 + #AxisLabelSpacing],
+    rot . #AxisLabelAlignment,
+    BaseStyle -> #BaseStyle]];
+InsetAxis[{from:{_, _}, to:{_, _}}, opts:OptionsPattern[]] := With[
+  {meta = InsetAxis`metaData[{from, to}, opts]},
+  {(* Axis Line *)
+   InsetAxis`drawAxis[meta],
+   (* The Ticks *)
+   InsetAxis`drawTicks[meta],
+   (* The Tick Labels *)
+   InsetAxis`drawTickLabels[meta],
+   InsetAxis`drawAxisLabel[meta]}];
+
+Protect[InsetAxis, TickLengths, TickSide, LabelSide, LabelSpacing,
+        AxisLabelSpacing, LabelFunction, LabelAlignment, AxisLabel,
+        AxisLabelPosition, AxisLabelSide, AxisLabelAlignment];
+
+(* #Canvas ****************************************************************************************)
+SetAttributes[CanvasInset, HoldRest];
+SetAttributes[CanvasGraphics, HoldRest];
+SetAttributes[CanvasText, HoldRest];
+Options[Canvas] = {
+  Style -> Directive[FontFamily -> "Helvetica Neue",
+                     FontColor -> Black,
+                     FontWeight -> "Thin",
+                     FontSize -> 10],
+  ImageSize -> {7, 7},
+  Background -> White};
+Canvas[opts:OptionsPattern[]] := With[
+  {sym = Unique["canvas"],
+   fullOpts = Table[o -> OptionValue[o], {o, Options[Canvas][[All, 1]]}],
+   isz = Replace[
+     OptionValue[ImageSize],
+     {{w_?NumericQ, h_?NumericQ} :> {0, w, 0, h},
+      {{w0_?NumericQ, h0_?NumericQ}, {w_?NumericQ, h_?NumericQ}} :> {w0, w, h0, h},
+      {w0_?NumericQ, h0_?NumericQ, w_?NumericQ, h_?NumericQ} :> {w0, w, h0, h},
+      _ :> Message[General::optx, ImageSize, Canvas]}]},
+  With[
+    {CanvasDimBlock = Function[Null,
+       Block[
+         {$CanvasLeft = isz[[1]], $CanvasRight = isz[[2]],
+          $CanvasTop = isz[[4]], $CanvasBottom = isz[[3]],
+          $CanvasUR = isz[[{2, 4}]], $CanvasUL = isz[[{1, 4}]],
+          $CanvasLR = isz[[{2, 3}]], $CanvasLL = isz[[{1, 4}]],
+          $CanvasCenter = {Mean@isz[[{1, 2}]], Mean@isz[[{3, 4}]]},
+          $CanvasWidth = isz[[2]] - isz[[1]],
+          $CanvasHeight = isz[[4]] - isz[[3]]},
+         ##],
+       {HoldAll}]},
+    sym /: Options[sym] = fullOpts;
+    sym /: CanvasInsetList[sym] = {};
+    sym /: CanvasInset[sym, code__] := CanvasDimBlock@With[
+      {sty = Style /. Options[sym]},
+      sym /: CanvasInsetList[sym] = Append[
+        CanvasInsetList[sym],
+        Hold@Inset[code, FormatType -> TraditionalForm, BaseStyle -> sty]];
+      sym];
+    sym /: CanvasGraphics[sym, code_] := CanvasDimBlock[
+      sym /: CanvasInsetList[sym] = Append[
+        CanvasInsetList[sym],
+        Hold[code]];
+      sym];
+    sym /: CanvasText[sym, code__] := CanvasDimBlock@With[
+      {sty = Style /. Options[sym]},
+      sym /: CanvasInsetList[sym] = Append[
+        CanvasInsetList[sym],
+        Hold@Text[code, FormatType -> TraditionalForm, BaseStyle -> sty]];
+      sym];
+    sym /: Show[sym, showOpts : OptionsPattern[Graphics]] :=
+    CanvasDimBlock@Catch@Block[
+      {$CanvasQuality = False},
+      With[
+        {imsz = ImageSize /. Options[sym],
+         bg = Background /. Options[sym],
+         sty = Style /. Options[sym]},
+        sym /: Show[sym, showOpts] = Check[
+          WithOptions[
+            Graphics@List[
+              {FaceForm[bg], EdgeForm[None],
+               Rectangle[{0, 0}, imsz]},
+              ReleaseHold /@ CanvasInsetList[sym]],
+            showOpts,
+            BaseStyle -> sty,
+            ImageSize -> imsz*72,
+            PlotRange -> {{0, imsz[[1]]}, {0, imsz[[2]]}}],
+          Throw[$Failed]]]];
+    sym /: Graphics[sym, showOpts : OptionsPattern[Graphics]] :=
+    CanvasDimBlock@Catch@Block[
+      {$CanvasQuality = True},
+      With[
+        {imsz = ImageSize /. Options[sym],
+         bg = Background /. Options[sym],
+         sty = Style /. Options[sym]},
+        sym /: Show[sym, showOpts] = Check[
+          WithOptions[
+            Graphics@List[
+              {FaceForm[bg], EdgeForm[None],
+               Rectangle[{0, 0}, imsz]},
+              ReleaseHold /@ CanvasInsetList[sym]],
+            showOpts,
+            BaseStyle -> sty,
+            ImageSize -> imsz*72,
+            PlotRange -> {{0, imsz[[1]]}, {0, imsz[[2]]}}],
+          Throw[$Failed]]]];
+    sym]];
+Protect[Canvas, CanvasInset, CanvasText, CanvasInsetList];
 
 End[];
 EndPackage[];
