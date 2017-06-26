@@ -2006,15 +2006,19 @@ DefineImmutable[
            First],
          All, All, 2]],
      VertexFaceList[map] :> With[
-       {T = VertexIndex[map, FaceListTr[map]],
-        RT = Range[FaceCount[map]]},
-       Part[
-         SplitBy[
-           SortBy[
-             Transpose[{Join @@ T, Join[RT, RT, RT]}],
-             First],
-           First],
-         All, All, 2]],
+       {T = IndexedFaceListTr[map],
+        RT = Range@FaceCount[map]},
+       With[
+         {assc = Association@Map[
+            (#[[1,1]] -> #[[All, 2]])&,
+            SplitBy[
+              SortBy[
+                Transpose[{Join @@ T, Join[RT, RT, RT]}],
+                First],
+              First]]},
+         Table[
+           If[KeyExistsQ[assc, k], assc[k], {}],
+           {k, Range@VertexCount[map]}]]],
      EdgeFaceList[map] :> With[
        {Ft = FaceListTr[map],
         RT = Range[FaceCount[map]]},
