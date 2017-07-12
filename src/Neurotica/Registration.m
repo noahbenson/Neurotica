@@ -230,7 +230,7 @@ With[
     AddToClassPath@FileNameJoin@Join[
       Most@FileNameSplit[$InputFileName], 
       {"lib", "nben", "target"}]]];
-AddToClassPath["/Users/nben/Code/nben/target"];
+
 (* Okay, now we need to make sure to load some classes; if these raise exceptions, then probably
    git submodules were not initialized *)
 If[!Check[
@@ -1476,7 +1476,7 @@ MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
       _ :> Message[MeshRegister::badarg, "VertexCoordinates must be a numerical matrix"]}],
    mesh = SourceMesh[field],
    PE = JavaObject[field],
-   mtd = Replace[OptionValue[Method], Automatic -> "Step"]},
+   mtd = Replace[OptionValue[Method], Automatic -> "RandomStep"]},
   With[
     {min = JavaNew["nben.mesh.registration.Minimizer", PE, X]},
     With[
@@ -1484,14 +1484,20 @@ MeshRegister[field_?PotentialFieldQ, opts:OptionsPattern[]] := With[
          StringQ[mtd], Which[
            mtd == "Step", min@step[pchange, steps, stepsz],
            mtd == "NimbleStep", min@nimbleStep[pchange, steps, stepsz, 4],
-           True, Message[MeshRegister::badarg, "Method must be \"Step\" or \"NimbleStep\""]],
+           mtd == "RandomStep", min@randomStep[pchange, steps, stepsz],
+           True, Message[
+             MeshRegister::badarg,
+             "Method must be \"Step\", \"RandomStep\", or \"NimbleStep\""]],
          ListQ[mtd] && StringQ@First[mtd], Which[
            First[mtd] == "Step", min@step[pchange, steps, stepsz],
            First[mtd] == "NimbleStep", min@nimbleStep[pchange, steps, stepsz, Last[mtd]],
-           True, Message[MeshRegister::badarg, "Method must be \"Step\" or \"NimbleStep\""]],
+           First[mtd] == "RandomStep", min@randomStep[pchange, steps, stepsz],           
+           True, Message[
+             MeshRegister::badarg,
+             "Method must be \"Step\", \"RandomStep\", or \"NimbleStep\""]],
          True, Message[
            MeshRegister::badarg,
-           "Method must be \"Step\", \"NimbleStep\", or {\"NimbleStep\", k}"]]},
+           "Method must be \"Step\", \"RandomStep\", or \"NimbleStep\""]]},
       Clone[
         mesh,
         VertexCoordinatesTr -> (min@getX[])]]]];
