@@ -3886,10 +3886,14 @@ Protect[LabelBoundaryVertexCoordinatesTr];
 (* #LabelBoundaryVertexCoordinates ****************************************************************)
 Options[LabelBoundaryVertexCoordinates] = Options[LabelBoundaryEdgePairsTr];
 LabelBoundaryVertexCoordinates[cortex_?CorticalObjectQ, name_, opts:OptionsPattern[]] := Check[
-  Transpose @ LabelBoundaryVertexCoordinatesTr[cortex, name, opts],
+  With[
+    {bound = LabelBoundaryVertexCoordinatesTr[cortex, name, opts]},
+    If[Length@Dimensions@First[bound] == 2, Transpose /@ bound, Transpose[bound]]],
   $Failed];
 LabelBoundaryVertexCoordinates[sub_, mesh_, hemi_, name_, opts:OptionsPattern[]] := Check[
-  Transpose @ LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name, opts],
+  With[
+    {bound = LabelBoundaryVertexCoordinatesTr[sub, mesh, hemi, name, opts]},
+    If[Length@Dimensions@First[bound] == 2, Transpose /@ bound, Transpose[bound]]],
   $Failed];
 Protect[LabelBoundaryVertexCoordinates];
 
