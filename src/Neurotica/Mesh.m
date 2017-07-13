@@ -1763,7 +1763,8 @@ DefineImmutable[
         tx = (AffineTransform /. ProjectionOptions[map]) /. AffineTransform|None -> Identity},
        With[
          {itx = If[tx === Identity, tx, InverseFunction[tx]]},
-         {Transpose@tx@Transpose[mthd[[1]][##]]&, mthd[[2]][Transpose@itx@Transpose[#]]&}]],
+         {Transpose@tx@Transpose[mthd[[1]][##]]&,
+          Transpose[mthd[[2]][Transpose@itx@Transpose[#]]]&}]],
    
 
      (* ====================================== Properties ======================================= *)
@@ -2260,7 +2261,7 @@ DefineImmutable[
        If[f === None,
          (Message[InverseProject::unin]; $Failed),
          f[VertexCoordinatesTr[map]]]],
-     InverseProjectTr[map, XTr_List] := With[
+     InverseProjectTr[map, Xtr_List] := With[
        {f = TransformationFunctions[map][[2]]},
        If[f === None,
          (Message[InverseProject::unin]; $Failed),
