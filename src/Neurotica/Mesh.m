@@ -1775,7 +1775,7 @@ DefineImmutable[
        {idx = Inclusions[map][[1]]},
        Map[
          Function@With[
-           {sym = TemporarySymbol["prop"<>#[[1]]], name = #[[1]], rule = #},
+           {sym = TemporarySymbol["prop"], name = #[[1]], rule = #},
            name :> SetSafe[
              sym,
              With[{dat = Replace[name, rule]}, If[dat === $Failed, dat, dat[[idx]]]]]],

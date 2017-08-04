@@ -2139,7 +2139,7 @@ DefineImmutable[
              {name = StringSplit[file, "."][[-3]],
               hem = hemi},
              With[
-               {sym = TemporarySymbol["label"<>name]},
+               {sym = TemporarySymbol["label"]},
                With[
                  {rule = (name <> "Label") :> sym},
                  sym := Quiet@SetSafe[
