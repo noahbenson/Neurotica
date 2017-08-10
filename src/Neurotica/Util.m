@@ -193,6 +193,9 @@ PrincipalAxes::moptx = "Method option `1` in PrincipalAxes is not one of {\"Cova
 
 MeshRegionInterpolate::usage = "MeshRegionInterpolate[region, field, points] yields the result of interpolating the given field values across the nodes of the given mesh at the given point or points using an interpolation order of 1.";
 
+AlignPoints3D::usage = "AlignPoints3D[a, b] yields a point-set with an identical distance matrix as the point-set b such that the distance between the corresponding points in point-set a has been minimized; effectively, this aligns the rows in the n x 3 matrix b with the rows in the n x 3 matrix b using rotation, translation, and reflection only.
+AlignPoints3D[b -> a] is equivalent to AlignPoints3D[a, b].";
+
 InsetAxis::usage = "InsetAxis[from, to] yields a list of graphics primitives that draws a floating axis between the given points from and to. The following options may be given:
   * Position (Automatic) may be Left, Right, Top, or Bottom, specifying that the axis is being drawn in the relevant location of the graphic. This affects the directions that the ticks point, the side that the tick labels appear on, and the side that the axis label appears on. If Automatic, will auto-detect the side based on the angle of the axis, assuming that it is either on the Left or Bottom of the plot.
   * DataRange (Automatic) specifies the distance covered by the axis; if {min, max} is given, then the axis assumes that between the from and to points the axis should be values that vary linearly from min to max.
@@ -1485,6 +1488,46 @@ MeshRegionInterpolate[reg_, field_, pts0_, OptionsPattern[]] := With[
                   Total[w]/(tot + (1 - Unitize[tot])),
                   Replace[Unitize[void + (1 - Unitize[tot])], 1 -> Indeterminate, {1}]]]]]]]]]];
 Protect[MeshRegionInterpolate];
+
+(* #AlignPoints3D *********************************************************************************)
+AlignPoints3D[source_ /; MatrixQ[source, NumericQ],
+              target_ /; MatrixQ[target, NumericQ]
+              ] /; (
+                Dimensions[target] == Dimensions[source] && Length@First[target] == 3
+              ) := With[
+  {mtar = N[Transpose[target] - Mean[target]],
+   msrc = N[Transpose[source] - Mean[source]]},
+  With[
+    {d = mtar - msrc, s = mtar + msrc},
+    With[
+      {q = {{Total@Total[d^2],
+             0, 0, 0},
+            {Total[s[[2]]*d[[3]] - s[[3]]*d[[2]]],
+             Total[s[[2]]^2 + s[[3]]^2 + d[[1]]^2],
+             0, 0},
+            {Total[d[[1]]*s[[3]] - s[[1]]*d[[3]]],
+             Total[d[[1]]*d[[2]] - s[[1]]*s[[2]]],
+             Total[s[[1]]^2 + s[[3]]^2 + d[[2]]^2],
+             0},
+            {Total[s[[1]]*d[[2]] - d[[1]]*s[[2]]],
+             Total[d[[1]]*d[[3]] - s[[1]]*s[[3]]],
+             Total[d[[2]]*d[[3]] - s[[2]]*s[[3]]],
+             Total[s[[1]]^2 + s[[2]]^2 + d[[3]]^2]}}},
+      With[
+        {v = #2[[First@Ordering[#1]]] & @@ Eigensystem[q]},
+        Transpose[
+          Mean[source] + Dot[
+            {{v[[1]]^2 + v[[2]]^2 - v[[3]]^2 - v[[4]]^2,
+              2*(v[[2]]*v[[3]] - v[[1]]*v[[4]]),
+              2*(v[[2]]*v[[4]] + v[[1]]*v[[3]])},
+             {2*(v[[2]]*v[[3]] + v[[1]]*v[[4]]),
+              v[[1]]^2 + v[[3]]^2 - v[[2]]^2 - v[[4]]^2,
+              2*(v[[3]]*v[[4]] - v[[1]]*v[[2]])},
+             {2*(v[[2]]*v[[4]] - v[[1]]*v[[3]]),
+              2*(v[[3]]*v[[4]] + v[[1]]*v[[2]]),
+              v[[1]]^2 + v[[4]]^2 - v[[2]]^2 - v[[3]]^2}},
+            mtar]]]]]];
+Protect[AlignPoints3D];
 
 (* #InsetAxis *************************************************************************************)
 ClearAll["Neurotica`Util`InsetAxis`*"];
