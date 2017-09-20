@@ -1102,6 +1102,8 @@ WithOptions[f_[args___], opt1:Except[_List], opts___] := WithOptions[f[args], {o
 Protect[WithOptions];
 
 (* #UpdateOptions *********************************************************************************)
+UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}] := opts;
+UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, {}] := opts;
 UpdateOptions[opts:{(Rule|RuleDelayed)[_,_]...}, repl:(Rule|RuleDelayed)[name_,_]] := Prepend[
   DeleteCases[opts, (Rule|RuleDelayed)[name, _], {1}],
   repl];
