@@ -184,6 +184,7 @@ Additionally, all options that may be given to Nearest[] are accepted with the e
 GaussianInterpolation::badarg = "Bad argument given to GaussianInterpolation: `1`";
 GaussianInterpolation::xdims = "Dimensions for given argument do not match those of interpolated space";
 GaussianInterpolationFunction::usage = "GaussianInterpolationFunction[...] is a form used to store data related to a Gaussian-interpolated function.";
+GaussianInterpolationVariance::usage = "GaussianInterpolationVariance[G, pt] yields the variance of the Gaussian interpolation G at the point or points pt.";
 
 VectorDifferenceFunction::usage = "VectorDifferenceFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and v, f[u, v] is the vector from u to v. By default, this is (#2 - #1)&.";
 VectorScaleFunction::usage = "VectorScaleFunction is an option to GaussianInterpolation that must provide a function f such that, for vectors u and real r, f[u, r] is the vector in the same direction as u but with length norm(u) / r. By default, this is Divide, or (#1/#2)&.";
@@ -1380,6 +1381,42 @@ DefineImmutable[
      GaussianInterpolationLookup[G, Transpose[{xs}]][[All, 1]],
      First@GaussianInterpolationLookup[G, {xs}]],
    GaussianInterpolationLookup[G, x_?NumericQ] := First@GaussianInterpolationLookup[G, {{x}}],
+   (* To calculate a variance of the sampled points *)
+   GaussianInterpolationVariance[G, xs_ /; VectorQ[xs, NumericQ]] := If[Dimensions[G] == 1,
+     GaussianInterpolationVariance[G, Transpose[{xs}]][[All, 1]],
+     First@GaussianInterpolationVariance[G, {xs}]],
+   GaussianInterpolationVariance[G, x_?NumericQ] := First@GaussianInterpolationVariance[G, {{x}}],
+   GaussianInterpolationVariance[G, xs_ /; MatrixQ[xs, NumericQ]] := With[
+     {dims = Dimensions[G],
+      near = Nearest[G],
+      thold = Threshold /. Options[G],
+      distribution = GaussianFilter[G],
+      distFn = DistanceFunction[G],
+      ws = Weights[G],
+      X = Keys[G],
+      Y = Values[G]},
+     Which[
+       dims === Length@First[xs], With[
+         {idcs = If[thold[[2]] === Infinity,
+            near[xs, thold[[1]]],
+            MapThread[Union, {near[xs, thold[[1]]], near[xs, {Infinity, thold[[2]]}]}]]},
+         With[
+           {weights = (ws[[#]]&/@idcs) * PDF[
+              distribution,
+              MapThread[
+                MapThread[distFn, {#1, #2}]&,
+                {MapThread[ConstantArray, {xs, Length /@ idcs}],
+                 X[[#]]& /@ idcs}]]},
+           With[
+             {mu = MapThread[
+                Function[Dot[Y[[#1]], #2] / Total[#2]],
+                {idcs, weights}]},
+             MapThread[
+               Function[Dot[(Y[[#1]] - #3)^2, #2] / Total[#2]],
+               {idcs, weights, mu}]]]],
+       dims === Length[xs], GaussianInterpolationVariance[G, Transpose[xs]],
+       True, Message[GaussianInterpolation::xdims]]],
+
    (* And the derivative... *)
    GaussianInterpolationDerivative[G, xs_ /; MatrixQ[xs, NumericQ]] := With[
      {dims = Dimensions[G],

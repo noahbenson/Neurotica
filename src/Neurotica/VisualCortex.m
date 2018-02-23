@@ -198,6 +198,7 @@ V123MeshFunctions::usage = "V123MeshFunctions[mdl] yields a new set of mesh tran
 ExportV123Model::usage = "ExportV123Model[flname, mdl] yields the filename of the file to which the fundamentals of the given V123Model, mdl, have been written.";
 
 ImportFMM::usage = "ImportFMM[stream] is identical to Import[<filename>, \"FMM\"]; the latter form is usually prefered. Both yield the imported flat-mesh-model data as an association.";
+ImportFMM::badfmt = "Bad format in FMM file: `1`";
 
 (**************************************************************************************************)
 (**************************************************************************************************)
@@ -815,35 +816,47 @@ Protect[SchiraModel, SchiraModelObject, SchiraFunction, SchiraInverse,
         CorticalMapToVisualField, VisualFieldToCorticalMap];
 
 (* Plotting Data **********************************************************************************)
-PolarAngleLegend[hemi : (LH|RH), opts___Rule] := DensityPlot[
-  If[hemi === LH, ArcTan[x, y], ArcTan[90 - x, y]],
-  {x, 0, 90},
-  {y, -90, 90},
-  opts,
-  RegionFunction -> If[hemi === LH, (Norm[{#1, #2}] < 90 &), (Norm[{90 - #1, #2}] < 90 &)],
-  ColorFunctionScaling -> False,
-  ColorFunction -> Function[CorticalColorData["PolarAngle"][<|"PolarAngle" -> 90.0 - #*180.0/Pi|>]],
-  Frame -> False,
-  Axes -> False,
-  BaseStyle -> Directive[10, FontFamily -> "Arial"],
-  ImageSize -> 1.25*72,
-  AspectRatio -> 2,
-  Background -> White];
-
-EccentricityLegend[hemi : (LH | RH), max_?NumericQ /; 0 < max <= 90, opts___Rule] := DensityPlot[
-  If[hemi === LH, Norm[{x, y}], Norm[{max - x, y}]],
-  {x, 0, max},
-  {y, -max, max},
-  opts,
-  RegionFunction -> If[hemi === LH, (Norm[{#1, #2}] < max &), (Norm[{max - #1, #2}] < max &)],
-  ColorFunctionScaling -> False,
-  ColorFunction -> Function[CorticalColorData["Eccentricity"][<|"Eccentricity" -> #|>]],
-  Frame -> False,
-  Axes -> False,
-  BaseStyle -> Directive[10, FontFamily -> "Arial"],
-  ImageSize -> 1.25*72,
-  AspectRatio -> 2,
-  Background -> White];
+PolarAngleLegend[hemi : (LH|RH), opts___Rule] := PolarAngleLegend[hemi, 90, opts];
+PolarAngleLegend[hemi : (LH|RH), max_?NumericQ /; 0 < max <= 90, opts___Rule] := With[
+  {xmin = If[hemi === LH, 0, -max],
+   xmax = If[hemi === LH, max, 0]},
+  Block[{x,y},
+    DensityPlot[
+      Mod[90 - 180/Pi * ArcTan[x, y] + 180, 360] - 180,
+      {x, xmin, xmax},
+      {y, -max, max},
+      opts,
+      RegionFunction -> (Norm[{#1, #2}] < max &),
+      ColorFunctionScaling -> False,
+      ColorFunction -> Function[CorticalColorData["PolarAngle"][<|"PolarAngle" -> #|>]],
+      Frame -> False,
+      Axes -> False,
+      BaseStyle -> Directive[10, FontFamily -> "Arial"],
+      PlotPoints -> 100,
+      PerformanceGoal -> "Quality",
+      ImageSize -> 1.25*72,
+      AspectRatio -> 2,
+      Background -> White]]];
+EccentricityLegend[hemi : (LH | RH), max_?NumericQ /; 0 < max <= 90, opts___Rule] := With[
+  {xmin = If[hemi === LH, 0, -max],
+   xmax = If[hemi === LH, max, 0]},
+  Block[{x,y},
+    DensityPlot[
+      Norm[{x, y}],
+      {x, xmin, xmax},
+      {y, -max, max},
+      opts,
+      RegionFunction -> (Norm[{#1, #2}] < max &),
+      ColorFunctionScaling -> False,
+      ColorFunction -> Function[CorticalColorData["Eccentricity"][<|"Eccentricity" -> #|>]],
+      Frame -> False,
+      Axes -> False,
+      BaseStyle -> Directive[10, FontFamily -> "Arial"],
+      PlotPoints -> 100,
+      PerformanceGoal -> "Quality",
+      ImageSize -> 1.25*72,
+      AspectRatio -> 2,
+      Background -> White]]];
 
 
 (* #SchiraParametricPlot **************************************************************************)
@@ -2039,11 +2052,10 @@ Protect[V123Model];
 (* #V123ModelQ ************************************************************************************)
 V123ModelQ[_] := False;
 V123ModelQ[mdl_?AssociationQ] := And[
-  KeyExistsQ[mdl, "VisualFieldToCorticalMap"],
-  KeyExistsQ[mdl, "CorticalMapToVisualField"],
   KeyExistsQ[mdl, "Mesh"],
   KeyExistsQ[mdl, "PolarAngle"],
-  KeyExistsQ[mdl, "Eccentricity"]];
+  KeyExistsQ[mdl, "Eccentricity"],
+  KeyExistsQ[mdl, "VisualArea"]];
 Protect[V123ModelQ];
 
 
@@ -2051,7 +2063,7 @@ Protect[V123ModelQ];
 ImportFMM[stream_, opts : (((Rule | RuleDelayed)[_, _]) ...)] := Check[
   Catch@With[
     {version = ReadLine[stream],
-     headerLines = Table[ReadLine[stream], {8}],
+     headerLines = Table[ReadLine[stream], {9}],
      interps = {
        {"Points: ", ToExpression},
        {"Triangles: ", ToExpression},
@@ -2060,14 +2072,13 @@ ImportFMM[stream_, opts : (((Rule | RuleDelayed)[_, _]) ...)] := Check[
        {"Center: ", ToExpression["{" <> # <> "}"] &},
        {"OnXAxis: ", ToExpression["{" <> # <> "}"] &},
        {"Method: ", Identity},
-       {"Transform: ",
-        Function@ToExpression@StringReplace[
+       {"Transform: ", Function@ToExpression@StringReplace[
           #,
-          {"[" -> "{{", "]" -> "}}", ";" -> "},{"}]}},
+          {"[" -> "{{", "]" -> "}}", ";" -> "},{"}]},
+       {"AreaNames: ", StringSplit[StringTake[#, {2, -2}], " "]&}},
      ptinterp = Function@With[
        {parts =
-        ToExpression["{" <> # <> "}"] & /@
-        StringSplit[#, " :: "]},
+        ToExpression["{" <> # <> "}"] & /@ StringSplit[#, " :: "]},
        {parts[[1]], {#1, #2, Round[#3]} & @@ parts[[2]]}]},
     If[version != "Flat Mesh Model Version: 1.0",
       Message[ImportFMM::badfmt, "First line must announce version 1.0"];
@@ -2075,7 +2086,7 @@ ImportFMM[stream_, opts : (((Rule | RuleDelayed)[_, _]) ...)] := Check[
     With[
       {header = Association@MapThread[
          Function@If[! StringStartsQ[#1, #2[[1]]],
-           (Message[ImportFMM::badfmt, "Header incorrect"];
+           (Message[ImportFMM::badfmt, "Header incorrect-- " #1];
             Throw[$Failed]),
            Rule[
              First@StringSplit[#1, ":"],
