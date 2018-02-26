@@ -542,13 +542,13 @@ ImportSurfaceVertexCoordinates[stream_, opts__] := "VertexCoordinates" -> Block[
                ImportSurface::badfmt,
                "input stream",
                "EndOfFile reached before end of vertices"];
-             Throw[$Failed]),
+             Throw[$Failed])(*,
            x_ /; Not[NumberQ[x]] :> (
              Message[
                ImportSurface::badfmt,
                "input stream",
                "NaN read from file while importing vertices"];
-             Throw[$Failed])},
+             Throw[$Failed])*)},
           {1}],
         3]]]];
 ImportSurfaceFaceList[stream_, opts__] := "FaceList" -> Block[
